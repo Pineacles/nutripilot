@@ -57,12 +57,14 @@ async def log_weight(
     user_id: UUID,
     weight_kg: float,
     body_fat_pct: float | None = None,
+    muscle_mass_pct: float | None = None,
     source: str = "manual",
     log_date: date | None = None,
 ) -> WeightLog:
     entry = WeightLog(
         user_id=user_id,
         weight_kg=weight_kg,
+        muscle_mass_pct=muscle_mass_pct,
         body_fat_pct=body_fat_pct,
         source=source,
         date=log_date or date.today(),

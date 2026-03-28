@@ -9,6 +9,19 @@ class MacroTotals(BaseModel):
     protein: float
     carbs: float
     fat: float
+    fiber: float = 0
+    sugar: float = 0
+    sodium: float = 0  # mg
+
+
+class MacroTargets(BaseModel):
+    kcal: float
+    protein: float
+    carbs: float
+    fat: float
+    fiber: float
+    sugar: float
+    sodium: float  # mg
 
 
 class MealItem(BaseModel):
@@ -32,7 +45,7 @@ class SupplementEntry(BaseModel):
 class TodaySummary(BaseModel):
     date: datetime.date
     totals: MacroTotals
-    targets: MacroTotals
+    targets: MacroTargets
     meals: list[MealGroup]
     supplements: list[SupplementEntry]
 
@@ -56,9 +69,29 @@ class WeightDelta(BaseModel):
     delta: Optional[float] = None
 
 
+class BodyCompEntry(BaseModel):
+    date: datetime.date
+    weight_kg: float
+    body_fat_pct: Optional[float] = None
+    muscle_mass_pct: Optional[float] = None
+
+
 class WeekSummary(BaseModel):
     start_date: datetime.date
     end_date: datetime.date
     daily_avg: MacroTotals
     micronutrient_avg: MicronutrientAverages
     weight: WeightDelta
+    body_comp: list[BodyCompEntry]
+
+
+class StatsSummary(BaseModel):
+    weight_history: list[BodyCompEntry]
+    daily_calories: list[dict]  # [{date, kcal}]
+    macro_avg: MacroTotals
+    days_logged: int
+    total_days: int
+    supplement_adherence_pct: float
+    highest_protein_day: Optional[dict] = None  # {date, protein}
+    lowest_calorie_day: Optional[dict] = None  # {date, kcal}
+    current_streak: int

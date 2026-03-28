@@ -17,5 +17,6 @@ class WeightLog(Base):
     date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)
     weight_kg: Mapped[float] = mapped_column(Float, nullable=False)
     body_fat_pct: Mapped[float | None] = mapped_column(Float)
+    muscle_mass_pct: Mapped[float | None] = mapped_column(Float)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
     logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

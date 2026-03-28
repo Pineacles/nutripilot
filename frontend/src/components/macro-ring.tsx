@@ -1,21 +1,29 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import type { MacroTotals } from "@/lib/types";
+import type { MacroTotals, MacroTargets } from "@/lib/types";
 import { DashboardCard } from "./dashboard-card";
 
 interface Props {
   totals: MacroTotals;
-  targets: MacroTotals;
+  targets: MacroTargets;
+}
+
+function getRingColor(pct: number): string {
+  if (pct > 1.0) return "#ef4444";  // over target — red
+  if (pct > 0.9) return "#f59e0b";  // 90-100% — amber
+  return "#22c55e";                   // under 90% — green
 }
 
 export function CalorieRingCard({ totals, targets }: Props) {
   const eaten = Math.round(totals.kcal);
   const remaining = Math.max(0, Math.round(targets.kcal - totals.kcal));
-  const pct = Math.min(totals.kcal / targets.kcal, 1);
+  const rawPct = targets.kcal > 0 ? totals.kcal / targets.kcal : 0;
+  const pct = Math.min(rawPct, 1);
+  const ringColor = getRingColor(rawPct);
 
   const data = [
-    { value: pct * 100, fill: "#22c55e" },
+    { value: pct * 100, fill: ringColor },
     { value: (1 - pct) * 100, fill: "#1f1f23" },
   ];
 
@@ -48,7 +56,12 @@ export function CalorieRingCard({ totals, targets }: Props) {
           </div>
         </div>
         <p className="text-sm text-white/50 mt-2 tabular-nums">
-          <span className="text-[#22c55e] font-semibold">{remaining}</span> kcal remaining
+          {rawPct > 1.0 ? (
+            <span className="text-[#ef4444] font-semibold">{Math.round(totals.kcal - targets.kcal)} over</span>
+          ) : (
+            <span style={{ color: ringColor }} className="font-semibold">{remaining} remaining</span>
+          )}
+          {" "}kcal
         </p>
       </div>
     </DashboardCard>

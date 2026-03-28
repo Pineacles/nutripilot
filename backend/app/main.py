@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import agent, auth, dashboard, foods
+from app.routers import agent, auth, dashboard, foods, settings as settings_router
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.include_router(auth.router)
 app.include_router(foods.router)
 app.include_router(agent.router)
 app.include_router(dashboard.router)
+app.include_router(settings_router.router)
 
 
 @app.get("/health")
