@@ -1,41 +1,36 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { isLoggedIn } from "@/lib/auth";
 import { useWeekSummary } from "@/hooks/use-summary";
-import { NavBar } from "@/components/nav-bar";
-import { CalorieChart } from "@/components/calorie-chart";
-import { WeightTrend } from "@/components/weight-trend";
-import { MacroAverages } from "@/components/macro-averages";
+import { DashboardLayout } from "@/components/dashboard-layout";
+import { CalorieChartCard } from "@/components/calorie-chart";
+import { WeightTrendCard } from "@/components/weight-trend";
+import { MacroAveragesCard } from "@/components/macro-averages";
+import { MicronutrientSummaryCard } from "@/components/micronutrient-summary";
 
 export default function WeeklyPage() {
-  const router = useRouter();
   const { data, loading } = useWeekSummary();
 
-  useEffect(() => {
-    if (!isLoggedIn()) router.replace("/login");
-  }, [router]);
-
-  if (loading || !data) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#4f9cf9] border-t-transparent" />
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto w-full max-w-md px-4 pb-24 pt-8">
-      <h1 className="text-lg font-semibold mb-6">Weekly</h1>
+    <DashboardLayout title="Weekly Overview">
+      {loading || !data ? (
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#22c55e] border-t-transparent" />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Row 1: Calorie chart (2/3) + Weight trend (1/3) */}
+          <div className="grid grid-cols-3 gap-4">
+            <CalorieChartCard dailyAvgKcal={data.daily_avg.kcal} targetKcal={2000} />
+            <WeightTrendCard weight={data.weight} goalKg={78} />
+          </div>
 
-      <div className="space-y-4">
-        <MacroAverages dailyAvg={data.daily_avg} />
-        <CalorieChart dailyAvgKcal={data.daily_avg.kcal} targetKcal={2000} />
-        <WeightTrend weight={data.weight} goalKg={78} />
-      </div>
-
-      <NavBar />
-    </div>
+          {/* Row 2: Macro averages + Micronutrient summary */}
+          <div className="grid grid-cols-2 gap-4">
+            <MacroAveragesCard dailyAvg={data.daily_avg} />
+            <MicronutrientSummaryCard microAvg={data.micronutrient_avg} />
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
   );
 }

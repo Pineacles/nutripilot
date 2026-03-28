@@ -1,33 +1,37 @@
 "use client";
 
 import type { MacroTotals } from "@/lib/types";
+import { DashboardCard } from "./dashboard-card";
 
 interface Props {
   dailyAvg: MacroTotals;
 }
 
-export function MacroAverages({ dailyAvg }: Props) {
+export function MacroAveragesCard({ dailyAvg }: Props) {
   const macros = [
-    { label: "Avg Calories", value: Math.round(dailyAvg.kcal), unit: "kcal", color: "#e8e8e8" },
-    { label: "Avg Protein", value: Math.round(dailyAvg.protein), unit: "g", color: "#4f9cf9" },
-    { label: "Avg Carbs", value: Math.round(dailyAvg.carbs), unit: "g", color: "#f9c74f" },
-    { label: "Avg Fat", value: Math.round(dailyAvg.fat), unit: "g", color: "#f94f4f" },
+    { label: "Avg Protein", value: Math.round(dailyAvg.protein), unit: "g", color: "#22c55e" },
+    { label: "Avg Carbs", value: Math.round(dailyAvg.carbs), unit: "g", color: "#3b82f6" },
+    { label: "Avg Fat", value: Math.round(dailyAvg.fat), unit: "g", color: "#f59e0b" },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {macros.map((m) => (
-        <div
-          key={m.label}
-          className="rounded-xl border border-[#2a2a30] bg-[#1a1a1f] p-4 transition-all hover:border-[#3a3a40]"
-        >
-          <p className="text-xs text-[#888] mb-1">{m.label}</p>
-          <p className="text-xl font-bold tabular-nums" style={{ color: m.color }}>
-            {m.value}
-            <span className="text-sm font-normal text-[#888] ml-0.5">{m.unit}</span>
-          </p>
-        </div>
-      ))}
-    </div>
+    <DashboardCard title="Weekly Macro Averages">
+      <div className="flex items-center justify-around flex-1">
+        {macros.map((m) => (
+          <div key={m.label} className="text-center">
+            <p className="text-3xl font-bold tabular-nums" style={{ color: m.color }}>
+              {m.value}
+              <span className="text-base font-normal text-white/30 ml-0.5">{m.unit}</span>
+            </p>
+            <p className="text-[11px] text-white/40 mt-1">{m.label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="text-center mt-1">
+        <p className="text-sm text-white/50 tabular-nums">
+          Avg daily intake: <span className="font-semibold text-white">{Math.round(dailyAvg.kcal)} kcal</span>
+        </p>
+      </div>
+    </DashboardCard>
   );
 }

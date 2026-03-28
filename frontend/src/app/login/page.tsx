@@ -25,45 +25,41 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#0f0f0f] px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">NutriPilot</h1>
-          <p className="mt-2 text-sm text-[#888]">
+          <h1 className="text-3xl font-bold tracking-tight text-white">NutriPilot</h1>
+          <p className="mt-2 text-sm text-white/40">
             Agent-first nutrition tracking
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-xl border border-[#2a2a30] bg-[#1a1a1f] px-4 py-3 text-sm text-[#e8e8e8] placeholder-[#888] outline-none focus:border-[#4f9cf9] transition-colors"
-            />
-          </div>
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-xl border border-[#2a2a30] bg-[#1a1a1f] px-4 py-3 text-sm text-[#e8e8e8] placeholder-[#888] outline-none focus:border-[#4f9cf9] transition-colors"
-            />
-          </div>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full rounded-2xl border border-white/5 bg-[#1a1a1a] px-4 py-3.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#22c55e]/50 transition-colors"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full rounded-2xl border border-white/5 bg-[#1a1a1a] px-4 py-3.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#22c55e]/50 transition-colors"
+          />
 
           {error && (
-            <p className="text-sm text-[#f94f4f]">{error}</p>
+            <p className="text-sm text-[#ef4444]">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-[#4f9cf9] py-3 text-sm font-semibold text-[#0d0d0f] transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-2xl bg-[#22c55e] py-3.5 text-sm font-semibold text-[#0f0f0f] transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>

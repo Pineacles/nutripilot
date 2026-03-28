@@ -1,45 +1,40 @@
 "use client";
 
 import type { SupplementEntry } from "@/lib/types";
+import { DashboardCard } from "./dashboard-card";
 
 interface Props {
   supplements: SupplementEntry[];
 }
 
-export function SupplementChecklist({ supplements }: Props) {
-  if (supplements.length === 0) {
-    return (
-      <div className="rounded-xl border border-[#2a2a30] bg-[#1a1a1f] p-4">
-        <p className="text-sm text-[#888]">No supplements logged today</p>
-      </div>
-    );
-  }
-
+export function SupplementsCard({ supplements }: Props) {
   return (
-    <div className="rounded-xl border border-[#2a2a30] bg-[#1a1a1f] p-4">
-      <h3 className="text-xs font-medium uppercase tracking-wider text-[#888] mb-3">
-        Supplements
-      </h3>
-      <div className="space-y-2">
-        {supplements.map((s, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <div className="h-4 w-4 rounded border border-[#4ade80] bg-[#4ade80]/20 flex items-center justify-center">
-              <svg className="h-2.5 w-2.5 text-[#4ade80]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+    <DashboardCard title="Supplements" className="col-span-1">
+      {supplements.length === 0 ? (
+        <p className="text-sm text-white/30">No supplements today</p>
+      ) : (
+        <div className="space-y-3">
+          {supplements.map((s, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <div className="h-5 w-5 rounded-md border border-[#22c55e]/40 bg-[#22c55e]/10 flex items-center justify-center shrink-0">
+                <svg
+                  className="h-3 w-3 text-[#22c55e]"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white/80 truncate">{s.name}</p>
+                <p className="text-xs text-white/30">
+                  {s.dose_amount} {s.dose_unit}
+                  {s.time_of_day && ` · ${s.time_of_day}`}
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <span className="text-sm">{s.name}</span>
-              <span className="ml-2 text-xs text-[#888]">
-                {s.dose_amount} {s.dose_unit}
-              </span>
-            </div>
-            {s.time_of_day && (
-              <span className="text-xs text-[#888] capitalize">{s.time_of_day}</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      )}
+    </DashboardCard>
   );
 }

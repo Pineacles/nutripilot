@@ -43,14 +43,14 @@
 
 /* Dark-first — no light mode */
 :root {
-  --background: #0d0d0f;
+  --background: #0f0f0f;
   --foreground: #e8e8e8;
-  --card: #1a1a1f;
+  --card: #1a1a1a;
   --card-foreground: #e8e8e8;
-  --popover: #1a1a1f;
+  --popover: #1a1a1a;
   --popover-foreground: #e8e8e8;
-  --primary: #4f9cf9;
-  --primary-foreground: #0d0d0f;
+  --primary: #22c55e;
+  --primary-foreground: #0f0f0f;
   --secondary: #2a2a30;
   --secondary-foreground: #e8e8e8;
   --muted: #2a2a30;
