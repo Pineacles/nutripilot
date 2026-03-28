@@ -1,0 +1,66 @@
+from uuid import UUID
+
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.food import Food
+from app.models.nutrient import Nutrient
+from app.schemas.food import FoodCreate, NutrientData
+
+
+async def create_food(db: AsyncSession, data: FoodCreate, source: str = "manual") -> Food:
+    food = Food(name=data.name, barcode=data.barcode, source=source)
+    db.add(food)
+    await db.flush()
+
+    nutrient = Nutrient(food_id=food.id, **data.nutrients.model_dump())
+    db.add(nutrient)
+    await db.commit()
+    await db.refresh(food)
+    return food
+
+
+async def create_food_from_external(
+    db: AsyncSession, name: str, barcode: str | None, source: str, nutrients: NutrientData
+) -> Food:
+    food = Food(name=name, barcode=barcode, source=source)
+    db.add(food)
+    await db.flush()
+
+    nutrient = Nutrient(food_id=food.id, **nutrients.model_dump())
+    db.add(nutrient)
+    await db.commit()
+    await db.refresh(food)
+    return food
+
+
+async def search_foods(db: AsyncSession, query: str, limit: int = 10) -> list[dict]:
+    stmt = (
+        select(
+            Food.id,
+            Food.name,
+            Food.barcode,
+            Nutrient.kcal,
+            Nutrient.protein,
+        )
+        .outerjoin(Nutrient, Food.id == Nutrient.food_id)
+        .where(func.similarity(Food.name, query) > 0.1)
+        .order_by(func.similarity(Food.name, query).desc())
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    return [
+        {"id": r.id, "name": r.name, "barcode": r.barcode, "kcal": r.kcal, "protein": r.protein}
+        for r in rows
+    ]
+
+
+async def get_food_by_barcode(db: AsyncSession, barcode: str) -> Food | None:
+    result = await db.execute(select(Food).where(Food.barcode == barcode))
+    return result.scalar_one_or_none()
+
+
+async def get_food_by_id(db: AsyncSession, food_id: UUID) -> Food | None:
+    result = await db.execute(select(Food).where(Food.id == food_id))
+    return result.scalar_one_or_none()

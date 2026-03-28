@@ -1,0 +1,50 @@
+from uuid import UUID
+
+from pydantic import BaseModel
+
+
+class NutrientData(BaseModel):
+    kcal: float | None = None
+    protein: float | None = None
+    carbs: float | None = None
+    sugar: float | None = None
+    fiber: float | None = None
+    fat: float | None = None
+    sat_fat: float | None = None
+    salt: float | None = None
+    calcium: float | None = None
+    potassium: float | None = None
+    omega3: float | None = None
+    zinc: float | None = None
+    vit_d: float | None = None
+    vit_k2: float | None = None
+    vit_c: float | None = None
+    magnesium: float | None = None
+    b12: float | None = None
+    iron: float | None = None
+
+
+class FoodCreate(BaseModel):
+    name: str
+    barcode: str | None = None
+    nutrients: NutrientData
+
+
+class FoodResponse(BaseModel):
+    id: UUID
+    name: str
+    barcode: str | None
+    source: str
+    nutrients: NutrientData | None
+
+    model_config = {"from_attributes": True}
+
+
+class FoodSearchResult(BaseModel):
+    id: UUID
+    name: str
+    barcode: str | None
+    kcal: float | None
+    protein: float | None
+
+    model_config = {"from_attributes": True}
