@@ -1,21 +1,21 @@
 import datetime
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class FoodLogCreate(BaseModel):
     food_id: UUID
-    quantity_g: float
-    meal_type: str  # breakfast | lunch | dinner | snack
+    quantity_g: float = Field(gt=0, le=10000)
+    meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
     date: Optional[datetime.date] = None
 
 
 class FoodLogByBarcodeCreate(BaseModel):
     barcode: str
-    quantity_g: float
-    meal_type: str
+    quantity_g: float = Field(gt=0, le=10000)
+    meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
     date: Optional[datetime.date] = None
 
 

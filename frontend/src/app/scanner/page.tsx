@@ -50,24 +50,10 @@ export default function ScannerPage() {
     setLoading(true);
     setResult(null);
     try {
-      // We need to hit the foods barcode endpoint — use a special dashboard route
-      const res = await fetch(
-        `/api/foods/barcode/${code}`,
-        {
-          headers: {
-            "X-API-Key": "dev-api-key-change-in-production", // For demo; in prod this would be handled differently
-          },
-        }
-      );
-      if (!res.ok) {
-        setError("Food not found for this barcode");
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
+      const data = await apiFetch<FoodResult>(`/api/foods/barcode/${code}`);
       setResult(data);
     } catch {
-      setError("Failed to lookup barcode");
+      setError("Food not found for this barcode");
     }
     setLoading(false);
   }

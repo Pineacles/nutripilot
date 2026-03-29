@@ -2,6 +2,9 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # NOTE: All default values are for development only.
+    # They MUST be overridden via environment variables in production.
+    environment: str = "dev"
     database_url: str = "postgresql+asyncpg://nutripilot:nutripilot@db:5432/nutripilot"
     jwt_secret: str = "dev-secret-change-in-production"
     jwt_algorithm: str = "HS256"

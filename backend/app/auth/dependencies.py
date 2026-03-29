@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,14 +7,16 @@ from app.auth.jwt import decode_token
 from app.database import get_db
 from app.models.user import User
 
-api_key_header = APIKeyHeader(name="X-API-Key")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
 async def get_current_user_api_key(
     api_key: str = Depends(api_key_header),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    if api_key is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
     result = await db.execute(select(User).where(User.api_key == api_key))
     user = result.scalar_one_or_none()
     if user is None:
@@ -26,6 +28,8 @@ async def get_current_user_jwt(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    if token is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authorization token")
     payload = decode_token(token)
     if payload is None or payload.get("type") != "access":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
@@ -37,3 +41,34 @@ async def get_current_user_jwt(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
+
+
+async def get_current_user_jwt_or_api_key(
+    request: Request,
+    api_key: str | None = Depends(api_key_header),
+    token: str | None = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Accept either JWT Bearer token or X-API-Key header for authentication."""
+    # Try API key first (agents / barcode scanner)
+    if api_key is not None:
+        result = await db.execute(select(User).where(User.api_key == api_key))
+        user = result.scalar_one_or_none()
+        if user is not None:
+            return user
+
+    # Try JWT token (browser / dashboard)
+    if token is not None:
+        payload = decode_token(token)
+        if payload is not None and payload.get("type") == "access":
+            user_id = payload.get("sub")
+            if user_id is not None:
+                result = await db.execute(select(User).where(User.id == user_id))
+                user = result.scalar_one_or_none()
+                if user is not None:
+                    return user
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Valid JWT Bearer token or X-API-Key header required",
+    )

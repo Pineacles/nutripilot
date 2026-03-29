@@ -10,14 +10,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  let res = await fetch(`${path}`, { ...init, headers });
+  let res = await fetch(`${path}`, { ...init, headers, credentials: "include" });
 
   // Try refresh on 401
   if (res.status === 401) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       headers["Authorization"] = `Bearer ${getToken()}`;
-      res = await fetch(`${path}`, { ...init, headers });
+      res = await fetch(`${path}`, { ...init, headers, credentials: "include" });
     } else {
       clearTokens();
       window.location.href = "/login";

@@ -25,17 +25,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // API calls: network-first
+  // API calls: never cache, let them pass through to the network
   if (request.url.includes("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
     return;
   }
 
@@ -57,4 +48,12 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request))
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data === "CLEAR_CACHE") {
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((k) => caches.delete(k)))
+    );
+  }
 });

@@ -1,15 +1,15 @@
 import datetime
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SupplementCreate(BaseModel):
-    name: str
-    dose_amount: float
-    dose_unit: str = "g"
-    time_of_day: Optional[str] = None  # morning | afternoon | evening
+    name: str = Field(min_length=1, max_length=200)
+    dose_amount: float = Field(gt=0, le=100000)
+    dose_unit: Literal["mg", "g", "IU", "mcg", "\u00b5g", "ml"] = "g"
+    time_of_day: Optional[Literal["morning", "afternoon", "evening"]] = None
     date: Optional[datetime.date] = None
 
 

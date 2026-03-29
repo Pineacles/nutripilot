@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class NutrientData(BaseModel):
@@ -25,8 +25,8 @@ class NutrientData(BaseModel):
 
 
 class FoodCreate(BaseModel):
-    name: str
-    barcode: str | None = None
+    name: str = Field(min_length=1, max_length=500)
+    barcode: str | None = Field(default=None, min_length=4, max_length=50)
     nutrients: NutrientData
 
 

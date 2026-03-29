@@ -2,17 +2,17 @@ import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class NutritionTargetsUpdate(BaseModel):
-    target_kcal: int
-    target_protein_g: float
-    target_carbs_g: float
-    target_fat_g: float
-    target_fiber_g: float = 30
-    target_sugar_g: float = 50
-    target_sodium_mg: float = 2300
+    target_kcal: int = Field(gt=0, le=10000)
+    target_protein_g: float = Field(ge=0, le=1000)
+    target_carbs_g: float = Field(ge=0, le=1000)
+    target_fat_g: float = Field(ge=0, le=500)
+    target_fiber_g: float = Field(default=30, ge=0, le=200)
+    target_sugar_g: float = Field(default=50, ge=0, le=500)
+    target_sodium_mg: float = Field(default=2300, ge=0, le=10000)
 
 
 class NutritionTargetsResponse(BaseModel):
@@ -26,9 +26,9 @@ class NutritionTargetsResponse(BaseModel):
 
 
 class MicronutrientTargetItem(BaseModel):
-    nutrient: str
-    target_value: float
-    unit: str
+    nutrient: str = Field(min_length=1, max_length=100)
+    target_value: float = Field(gt=0, le=100000)
+    unit: str = Field(min_length=1, max_length=20)
 
 
 class MicronutrientTargetsUpdate(BaseModel):

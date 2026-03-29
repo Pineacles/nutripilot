@@ -16,6 +16,14 @@ export function setTokens(access: string, refresh: string) {
 export function clearTokens() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
+  // Clear service worker cache
+  if (typeof navigator !== "undefined" && navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.controller.postMessage("CLEAR_CACHE");
+  }
+  // Clear caches directly via the Cache API
+  if (typeof caches !== "undefined") {
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+  }
 }
 
 export function isLoggedIn(): boolean {
@@ -29,6 +37,7 @@ export async function login(
   const res = await fetch(`/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ email, password }),
   });
   if (!res.ok) return false;
@@ -43,6 +52,7 @@ export async function refreshAccessToken(): Promise<boolean> {
   const res = await fetch(`/api/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ refresh_token: refresh }),
   });
   if (!res.ok) {
