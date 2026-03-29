@@ -1,15 +1,20 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_api_key
 from app.database import get_db
+from app.models.food_log import FoodLog
+from app.models.integration import Integration
 from app.models.micronutrient_target import MicronutrientTarget
+from app.models.supplement import Supplement
 from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
-from app.schemas.food_log import FoodLogByBarcodeCreate, FoodLogCreate, FoodLogResponse
+from app.models.weight_log import WeightLog
+from app.schemas.food_log import FoodLogByBarcodeCreate, FoodLogCreate, FoodLogResponse, FoodLogUpdate
+from app.schemas.integration import IntegrationCreate, IntegrationResponse, IntegrationUpdate
 from app.schemas.settings import (
     MicronutrientTargetItem,
     MicronutrientTargetsUpdate,
@@ -20,9 +25,9 @@ from app.schemas.settings import (
     SupplementDefinitionUpdate,
     UserSettingsResponse,
 )
-from app.schemas.supplement import SupplementCreate, SupplementResponse
-from app.schemas.summary import TodaySummary, WeekSummary
-from app.schemas.weight_log import WeightLogCreate, WeightLogResponse
+from app.schemas.supplement import SupplementCreate, SupplementLogUpdate, SupplementResponse
+from app.schemas.summary import StatsSummary, TodaySummary, WeekSummary
+from app.schemas.weight_log import WeightLogCreate, WeightLogResponse, WeightLogUpdate
 from app.services import barcode_service, food_service, logging_service, summary_service
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -36,7 +41,10 @@ async def log_food(
 ):
     food = await food_service.get_food_by_id(db, body.food_id)
     if food is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Food not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": "Food not found", "code": "FOOD_NOT_FOUND"},
+        )
 
     entry = await logging_service.log_food(db, user.id, food.id, body.quantity_g, body.meal_type, body.date)
 
@@ -63,7 +71,10 @@ async def log_food_by_barcode(
 ):
     food = await barcode_service.lookup_barcode(db, body.barcode)
     if food is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Food not found for barcode")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": body.barcode},
+        )
 
     entry = await logging_service.log_food(db, user.id, food.id, body.quantity_g, body.meal_type, body.date)
 
@@ -108,7 +119,7 @@ async def log_weight(
     user: User = Depends(get_current_user_api_key),
 ):
     entry = await logging_service.log_weight(
-        db, user.id, body.weight_kg, body.body_fat_pct, body.muscle_mass_pct, "manual", body.date
+        db, user.id, body.weight_kg, body.body_fat_pct, body.muscle_mass_pct, body.source or "manual", body.date
     )
     return WeightLogResponse(
         id=entry.id,
@@ -279,4 +290,211 @@ async def agent_delete_supplement(
     if supp is None:
         raise HTTPException(status_code=404, detail="Supplement not found")
     await db.delete(supp)
+    await db.commit()
+
+
+# --- Food Log CRUD ---
+
+@router.put("/log/food/{log_id}", response_model=FoodLogResponse)
+async def update_food_log(
+    log_id: UUID,
+    body: FoodLogUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(FoodLog).where(FoodLog.id == log_id, FoodLog.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(log, field, value)
+    await db.commit()
+    await db.refresh(log)
+    food = await food_service.get_food_by_id(db, log.food_id)
+    n = food.nutrients if food else None
+    ratio = log.quantity_g / 100.0
+    return FoodLogResponse(
+        id=log.id, food_name=food.name if food else "Unknown",
+        quantity_g=log.quantity_g, meal_type=log.meal_type, date=log.date,
+        kcal=round((n.kcal or 0) * ratio, 1) if n else None,
+        protein=round((n.protein or 0) * ratio, 1) if n else None,
+        carbs=round((n.carbs or 0) * ratio, 1) if n else None,
+        fat=round((n.fat or 0) * ratio, 1) if n else None,
+    )
+
+
+@router.delete("/log/food/{log_id}", status_code=204)
+async def delete_food_log(
+    log_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(FoodLog).where(FoodLog.id == log_id, FoodLog.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    await db.delete(log)
+    await db.commit()
+
+
+# --- Weight Log CRUD ---
+
+@router.put("/log/weight/{log_id}", response_model=WeightLogResponse)
+async def update_weight_log(
+    log_id: UUID,
+    body: WeightLogUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(WeightLog).where(WeightLog.id == log_id, WeightLog.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(log, field, value)
+    await db.commit()
+    await db.refresh(log)
+    return WeightLogResponse(
+        id=log.id,
+        weight_kg=log.weight_kg,
+        body_fat_pct=log.body_fat_pct,
+        muscle_mass_pct=log.muscle_mass_pct,
+        source=log.source,
+        date=log.date,
+    )
+
+
+@router.delete("/log/weight/{log_id}", status_code=204)
+async def delete_weight_log(
+    log_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(WeightLog).where(WeightLog.id == log_id, WeightLog.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    await db.delete(log)
+    await db.commit()
+
+
+# --- Supplement Log CRUD ---
+
+@router.put("/log/supplement/{log_id}", response_model=SupplementResponse)
+async def update_supplement_log(
+    log_id: UUID,
+    body: SupplementLogUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(Supplement).where(Supplement.id == log_id, Supplement.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(log, field, value)
+    await db.commit()
+    await db.refresh(log)
+    return SupplementResponse(
+        id=log.id,
+        name=log.name,
+        dose_amount=log.dose_amount,
+        dose_unit=log.dose_unit,
+        time_of_day=log.time_of_day,
+        date=log.date,
+    )
+
+
+@router.delete("/log/supplement/{log_id}", status_code=204)
+async def delete_supplement_log(
+    log_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(Supplement).where(Supplement.id == log_id, Supplement.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    await db.delete(log)
+    await db.commit()
+
+
+# --- Stats ---
+
+@router.get("/summary/stats", response_model=StatsSummary)
+async def agent_stats(
+    days: int = Query(90, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    return await summary_service.get_stats_summary(db, user, days)
+
+
+# --- Integrations (agent-managed) ---
+
+@router.get("/integrations", response_model=list[IntegrationResponse])
+async def agent_list_integrations(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(
+        select(Integration).where(Integration.user_id == user.id).order_by(Integration.created_at.desc())
+    )
+    return [IntegrationResponse.model_validate(i) for i in result.scalars().all()]
+
+
+@router.post("/integrations", response_model=IntegrationResponse, status_code=status.HTTP_201_CREATED)
+async def agent_create_integration(
+    body: IntegrationCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    integration = Integration(
+        user_id=user.id,
+        name=body.name,
+        source_url=body.source_url,
+        auth_header=body.auth_header,
+        schedule=body.schedule,
+        field_mapping=body.field_mapping,
+        status="active",
+    )
+    db.add(integration)
+    await db.commit()
+    await db.refresh(integration)
+    return IntegrationResponse.model_validate(integration)
+
+
+@router.patch("/integrations/{integration_id}", response_model=IntegrationResponse)
+async def agent_update_integration(
+    integration_id: UUID,
+    body: IntegrationUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(
+        select(Integration).where(Integration.id == integration_id, Integration.user_id == user.id)
+    )
+    integration = result.scalar_one_or_none()
+    if not integration:
+        raise HTTPException(status_code=404, detail={"code": "INTEGRATION_NOT_FOUND"})
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(integration, field, value)
+    await db.commit()
+    await db.refresh(integration)
+    return IntegrationResponse.model_validate(integration)
+
+
+@router.delete("/integrations/{integration_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def agent_delete_integration(
+    integration_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(
+        select(Integration).where(Integration.id == integration_id, Integration.user_id == user.id)
+    )
+    integration = result.scalar_one_or_none()
+    if not integration:
+        raise HTTPException(status_code=404, detail={"code": "INTEGRATION_NOT_FOUND"})
+    await db.delete(integration)
     await db.commit()

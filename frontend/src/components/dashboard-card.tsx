@@ -1,28 +1,27 @@
 "use client";
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface Props {
   title: string;
   className?: string;
+  span?: string;
   children: React.ReactNode;
 }
 
-export function DashboardCard({ title, className = "", children }: Props) {
+export function DashboardCard({ title, className = "", span = "col-span-1", children }: Props) {
   return (
-    <Card
+    <div
       className={cn(
-        "rounded-2xl border-border/50 shadow-md transition-shadow duration-300 hover:shadow-lg",
+        "clay-card clay-card-hover p-5",
+        span,
         className
       )}
     >
-      <CardHeader className="pb-0">
-        <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+        {title}
+      </h3>
+      <div>{children}</div>
+    </div>
   );
 }

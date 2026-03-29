@@ -19,6 +19,12 @@ class FoodLogByBarcodeCreate(BaseModel):
     date: Optional[datetime.date] = None
 
 
+class FoodLogUpdate(BaseModel):
+    quantity_g: Optional[float] = Field(None, gt=0, le=10000)
+    meal_type: Optional[Literal["breakfast", "lunch", "dinner", "snack"]] = None
+    date: Optional[datetime.date] = None
+
+
 class FoodLogResponse(BaseModel):
     id: UUID
     food_name: str

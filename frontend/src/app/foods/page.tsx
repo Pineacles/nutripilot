@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { DashboardCard } from "@/components/dashboard-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -94,7 +93,8 @@ export default function FoodsPage() {
     <DashboardLayout title="Food Database">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Food list (2 cols) */}
-        <DashboardCard title="Foods" className="lg:col-span-2">
+        <div className="clay-card p-5 lg:col-span-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Foods</h3>
           <div className="mb-3">
             <Input
               type="text"
@@ -128,8 +128,8 @@ export default function FoodsPage() {
                   <button
                     key={food.id}
                     onClick={() => selectFood(food.id)}
-                    className={`grid grid-cols-12 gap-2 w-full items-center rounded-lg px-3 py-2 text-sm text-left transition-colors duration-150 ${
-                      selectedId === food.id ? "bg-primary/10" : "hover:bg-muted/50"
+                    className={`grid grid-cols-12 gap-2 w-full items-center rounded-lg px-3 py-2 text-sm text-left transition-all duration-150 ${
+                      selectedId === food.id ? "bg-primary/10 clay-card-sm" : "hover:bg-muted/50"
                     }`}
                   >
                     <span className="col-span-5 text-foreground/80 truncate">{food.name}</span>
@@ -178,10 +178,11 @@ export default function FoodsPage() {
               )}
             </>
           )}
-        </DashboardCard>
+        </div>
 
         {/* Nutrient detail (1 col) */}
-        <DashboardCard title="Nutrient Breakdown" className="lg:col-span-1">
+        <div className="clay-card p-5 lg:col-span-1">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Nutrient Breakdown</h3>
           {!detail ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <svg className="h-10 w-10 text-muted-foreground/30 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
@@ -219,7 +220,7 @@ export default function FoodsPage() {
               )}
             </div>
           )}
-        </DashboardCard>
+        </div>
       </div>
     </DashboardLayout>
   );

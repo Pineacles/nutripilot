@@ -7,9 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_jwt
 from app.database import get_db
+from app.models.integration import Integration
 from app.models.micronutrient_target import MicronutrientTarget
 from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
+from app.schemas.integration import IntegrationResponse
 from app.schemas.settings import (
     ApiKeyResponse,
     MicronutrientTargetItem,
@@ -206,3 +208,16 @@ async def regenerate_api_key(
         api_key_masked=f"...{new_key[-6:]}",
         api_key=new_key,
     )
+
+
+# --- Connected Integrations (read-only for user) ---
+
+@router.get("/integrations", response_model=list[IntegrationResponse])
+async def list_integrations(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt),
+):
+    result = await db.execute(
+        select(Integration).where(Integration.user_id == user.id).order_by(Integration.created_at.desc())
+    )
+    return [IntegrationResponse.model_validate(i) for i in result.scalars().all()]

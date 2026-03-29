@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/auth";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -53,8 +52,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <Card>
-          <CardContent className="pt-2">
+        <div className="clay-card p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -99,8 +97,7 @@ export default function LoginPage() {
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
-          </CardContent>
-        </Card>
+        </div>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">

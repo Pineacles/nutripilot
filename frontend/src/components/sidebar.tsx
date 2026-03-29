@@ -52,6 +52,15 @@ const navItems = [
     ),
   },
   {
+    href: "/body",
+    label: "Body",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
+    ),
+  },
+  {
     href: "/settings",
     label: "Settings",
     icon: (
@@ -73,7 +82,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-56 flex-col border-r border-border bg-card">
+    <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-56 flex-col bg-card" style={{ borderRight: '1px solid rgba(255,255,255,0.04)', boxShadow: 'inset -1px 0 0 0 rgba(255,255,255,0.03), 4px 0 16px -4px rgba(0,0,0,0.3)' }}>
       <div className="px-5 py-6">
         <h1 className="text-lg font-bold tracking-tight text-foreground">
           NutriPilot
@@ -90,9 +99,9 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 active
-                  ? "bg-primary/10 text-primary"
+                  ? "pill-green text-primary"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >

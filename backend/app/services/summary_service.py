@@ -14,6 +14,8 @@ from app.models.user import User
 from app.models.weight_log import WeightLog
 from app.schemas.summary import (
     BodyCompEntry,
+    DailyMicros,
+    DailyNutrition,
     MacroTargets,
     MacroTotals,
     MealGroup,
@@ -21,10 +23,43 @@ from app.schemas.summary import (
     MicronutrientAverages,
     StatsSummary,
     SupplementEntry,
+    SupplementLogEntry,
     TodaySummary,
     WeekSummary,
     WeightDelta,
 )
+
+
+def _aggregate_weight_per_day(weight_logs) -> list[BodyCompEntry]:
+    """Merge multiple weight log entries per day into one per day.
+
+    Strategy:
+    - weight_kg: average of all entries that day
+    - body_fat_pct: average of non-null values, or None
+    - muscle_mass_pct: average of non-null values, or None
+    """
+    from collections import OrderedDict
+    by_date: OrderedDict[date, list] = OrderedDict()
+    for w in weight_logs:
+        by_date.setdefault(w.date, []).append(w)
+
+    result = []
+    for d, entries in by_date.items():
+        avg_weight = round(sum(e.weight_kg for e in entries) / len(entries), 1)
+
+        bf_vals = [e.body_fat_pct for e in entries if e.body_fat_pct is not None]
+        avg_bf = round(sum(bf_vals) / len(bf_vals), 1) if bf_vals else None
+
+        mm_vals = [e.muscle_mass_pct for e in entries if e.muscle_mass_pct is not None]
+        avg_mm = round(sum(mm_vals) / len(mm_vals), 1) if mm_vals else None
+
+        result.append(BodyCompEntry(
+            date=d,
+            weight_kg=avg_weight,
+            body_fat_pct=avg_bf,
+            muscle_mass_pct=avg_mm,
+        ))
+    return result
 
 
 def _aggregate_macros(food_logs):
@@ -141,17 +176,11 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
     result = await db.execute(stmt)
     weight_logs = result.scalars().all()
 
-    start_kg = weight_logs[0].weight_kg if weight_logs else None
-    end_kg = weight_logs[-1].weight_kg if weight_logs else None
-    delta = round(end_kg - start_kg, 2) if start_kg is not None and end_kg is not None else None
+    body_comp = _aggregate_weight_per_day(weight_logs)
 
-    body_comp = [
-        BodyCompEntry(
-            date=w.date, weight_kg=w.weight_kg,
-            body_fat_pct=w.body_fat_pct, muscle_mass_pct=w.muscle_mass_pct,
-        )
-        for w in weight_logs
-    ]
+    start_kg = body_comp[0].weight_kg if body_comp else None
+    end_kg = body_comp[-1].weight_kg if body_comp else None
+    delta = round(end_kg - start_kg, 2) if start_kg is not None and end_kg is not None else None
 
     return WeekSummary(
         start_date=start_date,
@@ -177,10 +206,7 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
     )
     result = await db.execute(stmt)
     weight_logs = result.scalars().all()
-    weight_history = [
-        BodyCompEntry(date=w.date, weight_kg=w.weight_kg, body_fat_pct=w.body_fat_pct, muscle_mass_pct=w.muscle_mass_pct)
-        for w in weight_logs
-    ]
+    weight_history = _aggregate_weight_per_day(weight_logs)
 
     # Daily calorie data
     stmt = (
@@ -206,10 +232,50 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
         d["sugar"] += (n.sugar or 0) * ratio
         d["sodium"] += ((n.salt or 0) * 400) * ratio
 
-    daily_calories = [
-        {"date": str(d), "kcal": round(v["kcal"], 1)}
+    daily_nutrition = [
+        DailyNutrition(
+            date=d,
+            kcal=round(v["kcal"], 1),
+            protein=round(v["protein"], 1),
+            carbs=round(v["carbs"], 1),
+            fat=round(v["fat"], 1),
+            fiber=round(v["fiber"], 1),
+            sugar=round(v["sugar"], 1),
+            sodium=round(v["sodium"], 1),
+        )
         for d, v in sorted(daily_data.items())
     ]
+
+    # Daily micronutrients
+    micro_fields = ["calcium", "potassium", "omega3", "zinc", "vit_d", "vit_c", "magnesium", "b12", "iron"]
+    daily_micros_data: dict[date, dict] = defaultdict(lambda: {f: 0.0 for f in micro_fields})
+    for log in food_logs:
+        ratio = log.quantity_g / 100.0
+        n = log.food.nutrients
+        if not n:
+            continue
+        for field in micro_fields:
+            val = getattr(n, field, None)
+            if val is not None:
+                daily_micros_data[log.date][field] += val * ratio
+
+    daily_micros = [
+        DailyMicros(
+            date=d,
+            **{f: round(vals[f], 2) if vals[f] > 0 else None for f in micro_fields},
+        )
+        for d, vals in sorted(daily_micros_data.items())
+    ]
+
+    # Micro averages over the period
+    num_micro_days = max(len(daily_micros_data), 1)
+    micro_sums: dict[str, float] = {f: 0.0 for f in micro_fields}
+    for vals in daily_micros_data.values():
+        for f in micro_fields:
+            micro_sums[f] += vals[f]
+    micro_avg = MicronutrientAverages(
+        **{f: round(micro_sums[f] / num_micro_days, 2) if micro_sums[f] > 0 else None for f in micro_fields}
+    )
 
     # Macro averages
     num_days_logged = max(len(daily_data), 1)
@@ -218,15 +284,22 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
         for k in macro_sums:
             macro_sums[k] += d[k]
     macro_avg = MacroTotals(**{k: round(v / num_days_logged, 1) for k, v in macro_sums.items()})
+    avg_daily_kcal = round(macro_sums["kcal"] / num_days_logged, 1)
 
     # Records
     highest_protein = None
     lowest_calorie = None
+    highest_calorie = None
+    best_fiber = None
     for d, v in daily_data.items():
         if highest_protein is None or v["protein"] > highest_protein["protein"]:
             highest_protein = {"date": str(d), "protein": round(v["protein"], 1)}
         if lowest_calorie is None or (v["kcal"] > 0 and v["kcal"] < lowest_calorie["kcal"]):
             lowest_calorie = {"date": str(d), "kcal": round(v["kcal"], 1)}
+        if highest_calorie is None or v["kcal"] > highest_calorie["kcal"]:
+            highest_calorie = {"date": str(d), "kcal": round(v["kcal"], 1)}
+        if best_fiber is None or v["fiber"] > best_fiber["fiber"]:
+            best_fiber = {"date": str(d), "fiber": round(v["fiber"], 1)}
 
     # Streak: consecutive days with food logs ending today
     streak = 0
@@ -235,22 +308,34 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
         streak += 1
         check_date -= timedelta(days=1)
 
-    # Supplement adherence
-    stmt = select(Supplement.date).where(
-        Supplement.user_id == user.id, Supplement.date >= start
-    ).distinct()
+    # Supplement log and adherence
+    stmt = select(Supplement).where(Supplement.user_id == user.id, Supplement.date >= start)
     result = await db.execute(stmt)
-    supp_days = len(result.all())
+    all_supps = result.scalars().all()
+    supp_by_date: dict[date, list[str]] = defaultdict(list)
+    for s in all_supps:
+        supp_by_date[s.date].append(s.name)
+    supplement_log = [
+        SupplementLogEntry(date=d, count=len(names), names=names)
+        for d, names in sorted(supp_by_date.items())
+    ]
+    supp_days = len(supp_by_date)
     adherence = round((supp_days / days) * 100, 1)
 
     return StatsSummary(
         weight_history=weight_history,
-        daily_calories=daily_calories,
+        daily_nutrition=daily_nutrition,
+        daily_micros=daily_micros,
+        supplement_log=supplement_log,
         macro_avg=macro_avg,
+        micro_avg=micro_avg,
         days_logged=len(daily_data),
         total_days=days,
         supplement_adherence_pct=adherence,
         highest_protein_day=highest_protein,
         lowest_calorie_day=lowest_calorie,
+        highest_calorie_day=highest_calorie,
+        best_fiber_day=best_fiber,
+        avg_daily_kcal=avg_daily_kcal,
         current_streak=streak,
     )

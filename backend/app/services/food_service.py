@@ -56,6 +56,35 @@ async def search_foods(db: AsyncSession, query: str, limit: int = 10) -> list[di
     ]
 
 
+async def search_foods_with_fallback(db: AsyncSession, query: str, limit: int = 10) -> list[dict]:
+    """Search local DB first, then fall back to OpenFoodFacts if few results."""
+    local_results = await search_foods(db, query, limit)
+
+    if len(local_results) >= 3 or len(query) < 2:
+        return local_results
+
+    # Fetch from OpenFoodFacts to supplement results
+    from app.external.openfoodfacts import search_by_text
+
+    off_results = await search_by_text(query, limit=limit - len(local_results))
+
+    # Deduplicate: skip OFF results whose name already appears in local results
+    local_names = {r["name"].lower() for r in local_results}
+    for item in off_results:
+        if item["name"].lower() not in local_names:
+            # OFF results don't have an id in our DB, set id to None
+            local_results.append({
+                "id": None,
+                "name": item["name"],
+                "barcode": item.get("barcode"),
+                "kcal": item.get("kcal"),
+                "protein": item.get("protein"),
+                "source": "openfoodfacts",
+            })
+
+    return local_results[:limit]
+
+
 async def get_food_by_barcode(db: AsyncSession, barcode: str) -> Food | None:
     result = await db.execute(select(Food).where(Food.barcode == barcode))
     return result.scalar_one_or_none()

@@ -13,6 +13,7 @@ const COLOR_RING_BG = "#1f1f23";
 interface Props {
   totals: MacroTotals;
   targets: MacroTargets;
+  span?: string;
 }
 
 function getRingColor(pct: number): string {
@@ -21,7 +22,7 @@ function getRingColor(pct: number): string {
   return COLOR_SUCCESS;                // under 90% — green
 }
 
-export function CalorieRingCard({ totals, targets }: Props) {
+export function CalorieRingCard({ totals, targets, span }: Props) {
   const eaten = Math.round(totals.kcal);
   const remaining = Math.max(0, Math.round(targets.kcal - totals.kcal));
   const rawPct = targets.kcal > 0 ? totals.kcal / targets.kcal : 0;
@@ -34,7 +35,7 @@ export function CalorieRingCard({ totals, targets }: Props) {
   ];
 
   return (
-    <DashboardCard title="Calories">
+    <DashboardCard title="Calories" span={span}>
       <div className="flex flex-col items-center justify-center flex-1">
         <div
           className="relative h-[180px] w-[180px]"
@@ -60,7 +61,7 @@ export function CalorieRingCard({ totals, targets }: Props) {
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-extrabold tabular-nums tracking-tight text-foreground">
+            <span className="text-4xl font-extrabold tabular-nums tracking-tight text-foreground">
               {eaten}
             </span>
             <span className="text-xs text-muted-foreground">

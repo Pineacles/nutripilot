@@ -3,6 +3,42 @@ import httpx
 from app.schemas.food import NutrientData
 
 
+async def search_by_text(query: str, limit: int = 10) -> list[dict]:
+    """Search OpenFoodFacts by text query. Returns list of basic food info."""
+    url = "https://world.openfoodfacts.org/cgi/search.pl"
+    params = {
+        "search_terms": query,
+        "search_simple": 1,
+        "action": "process",
+        "json": 1,
+        "page_size": limit,
+        "fields": "product_name,nutriments,code",
+    }
+    async with httpx.AsyncClient(timeout=10) as client:
+        try:
+            resp = await client.get(url, params=params)
+        except httpx.HTTPError:
+            return []
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+
+    results = []
+    for product in data.get("products", []):
+        name = product.get("product_name")
+        if not name:
+            continue
+        n = product.get("nutriments", {})
+        results.append({
+            "name": name,
+            "barcode": product.get("code"),
+            "kcal": n.get("energy-kcal_100g"),
+            "protein": n.get("proteins_100g"),
+            "source": "openfoodfacts",
+        })
+    return results
+
+
 async def lookup_barcode(barcode: str) -> tuple[str, NutrientData] | None:
     """Look up a barcode on OpenFoodFacts. Returns (product_name, nutrients) or None."""
     url = f"https://world.openfoodfacts.org/api/v2/product/{barcode}.json"

@@ -28,11 +28,11 @@ export function MealsLogCard({ meals }: Props) {
   }
 
   return (
-    <DashboardCard title="Meals" className="col-span-2">
+    <DashboardCard title="Meals" span="lg:col-span-2">
       {sorted.length === 0 ? (
         <p className="text-sm text-muted-foreground">No meals logged today</p>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-2">
           {sorted.map((group) => {
             const isCollapsed = collapsed[group.meal_type];
             const groupKcal = group.items.reduce((sum, item) => sum + (item.kcal || 0), 0);
@@ -40,7 +40,7 @@ export function MealsLogCard({ meals }: Props) {
               <div key={group.meal_type}>
                 <button
                   onClick={() => toggle(group.meal_type)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-muted/60"
+                  className="pill flex w-full items-center justify-between px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-white/[0.03]"
                 >
                   <div className="flex items-center gap-2">
                     <svg
@@ -59,14 +59,14 @@ export function MealsLogCard({ meals }: Props) {
                   </span>
                 </button>
                 <div
-                  className={`ml-8 space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out ${
-                    isCollapsed ? "max-h-0 opacity-0 pb-0" : "max-h-[500px] opacity-100 pb-2"
+                  className={`ml-8 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${
+                    isCollapsed ? "max-h-0 opacity-0 pb-0" : "max-h-[500px] opacity-100 pb-2 pt-1"
                   }`}
                 >
                   {group.items.map((item, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between rounded-lg px-3 py-1.5 text-sm transition-colors duration-150 hover:bg-muted/40"
+                      className="flex items-center justify-between rounded-lg px-3 py-1.5 text-sm transition-all duration-200 hover:bg-muted/30 border-l-2 border-transparent hover:border-primary/30"
                     >
                       <div>
                         <span className="text-foreground/80">{item.food_name}</span>

@@ -79,15 +79,51 @@ export interface WeekSummary {
   body_comp: BodyCompEntry[];
 }
 
+export interface DailyNutrition {
+  date: string;
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar: number;
+  sodium: number;
+}
+
+export interface DailyMicros {
+  date: string;
+  calcium: number | null;
+  potassium: number | null;
+  omega3: number | null;
+  zinc: number | null;
+  vit_d: number | null;
+  vit_c: number | null;
+  magnesium: number | null;
+  b12: number | null;
+  iron: number | null;
+}
+
+export interface SupplementLogEntry {
+  date: string;
+  count: number;
+  names: string[];
+}
+
 export interface StatsSummary {
   weight_history: BodyCompEntry[];
-  daily_calories: { date: string; kcal: number }[];
+  daily_nutrition: DailyNutrition[];
+  daily_micros: DailyMicros[];
+  supplement_log: SupplementLogEntry[];
   macro_avg: MacroTotals;
+  micro_avg: MicronutrientAverages;
   days_logged: number;
   total_days: number;
   supplement_adherence_pct: number;
   highest_protein_day: { date: string; protein: number } | null;
   lowest_calorie_day: { date: string; kcal: number } | null;
+  highest_calorie_day: { date: string; kcal: number } | null;
+  best_fiber_day: { date: string; fiber: number } | null;
+  avg_daily_kcal: number;
   current_streak: number;
 }
 
@@ -130,4 +166,15 @@ export interface UserSettings {
   micronutrient_targets: MicronutrientTargetItem[];
   supplement_definitions: SupplementDefinition[];
   api_key_masked: string;
+}
+
+export interface Integration {
+  id: string;
+  name: string;
+  source_url: string;
+  schedule: string;
+  field_mapping: Record<string, string> | null;
+  last_synced_at: string | null;
+  status: "active" | "error" | "paused";
+  created_at: string;
 }

@@ -41,7 +41,7 @@ export function SupplementsCard({ supplements, definitions = [], microTargets = 
   }
 
   return (
-    <DashboardCard title="Supplements" className="col-span-1">
+    <DashboardCard title="Supplements" span="lg:col-span-1">
       {supplements.length === 0 ? (
         <p className="text-sm text-muted-foreground">No supplements today</p>
       ) : (
@@ -49,7 +49,7 @@ export function SupplementsCard({ supplements, definitions = [], microTargets = 
           {supplements.map((s, i) => {
             const contributions = getMicroContributions(s.name);
             return (
-              <div key={i} className="group">
+              <div key={i} className="group pill p-3 rounded-xl transition-all duration-200 hover:scale-[1.01]">
                 <div className="flex items-center gap-3">
                   <div className="h-5 w-5 rounded-md border border-primary/40 bg-primary/10 flex items-center justify-center shrink-0">
                     <svg

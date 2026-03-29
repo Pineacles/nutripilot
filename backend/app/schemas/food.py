@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -30,6 +31,12 @@ class FoodCreate(BaseModel):
     nutrients: NutrientData
 
 
+class FoodUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=500)
+    barcode: Optional[str] = Field(None, min_length=4, max_length=50)
+    nutrients: Optional[NutrientData] = None
+
+
 class FoodResponse(BaseModel):
     id: UUID
     name: str
@@ -41,10 +48,11 @@ class FoodResponse(BaseModel):
 
 
 class FoodSearchResult(BaseModel):
-    id: UUID
+    id: UUID | None = None
     name: str
-    barcode: str | None
-    kcal: float | None
-    protein: float | None
+    barcode: str | None = None
+    kcal: float | None = None
+    protein: float | None = None
+    source: str | None = None
 
     model_config = {"from_attributes": True}

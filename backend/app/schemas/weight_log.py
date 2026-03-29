@@ -9,7 +9,14 @@ class WeightLogCreate(BaseModel):
     weight_kg: float = Field(gt=0, le=500)
     body_fat_pct: Optional[float] = Field(default=None, ge=0, le=100)
     muscle_mass_pct: Optional[float] = Field(default=None, ge=0, le=100)
+    source: Optional[str] = Field(default=None, max_length=50)
     date: Optional[datetime.date] = None
+
+
+class WeightLogUpdate(BaseModel):
+    weight_kg: Optional[float] = Field(None, gt=0, le=500)
+    body_fat_pct: Optional[float] = Field(None, ge=0, le=100)
+    muscle_mass_pct: Optional[float] = Field(None, ge=0, le=100)
 
 
 class WeightLogResponse(BaseModel):

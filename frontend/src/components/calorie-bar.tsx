@@ -10,18 +10,18 @@ interface Props {
   target: number;
 }
 
-function getBarColor(pct: number): string {
-  if (pct > 100) return COLOR_DANGER;
-  if (pct > 90)  return COLOR_WARNING;
-  return COLOR_SUCCESS;
+function getBarGradient(pct: number): string {
+  if (pct > 100) return "linear-gradient(90deg, #ef4444, #f87171)";
+  if (pct > 90)  return "linear-gradient(90deg, #f59e0b, #fbbf24)";
+  return "linear-gradient(90deg, #22c55e, #4ade80)";
 }
 
 export function CalorieBar({ current, target }: Props) {
   const pct = Math.min((current / target) * 100, 110);
-  const color = getBarColor(pct);
+  const gradient = getBarGradient(pct);
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="clay-card p-4">
       <div className="flex items-baseline justify-between mb-2">
         <span className="text-sm text-muted-foreground">Calories</span>
         <span className="text-sm tabular-nums">
@@ -29,10 +29,10 @@ export function CalorieBar({ current, target }: Props) {
           <span className="text-muted-foreground"> / {Math.round(target)} kcal</span>
         </span>
       </div>
-      <div className="h-3 w-full rounded-full bg-secondary overflow-hidden">
+      <div className="h-3 w-full rounded-full bg-muted/60 overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }}
+          style={{ width: `${Math.min(pct, 100)}%`, background: gradient }}
         />
       </div>
     </div>

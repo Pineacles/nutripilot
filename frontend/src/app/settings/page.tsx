@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { DashboardCard } from "@/components/dashboard-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import type {
   NutritionTargets,
   MicronutrientTargetItem,
   SupplementDefinition,
+  Integration,
 } from "@/lib/types";
 
 const DEFAULT_MICRO_TARGETS: MicronutrientTargetItem[] = [
@@ -48,6 +48,32 @@ const MICRO_LABELS: Record<string, string> = {
 
 const DOSE_UNITS = ["mg", "µg", "g", "IU", "ml"];
 const TIMINGS = ["morning", "afternoon", "evening", "with meal"];
+
+function cronToHuman(cron: string): string {
+  const parts = cron.split(" ");
+  if (parts.length < 5) return cron;
+  const [min, hour, dom, mon, dow] = parts;
+  if (dom === "*" && mon === "*" && dow === "*") {
+    return `Daily at ${hour.padStart(2, "0")}:${min.padStart(2, "0")}`;
+  }
+  if (dom === "*" && mon === "*") {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return `${days[Number(dow)] || dow} at ${hour.padStart(2, "0")}:${min.padStart(2, "0")}`;
+  }
+  return cron;
+}
+
+function timeAgo(dateStr: string | null): string {
+  if (!dateStr) return "Never";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings | null>(null);
@@ -83,6 +109,9 @@ export default function SettingsPage() {
     micronutrients: "" as string,
   });
 
+  // Integrations
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+
   // API key
   const [apiKeyMasked, setApiKeyMasked] = useState("");
   const [fullApiKey, setFullApiKey] = useState<string | null>(null);
@@ -109,6 +138,10 @@ export default function SettingsPage() {
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  useEffect(() => {
+    apiFetch<Integration[]>("/api/v1/integrations").then(setIntegrations).catch(() => {});
+  }, []);
 
   // --- Handlers ---
 
@@ -182,7 +215,7 @@ export default function SettingsPage() {
       <DashboardLayout title="Settings">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-2xl bg-card border border-border p-5 space-y-3">
+            <div key={i} className="clay-card p-5 space-y-3">
               <div className="h-4 w-32 rounded bg-muted animate-pulse" />
               <div className="space-y-2">
                 {[1, 2, 3].map((j) => (
@@ -200,7 +233,8 @@ export default function SettingsPage() {
     <DashboardLayout title="Settings">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Section 1: Nutrition Targets */}
-        <DashboardCard title="Nutrition Targets">
+        <div className="clay-card p-5 md:col-span-1">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Nutrition Targets</h3>
           <div className="space-y-3">
             {[
               { label: "Daily Calorie Target", key: "target_kcal" as const, unit: "kcal" },
@@ -234,10 +268,11 @@ export default function SettingsPage() {
               {nutritionSaved ? "Saved!" : "Save Targets"}
             </Button>
           </div>
-        </DashboardCard>
+        </div>
 
         {/* Section 2: Supplement Management */}
-        <DashboardCard title="Supplement Management">
+        <div className="clay-card p-5 md:col-span-1">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Supplement Management</h3>
           <div className="space-y-2 max-h-[320px] overflow-y-auto">
             {supplements.length === 0 && (
               <p className="text-sm text-muted-foreground">No supplements defined</p>
@@ -378,10 +413,11 @@ export default function SettingsPage() {
               </div>
             </DialogContent>
           </Dialog>
-        </DashboardCard>
+        </div>
 
         {/* Section 3: Micronutrient Targets */}
-        <DashboardCard title="Micronutrient Daily Targets">
+        <div className="clay-card p-5 md:col-span-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Micronutrient Daily Targets</h3>
           <div className="space-y-2">
             <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground uppercase tracking-wide px-1">
               <span>Micronutrient</span>
@@ -413,10 +449,11 @@ export default function SettingsPage() {
           >
             {microSaved ? "Saved!" : "Save Targets"}
           </Button>
-        </DashboardCard>
+        </div>
 
         {/* Section 4: API Access */}
-        <DashboardCard title="API Access">
+        <div className="clay-card p-5 md:col-span-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">API Access</h3>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">API Key</Label>
@@ -477,7 +514,36 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
-        </DashboardCard>
+        </div>
+
+        {/* Section 5: Connected Integrations */}
+        <div className="clay-card p-5 md:col-span-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Connected Integrations</h3>
+          {integrations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No integrations connected. An AI agent can set these up for you.</p>
+          ) : (
+            <div className="space-y-2">
+              {integrations.map((integration) => (
+                <div key={integration.id} className="pill rounded-xl p-4 flex items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{integration.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{integration.source_url}</p>
+                  </div>
+                  <div className="text-right shrink-0 space-y-0.5">
+                    <div className="flex items-center gap-2 justify-end">
+                      <span className="text-[10px] text-muted-foreground">{cronToHuman(integration.schedule)}</span>
+                      <Badge variant={integration.status === "active" ? "default" : integration.status === "paused" ? "secondary" : "destructive"}
+                        className="text-[10px]">
+                        {integration.status}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Synced: {timeAgo(integration.last_synced_at)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

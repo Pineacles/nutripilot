@@ -22,47 +22,14 @@ DEMO_EMAIL = "demo@nutripilot.dev"
 DEMO_PASSWORD = "demo"
 
 # ---------------------------------------------------------------------------
-# Food database — nutrients per 100g
+# Extra foods — only created if not already in the DB (supplements, etc.)
+# Nutrients per 100g.
 # ---------------------------------------------------------------------------
-FOODS = [
-    # Breakfast foods
-    {"name": "Oatmeal (cooked)", "n": {"kcal": 71, "protein": 2.5, "carbs": 12, "sugar": 0.5, "fiber": 1.7, "fat": 1.5, "sat_fat": 0.3, "salt": 0.005, "iron": 1.1, "magnesium": 27, "b12": 0, "zinc": 0.6, "vit_c": 0, "vit_d": 0, "calcium": 9, "potassium": 61}},
-    {"name": "Eggs (scrambled)", "n": {"kcal": 148, "protein": 10.0, "carbs": 1.6, "sugar": 1.4, "fiber": 0, "fat": 11.0, "sat_fat": 3.3, "salt": 0.42, "iron": 1.5, "magnesium": 11, "b12": 1.1, "zinc": 1.1, "vit_c": 0, "vit_d": 2.0, "calcium": 71, "potassium": 147}},
-    {"name": "Greek Yogurt (plain, 2%)", "n": {"kcal": 73, "protein": 10.0, "carbs": 3.6, "sugar": 3.2, "fiber": 0, "fat": 2.0, "sat_fat": 1.0, "salt": 0.09, "iron": 0.1, "magnesium": 11, "b12": 0.75, "zinc": 0.5, "vit_c": 0, "vit_d": 0, "calcium": 110, "potassium": 141}},
-    {"name": "Banana", "n": {"kcal": 89, "protein": 1.1, "carbs": 23, "sugar": 12.2, "fiber": 2.6, "fat": 0.3, "sat_fat": 0.1, "salt": 0.003, "iron": 0.3, "magnesium": 27, "b12": 0, "zinc": 0.15, "vit_c": 8.7, "vit_d": 0, "calcium": 5, "potassium": 358}},
-    {"name": "Whole Wheat Toast", "n": {"kcal": 247, "protein": 13.0, "carbs": 41, "sugar": 5.6, "fiber": 7.0, "fat": 3.4, "sat_fat": 0.7, "salt": 1.1, "iron": 2.5, "magnesium": 75, "b12": 0, "zinc": 1.8, "vit_c": 0, "vit_d": 0, "calcium": 107, "potassium": 254}},
+EXTRA_FOODS = [
     {"name": "Whey Protein Shake", "n": {"kcal": 120, "protein": 24.0, "carbs": 3.0, "sugar": 2.0, "fiber": 0, "fat": 1.5, "sat_fat": 0.5, "salt": 0.3, "iron": 1.5, "magnesium": 20, "b12": 0.5, "zinc": 2.0, "vit_c": 0, "vit_d": 0, "calcium": 120, "potassium": 160}},
-    {"name": "Blueberries", "n": {"kcal": 57, "protein": 0.7, "carbs": 14.5, "sugar": 10.0, "fiber": 2.4, "fat": 0.3, "sat_fat": 0, "salt": 0.003, "iron": 0.3, "magnesium": 6, "b12": 0, "zinc": 0.2, "vit_c": 9.7, "vit_d": 0, "calcium": 6, "potassium": 77}},
-    {"name": "Peanut Butter", "n": {"kcal": 588, "protein": 25.0, "carbs": 20, "sugar": 9.0, "fiber": 6.0, "fat": 50, "sat_fat": 10, "salt": 1.2, "iron": 1.7, "magnesium": 160, "b12": 0, "zinc": 2.8, "vit_c": 0, "vit_d": 0, "calcium": 43, "potassium": 649}},
-    # Lunch / Dinner proteins
-    {"name": "Chicken Breast (grilled)", "n": {"kcal": 165, "protein": 31.0, "carbs": 0, "sugar": 0, "fiber": 0, "fat": 3.6, "sat_fat": 1.0, "salt": 0.18, "iron": 0.7, "magnesium": 29, "b12": 0.3, "zinc": 1.0, "vit_c": 0, "vit_d": 0.1, "calcium": 15, "potassium": 256}},
-    {"name": "Salmon Fillet (baked)", "n": {"kcal": 208, "protein": 20.0, "carbs": 0, "sugar": 0, "fiber": 0, "fat": 13.0, "sat_fat": 3.0, "salt": 0.12, "iron": 0.3, "magnesium": 30, "b12": 2.8, "zinc": 0.6, "vit_c": 0, "vit_d": 11.0, "calcium": 12, "potassium": 363, "omega3": 2.2}},
-    {"name": "Ground Beef (90% lean)", "n": {"kcal": 176, "protein": 20.0, "carbs": 0, "sugar": 0, "fiber": 0, "fat": 10.0, "sat_fat": 4.0, "salt": 0.17, "iron": 2.4, "magnesium": 20, "b12": 2.6, "zinc": 5.5, "vit_c": 0, "vit_d": 0.1, "calcium": 18, "potassium": 315}},
-    {"name": "Tofu (firm)", "n": {"kcal": 76, "protein": 8.0, "carbs": 1.9, "sugar": 0.6, "fiber": 0.3, "fat": 4.8, "sat_fat": 0.7, "salt": 0.02, "iron": 5.4, "magnesium": 30, "b12": 0, "zinc": 0.8, "vit_c": 0.1, "vit_d": 0, "calcium": 350, "potassium": 121}},
-    {"name": "Turkey Breast (roasted)", "n": {"kcal": 135, "protein": 30.0, "carbs": 0, "sugar": 0, "fiber": 0, "fat": 1.0, "sat_fat": 0.3, "salt": 0.2, "iron": 1.4, "magnesium": 27, "b12": 0.4, "zinc": 2.0, "vit_c": 0, "vit_d": 0.1, "calcium": 10, "potassium": 293}},
-    # Carb sources
-    {"name": "White Rice (cooked)", "n": {"kcal": 130, "protein": 2.7, "carbs": 28, "sugar": 0, "fiber": 0.4, "fat": 0.3, "sat_fat": 0.1, "salt": 0.003, "iron": 0.2, "magnesium": 12, "b12": 0, "zinc": 0.5, "vit_c": 0, "vit_d": 0, "calcium": 10, "potassium": 35}},
-    {"name": "Brown Rice (cooked)", "n": {"kcal": 112, "protein": 2.3, "carbs": 24, "sugar": 0.4, "fiber": 1.8, "fat": 0.8, "sat_fat": 0.2, "salt": 0.003, "iron": 0.4, "magnesium": 39, "b12": 0, "zinc": 0.6, "vit_c": 0, "vit_d": 0, "calcium": 10, "potassium": 79}},
-    {"name": "Sweet Potato (baked)", "n": {"kcal": 90, "protein": 2.0, "carbs": 21, "sugar": 6.5, "fiber": 3.3, "fat": 0.1, "sat_fat": 0, "salt": 0.09, "iron": 0.7, "magnesium": 27, "b12": 0, "zinc": 0.3, "vit_c": 19.6, "vit_d": 0, "calcium": 38, "potassium": 475}},
-    {"name": "Pasta (cooked)", "n": {"kcal": 131, "protein": 5.0, "carbs": 25, "sugar": 0.6, "fiber": 1.8, "fat": 1.1, "sat_fat": 0.2, "salt": 0.003, "iron": 1.3, "magnesium": 18, "b12": 0, "zinc": 0.5, "vit_c": 0, "vit_d": 0, "calcium": 7, "potassium": 44}},
-    {"name": "Quinoa (cooked)", "n": {"kcal": 120, "protein": 4.4, "carbs": 21, "sugar": 0.9, "fiber": 2.8, "fat": 1.9, "sat_fat": 0.2, "salt": 0.02, "iron": 1.5, "magnesium": 64, "b12": 0, "zinc": 1.1, "vit_c": 0, "vit_d": 0, "calcium": 17, "potassium": 172}},
-    # Vegetables
-    {"name": "Broccoli (steamed)", "n": {"kcal": 35, "protein": 2.4, "carbs": 7.2, "sugar": 1.4, "fiber": 3.3, "fat": 0.4, "sat_fat": 0.1, "salt": 0.08, "iron": 0.7, "magnesium": 21, "b12": 0, "zinc": 0.4, "vit_c": 64.9, "vit_d": 0, "calcium": 40, "potassium": 293}},
-    {"name": "Mixed Salad Greens", "n": {"kcal": 17, "protein": 1.5, "carbs": 2.9, "sugar": 0.8, "fiber": 1.8, "fat": 0.2, "sat_fat": 0, "salt": 0.04, "iron": 1.5, "magnesium": 13, "b12": 0, "zinc": 0.2, "vit_c": 18, "vit_d": 0, "calcium": 36, "potassium": 290}},
-    {"name": "Avocado", "n": {"kcal": 160, "protein": 2.0, "carbs": 8.5, "sugar": 0.7, "fiber": 6.7, "fat": 15.0, "sat_fat": 2.1, "salt": 0.02, "iron": 0.6, "magnesium": 29, "b12": 0, "zinc": 0.6, "vit_c": 10, "vit_d": 0, "calcium": 12, "potassium": 485}},
-    {"name": "Spinach (raw)", "n": {"kcal": 23, "protein": 2.9, "carbs": 3.6, "sugar": 0.4, "fiber": 2.2, "fat": 0.4, "sat_fat": 0.1, "salt": 0.2, "iron": 2.7, "magnesium": 79, "b12": 0, "zinc": 0.5, "vit_c": 28, "vit_d": 0, "calcium": 99, "potassium": 558}},
-    {"name": "Bell Pepper (red)", "n": {"kcal": 31, "protein": 1.0, "carbs": 6.0, "sugar": 4.2, "fiber": 2.1, "fat": 0.3, "sat_fat": 0, "salt": 0.01, "iron": 0.4, "magnesium": 12, "b12": 0, "zinc": 0.25, "vit_c": 128, "vit_d": 0, "calcium": 7, "potassium": 211}},
-    # Fats & extras
-    {"name": "Olive Oil", "n": {"kcal": 884, "protein": 0, "carbs": 0, "sugar": 0, "fiber": 0, "fat": 100, "sat_fat": 14, "salt": 0.005, "iron": 0.6, "magnesium": 0, "b12": 0, "zinc": 0, "vit_c": 0, "vit_d": 0, "calcium": 1, "potassium": 1}},
-    {"name": "Almonds", "n": {"kcal": 579, "protein": 21.0, "carbs": 22, "sugar": 4.4, "fiber": 12.5, "fat": 50, "sat_fat": 3.8, "salt": 0.003, "iron": 3.7, "magnesium": 270, "b12": 0, "zinc": 3.1, "vit_c": 0, "vit_d": 0, "calcium": 269, "potassium": 733}},
-    {"name": "Dark Chocolate (85%)", "n": {"kcal": 604, "protein": 7.8, "carbs": 46, "sugar": 24, "fiber": 11, "fat": 43, "sat_fat": 25, "salt": 0.06, "iron": 11.9, "magnesium": 228, "b12": 0.3, "zinc": 3.3, "vit_c": 0, "vit_d": 0, "calcium": 73, "potassium": 715}},
-    # Snacks / other
-    {"name": "Apple", "n": {"kcal": 52, "protein": 0.3, "carbs": 14, "sugar": 10.4, "fiber": 2.4, "fat": 0.2, "sat_fat": 0, "salt": 0.003, "iron": 0.1, "magnesium": 5, "b12": 0, "zinc": 0.04, "vit_c": 4.6, "vit_d": 0, "calcium": 6, "potassium": 107}},
     {"name": "Protein Bar", "n": {"kcal": 350, "protein": 20.0, "carbs": 38, "sugar": 6.0, "fiber": 5.0, "fat": 12, "sat_fat": 5.0, "salt": 0.6, "iron": 3.0, "magnesium": 30, "b12": 1.5, "zinc": 2.0, "vit_c": 15, "vit_d": 2.5, "calcium": 200, "potassium": 180}},
-    {"name": "Cottage Cheese (low-fat)", "n": {"kcal": 72, "protein": 12.0, "carbs": 2.7, "sugar": 2.7, "fiber": 0, "fat": 1.0, "sat_fat": 0.6, "salt": 0.9, "iron": 0.1, "magnesium": 8, "b12": 0.4, "zinc": 0.4, "vit_c": 0, "vit_d": 0, "calcium": 83, "potassium": 104}},
-    {"name": "Honey", "n": {"kcal": 304, "protein": 0.3, "carbs": 82, "sugar": 82, "fiber": 0.2, "fat": 0, "sat_fat": 0, "salt": 0.01, "iron": 0.4, "magnesium": 2, "b12": 0, "zinc": 0.2, "vit_c": 0.5, "vit_d": 0, "calcium": 6, "potassium": 52}},
-    {"name": "Milk (whole)", "n": {"kcal": 61, "protein": 3.2, "carbs": 4.8, "sugar": 4.8, "fiber": 0, "fat": 3.3, "sat_fat": 1.9, "salt": 0.1, "iron": 0, "magnesium": 11, "b12": 0.4, "zinc": 0.4, "vit_c": 0, "vit_d": 1.3, "calcium": 113, "potassium": 132}},
-    {"name": "Cheddar Cheese", "n": {"kcal": 403, "protein": 25.0, "carbs": 1.3, "sugar": 0.5, "fiber": 0, "fat": 33, "sat_fat": 21, "salt": 1.6, "iron": 0.7, "magnesium": 28, "b12": 0.8, "zinc": 3.1, "vit_c": 0, "vit_d": 0.3, "calcium": 721, "potassium": 98}},
+    {"name": "Mixed Salad Greens", "n": {"kcal": 17, "protein": 1.5, "carbs": 2.9, "sugar": 0.8, "fiber": 1.8, "fat": 0.2, "sat_fat": 0, "salt": 0.04, "iron": 1.5, "magnesium": 13, "b12": 0, "zinc": 0.2, "vit_c": 18, "vit_d": 0, "calcium": 36, "potassium": 290}},
+    {"name": "Blueberries", "n": {"kcal": 57, "protein": 0.7, "carbs": 14.5, "sugar": 10.0, "fiber": 2.4, "fat": 0.3, "sat_fat": 0, "salt": 0.003, "iron": 0.3, "magnesium": 6, "b12": 0, "zinc": 0.2, "vit_c": 9.7, "vit_d": 0, "calcium": 6, "potassium": 77}},
 ]
 
 # ---------------------------------------------------------------------------
@@ -70,52 +37,52 @@ FOODS = [
 # ---------------------------------------------------------------------------
 BREAKFAST_OPTIONS = [
     # Oatmeal bowl with banana and blueberries
-    [("Oatmeal (cooked)", 250, 350), ("Banana", 80, 120), ("Blueberries", 40, 80), ("Honey", 10, 20)],
+    [("Oat flakes", 250, 350), ("Banana, raw", 80, 120), ("Blueberries", 40, 80), ("Honey, from flowers", 10, 20)],
     # Eggs on toast
-    [("Eggs (scrambled)", 150, 200), ("Whole Wheat Toast", 50, 70), ("Avocado", 30, 60)],
+    [("Scrambled eggs, prepared", 150, 200), ("Bread for toasting, wholemeal", 50, 70), ("Avocado, fresh", 30, 60)],
     # Protein shake + yogurt
-    [("Whey Protein Shake", 30, 40), ("Greek Yogurt (plain, 2%)", 150, 200), ("Banana", 80, 120), ("Blueberries", 50, 80)],
+    [("Whey Protein Shake", 30, 40), ("Yogurt, low fat", 150, 200), ("Banana, raw", 80, 120), ("Blueberries", 50, 80)],
     # Yogurt with peanut butter toast
-    [("Greek Yogurt (plain, 2%)", 200, 250), ("Whole Wheat Toast", 60, 80), ("Peanut Butter", 15, 25)],
+    [("Yogurt, low fat", 200, 250), ("Bread for toasting, wholemeal", 60, 80), ("Peanut butter", 15, 25)],
     # Simple eggs and cheese
-    [("Eggs (scrambled)", 150, 200), ("Cheddar Cheese", 20, 30), ("Whole Wheat Toast", 50, 70)],
+    [("Scrambled eggs, prepared", 150, 200), ("Emmentaler cheese, at least 45% fidm", 20, 30), ("Bread for toasting, wholemeal", 50, 70)],
 ]
 
 LUNCH_OPTIONS = [
     # Chicken rice bowl
-    [("Chicken Breast (grilled)", 150, 200), ("White Rice (cooked)", 180, 250), ("Broccoli (steamed)", 100, 150), ("Olive Oil", 5, 10)],
+    [("Chicken, breast, without skin, raw", 150, 200), ("Rice polished, cooked in salted water (uniodised)", 180, 250), ("Broccoli, steamed (without addition of salt)", 100, 150), ("Olive oil", 5, 10)],
     # Salmon with sweet potato
-    [("Salmon Fillet (baked)", 150, 180), ("Sweet Potato (baked)", 200, 280), ("Mixed Salad Greens", 80, 120)],
+    [("Salmon, cultured, raw", 150, 180), ("Sweet potato, raw", 200, 280), ("Mixed Salad Greens", 80, 120)],
     # Turkey salad
-    [("Turkey Breast (roasted)", 130, 170), ("Quinoa (cooked)", 150, 200), ("Mixed Salad Greens", 100, 150), ("Avocado", 40, 70), ("Olive Oil", 5, 10)],
+    [("Turkey, breast (schnitzel, ground), raw", 130, 170), ("Quinoa, cooked (without addition of salt and fat)", 150, 200), ("Mixed Salad Greens", 100, 150), ("Avocado, fresh", 40, 70), ("Olive oil", 5, 10)],
     # Tofu stir-fry
-    [("Tofu (firm)", 200, 250), ("Brown Rice (cooked)", 200, 250), ("Bell Pepper (red)", 80, 120), ("Broccoli (steamed)", 80, 120)],
+    [("Tofu, firm, plain (average)", 200, 250), ("Rice unpolished, cooked in salted water (uniodised)", 200, 250), ("Bell pepper, red, raw", 80, 120), ("Broccoli, steamed (without addition of salt)", 80, 120)],
     # Beef with pasta
-    [("Ground Beef (90% lean)", 120, 160), ("Pasta (cooked)", 180, 250), ("Olive Oil", 5, 10), ("Spinach (raw)", 40, 60)],
+    [("Beef, minced, raw", 120, 160), ("Pasta egg-free, cooked in salted water (uniodised)", 180, 250), ("Olive oil", 5, 10), ("Spinach, raw", 40, 60)],
 ]
 
 DINNER_OPTIONS = [
     # Chicken with quinoa
-    [("Chicken Breast (grilled)", 150, 200), ("Quinoa (cooked)", 150, 200), ("Broccoli (steamed)", 120, 160), ("Olive Oil", 5, 10)],
+    [("Chicken, breast, without skin, raw", 150, 200), ("Quinoa, cooked (without addition of salt and fat)", 150, 200), ("Broccoli, steamed (without addition of salt)", 120, 160), ("Olive oil", 5, 10)],
     # Salmon pasta
-    [("Salmon Fillet (baked)", 140, 180), ("Pasta (cooked)", 150, 220), ("Spinach (raw)", 50, 80), ("Olive Oil", 5, 10)],
+    [("Salmon, cultured, raw", 140, 180), ("Pasta egg-free, cooked in salted water (uniodised)", 150, 220), ("Spinach, raw", 50, 80), ("Olive oil", 5, 10)],
     # Beef and rice
-    [("Ground Beef (90% lean)", 150, 200), ("Brown Rice (cooked)", 180, 250), ("Avocado", 40, 70), ("Mixed Salad Greens", 60, 100)],
+    [("Beef, minced, raw", 150, 200), ("Rice unpolished, cooked in salted water (uniodised)", 180, 250), ("Avocado, fresh", 40, 70), ("Mixed Salad Greens", 60, 100)],
     # Turkey with sweet potato
-    [("Turkey Breast (roasted)", 150, 200), ("Sweet Potato (baked)", 200, 300), ("Broccoli (steamed)", 100, 150)],
+    [("Turkey, breast (schnitzel, ground), raw", 150, 200), ("Sweet potato, raw", 200, 300), ("Broccoli, steamed (without addition of salt)", 100, 150)],
     # Tofu bowl
-    [("Tofu (firm)", 180, 250), ("White Rice (cooked)", 180, 250), ("Spinach (raw)", 50, 80), ("Bell Pepper (red)", 80, 120), ("Olive Oil", 5, 10)],
+    [("Tofu, firm, plain (average)", 180, 250), ("Rice polished, cooked in salted water (uniodised)", 180, 250), ("Spinach, raw", 50, 80), ("Bell pepper, red, raw", 80, 120), ("Olive oil", 5, 10)],
 ]
 
 SNACK_OPTIONS = [
-    [("Almonds", 25, 40)],
-    [("Apple", 150, 200)],
+    [("Almond", 25, 40)],
+    [("Apple, fresh", 150, 200)],
     [("Protein Bar", 55, 65)],
-    [("Cottage Cheese (low-fat)", 150, 200)],
-    [("Greek Yogurt (plain, 2%)", 150, 200), ("Blueberries", 40, 60)],
-    [("Dark Chocolate (85%)", 15, 25)],
-    [("Banana", 100, 130), ("Peanut Butter", 15, 25)],
-    [("Whey Protein Shake", 30, 40), ("Milk (whole)", 200, 300)],
+    [("Cottage cheese", 150, 200)],
+    [("Yogurt, low fat", 150, 200), ("Blueberries", 40, 60)],
+    [("Chocolate, dark", 15, 25)],
+    [("Banana, raw", 100, 130), ("Peanut butter", 15, 25)],
+    [("Whey Protein Shake", 30, 40), ("Whole milk, UHT", 200, 300)],
 ]
 
 # ---------------------------------------------------------------------------
@@ -206,14 +173,14 @@ async def seed_demo():
                 unit=mt["unit"],
             ))
 
-        # ----- Seed foods (only if they don't exist) -----
-        food_map: dict[str, uuid.UUID] = {}
-        for f in FOODS:
-            result = await db.execute(select(Food).where(Food.name == f["name"]))
-            existing_food = result.scalar_one_or_none()
-            if existing_food:
-                food_map[f["name"]] = existing_food.id
-            else:
+        # ----- Build food map from existing DB foods -----
+        result = await db.execute(select(Food))
+        food_map: dict[str, uuid.UUID] = {f.name: f.id for f in result.scalars().all()}
+        print(f"Found {len(food_map)} foods in database")
+
+        # Create extra foods (supplements, etc.) only if not already present
+        for f in EXTRA_FOODS:
+            if f["name"] not in food_map:
                 food = Food(name=f["name"], source="seed")
                 db.add(food)
                 await db.flush()
@@ -240,6 +207,7 @@ async def seed_demo():
                     omega3=n.get("omega3", 0),
                     vit_k2=n.get("vit_k2", 0),
                 ))
+                print(f"  Created extra food: {f['name']}")
 
         # ----- Generate 90 days of data -----
         today = date.today()
@@ -256,6 +224,7 @@ async def seed_demo():
         total_food_logs = 0
         total_weight_logs = 0
         total_supplement_logs = 0
+        _warned_foods: set[str] = set()
 
         for day_offset in range(90):
             current_date = start_date + timedelta(day_offset)
@@ -308,6 +277,11 @@ async def seed_demo():
 
             for meal_type, options in [("breakfast", breakfast), ("lunch", lunch), ("dinner", dinner)]:
                 for food_name, lo, hi in options:
+                    if food_name not in food_map:
+                        if food_name not in _warned_foods:
+                            print(f"  WARNING: food not found in DB, skipping: {food_name}")
+                            _warned_foods.add(food_name)
+                        continue
                     qty = _rand(lo, hi) * portion_mult * discipline_mult
                     db.add(FoodLog(
                         user_id=user_id,
@@ -320,6 +294,11 @@ async def seed_demo():
 
             for snack_items in snacks:
                 for food_name, lo, hi in snack_items:
+                    if food_name not in food_map:
+                        if food_name not in _warned_foods:
+                            print(f"  WARNING: food not found in DB, skipping: {food_name}")
+                            _warned_foods.add(food_name)
+                        continue
                     qty = _rand(lo, hi) * portion_mult
                     db.add(FoodLog(
                         user_id=user_id,

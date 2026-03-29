@@ -16,38 +16,38 @@ from app.models import Food, FoodLog, Supplement, User, WeightLog
 # Meal templates — (food_name, qty_lo, qty_hi)
 # ---------------------------------------------------------------------------
 BREAKFAST_OPTIONS = [
-    [("Oatmeal (cooked)", 250, 350), ("Banana", 80, 120), ("Blueberries", 40, 80), ("Honey", 10, 20)],
-    [("Eggs (scrambled)", 150, 200), ("Whole Wheat Toast", 50, 70), ("Avocado", 30, 60)],
-    [("Whey Protein Shake", 30, 40), ("Greek Yogurt (plain, 2%)", 150, 200), ("Banana", 80, 120), ("Blueberries", 50, 80)],
-    [("Greek Yogurt (plain, 2%)", 200, 250), ("Whole Wheat Toast", 60, 80), ("Peanut Butter", 15, 25)],
-    [("Eggs (scrambled)", 150, 200), ("Cheddar Cheese", 20, 30), ("Whole Wheat Toast", 50, 70)],
+    [("Oat flakes", 250, 350), ("Banana, raw", 80, 120), ("Blueberries", 40, 80), ("Honey, from flowers", 10, 20)],
+    [("Scrambled eggs, prepared", 150, 200), ("Bread for toasting, wholemeal", 50, 70), ("Avocado, fresh", 30, 60)],
+    [("Whey Protein Shake", 30, 40), ("Yogurt, low fat", 150, 200), ("Banana, raw", 80, 120), ("Blueberries", 50, 80)],
+    [("Yogurt, low fat", 200, 250), ("Bread for toasting, wholemeal", 60, 80), ("Peanut butter", 15, 25)],
+    [("Scrambled eggs, prepared", 150, 200), ("Emmentaler cheese, at least 45% fidm", 20, 30), ("Bread for toasting, wholemeal", 50, 70)],
 ]
 
 LUNCH_OPTIONS = [
-    [("Chicken Breast (grilled)", 150, 200), ("White Rice (cooked)", 180, 250), ("Broccoli (steamed)", 100, 150), ("Olive Oil", 5, 10)],
-    [("Salmon Fillet (baked)", 150, 180), ("Sweet Potato (baked)", 200, 280), ("Mixed Salad Greens", 80, 120)],
-    [("Turkey Breast (roasted)", 130, 170), ("Quinoa (cooked)", 150, 200), ("Mixed Salad Greens", 100, 150), ("Avocado", 40, 70), ("Olive Oil", 5, 10)],
-    [("Tofu (firm)", 200, 250), ("Brown Rice (cooked)", 200, 250), ("Bell Pepper (red)", 80, 120), ("Broccoli (steamed)", 80, 120)],
-    [("Ground Beef (90% lean)", 120, 160), ("Pasta (cooked)", 180, 250), ("Olive Oil", 5, 10), ("Spinach (raw)", 40, 60)],
+    [("Chicken, breast, without skin, raw", 150, 200), ("Rice polished, cooked in salted water (uniodised)", 180, 250), ("Broccoli, steamed (without addition of salt)", 100, 150), ("Olive oil", 5, 10)],
+    [("Salmon, cultured, raw", 150, 180), ("Sweet potato, raw", 200, 280), ("Mixed Salad Greens", 80, 120)],
+    [("Turkey, breast (schnitzel, ground), raw", 130, 170), ("Quinoa, cooked (without addition of salt and fat)", 150, 200), ("Mixed Salad Greens", 100, 150), ("Avocado, fresh", 40, 70), ("Olive oil", 5, 10)],
+    [("Tofu, firm, plain (average)", 200, 250), ("Rice unpolished, cooked in salted water (uniodised)", 200, 250), ("Bell pepper, red, raw", 80, 120), ("Broccoli, steamed (without addition of salt)", 80, 120)],
+    [("Beef, minced, raw", 120, 160), ("Pasta egg-free, cooked in salted water (uniodised)", 180, 250), ("Olive oil", 5, 10), ("Spinach, raw", 40, 60)],
 ]
 
 DINNER_OPTIONS = [
-    [("Chicken Breast (grilled)", 150, 200), ("Quinoa (cooked)", 150, 200), ("Broccoli (steamed)", 120, 160), ("Olive Oil", 5, 10)],
-    [("Salmon Fillet (baked)", 140, 180), ("Pasta (cooked)", 150, 220), ("Spinach (raw)", 50, 80), ("Olive Oil", 5, 10)],
-    [("Ground Beef (90% lean)", 150, 200), ("Brown Rice (cooked)", 180, 250), ("Avocado", 40, 70), ("Mixed Salad Greens", 60, 100)],
-    [("Turkey Breast (roasted)", 150, 200), ("Sweet Potato (baked)", 200, 300), ("Broccoli (steamed)", 100, 150)],
-    [("Tofu (firm)", 180, 250), ("White Rice (cooked)", 180, 250), ("Spinach (raw)", 50, 80), ("Bell Pepper (red)", 80, 120), ("Olive Oil", 5, 10)],
+    [("Chicken, breast, without skin, raw", 150, 200), ("Quinoa, cooked (without addition of salt and fat)", 150, 200), ("Broccoli, steamed (without addition of salt)", 120, 160), ("Olive oil", 5, 10)],
+    [("Salmon, cultured, raw", 140, 180), ("Pasta egg-free, cooked in salted water (uniodised)", 150, 220), ("Spinach, raw", 50, 80), ("Olive oil", 5, 10)],
+    [("Beef, minced, raw", 150, 200), ("Rice unpolished, cooked in salted water (uniodised)", 180, 250), ("Avocado, fresh", 40, 70), ("Mixed Salad Greens", 60, 100)],
+    [("Turkey, breast (schnitzel, ground), raw", 150, 200), ("Sweet potato, raw", 200, 300), ("Broccoli, steamed (without addition of salt)", 100, 150)],
+    [("Tofu, firm, plain (average)", 180, 250), ("Rice polished, cooked in salted water (uniodised)", 180, 250), ("Spinach, raw", 50, 80), ("Bell pepper, red, raw", 80, 120), ("Olive oil", 5, 10)],
 ]
 
 SNACK_OPTIONS = [
-    [("Almonds", 25, 40)],
-    [("Apple", 150, 200)],
+    [("Almond", 25, 40)],
+    [("Apple, fresh", 150, 200)],
     [("Protein Bar", 55, 65)],
-    [("Cottage Cheese (low-fat)", 150, 200)],
-    [("Greek Yogurt (plain, 2%)", 150, 200), ("Blueberries", 40, 60)],
-    [("Dark Chocolate (85%)", 15, 25)],
-    [("Banana", 100, 130), ("Peanut Butter", 15, 25)],
-    [("Whey Protein Shake", 30, 40), ("Milk (whole)", 200, 300)],
+    [("Cottage cheese", 150, 200)],
+    [("Yogurt, low fat", 150, 200), ("Blueberries", 40, 60)],
+    [("Chocolate, dark", 15, 25)],
+    [("Banana, raw", 100, 130), ("Peanut butter", 15, 25)],
+    [("Whey Protein Shake", 30, 40), ("Whole milk, UHT", 200, 300)],
 ]
 
 SUPPLEMENT_DEFS = [

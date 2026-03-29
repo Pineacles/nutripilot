@@ -12,7 +12,7 @@ from app.models.user import User
 from app.models.weight_log import WeightLog
 from app.schemas.food import FoodResponse, FoodSearchResult, NutrientData
 from app.schemas.summary import StatsSummary, TodaySummary, WeekSummary
-from app.services import summary_service
+from app.services import food_service, summary_service
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -96,11 +96,30 @@ async def dashboard_foods(
     rows = result.all()
     total = (await db.execute(count_stmt)).scalar() or 0
 
+    items = [
+        {"id": str(r.id), "name": r.name, "barcode": r.barcode, "source": r.source, "kcal": r.kcal, "protein": r.protein}
+        for r in rows
+    ]
+
+    # Fall back to OpenFoodFacts if local results are sparse and query is long enough
+    if q and len(q) >= 2 and len(items) < 3 and page == 1:
+        from app.external.openfoodfacts import search_by_text
+
+        off_results = await search_by_text(q, limit=limit - len(items))
+        local_names = {item["name"].lower() for item in items}
+        for off_item in off_results:
+            if off_item["name"].lower() not in local_names:
+                items.append({
+                    "id": None,
+                    "name": off_item["name"],
+                    "barcode": off_item.get("barcode"),
+                    "source": "openfoodfacts",
+                    "kcal": off_item.get("kcal"),
+                    "protein": off_item.get("protein"),
+                })
+
     return {
-        "items": [
-            {"id": str(r.id), "name": r.name, "barcode": r.barcode, "source": r.source, "kcal": r.kcal, "protein": r.protein}
-            for r in rows
-        ],
+        "items": items,
         "total": total,
         "page": page,
         "pages": (total + limit - 1) // limit,
@@ -116,7 +135,10 @@ async def dashboard_food_detail(
     result = await db.execute(select(Food).where(Food.id == food_id))
     food = result.scalar_one_or_none()
     if food is None:
-        raise HTTPException(status_code=404, detail="Food not found")
+        raise HTTPException(
+            status_code=404,
+            detail={"detail": "Food not found", "code": "FOOD_NOT_FOUND"},
+        )
     nutrients = None
     if food.nutrients:
         nutrients = NutrientData.model_validate(food.nutrients, from_attributes=True)

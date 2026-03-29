@@ -85,13 +85,49 @@ class WeekSummary(BaseModel):
     body_comp: list[BodyCompEntry]
 
 
+class DailyNutrition(BaseModel):
+    date: datetime.date
+    kcal: float
+    protein: float
+    carbs: float
+    fat: float
+    fiber: float
+    sugar: float
+    sodium: float
+
+
+class DailyMicros(BaseModel):
+    date: datetime.date
+    calcium: Optional[float] = None
+    potassium: Optional[float] = None
+    omega3: Optional[float] = None
+    zinc: Optional[float] = None
+    vit_d: Optional[float] = None
+    vit_c: Optional[float] = None
+    magnesium: Optional[float] = None
+    b12: Optional[float] = None
+    iron: Optional[float] = None
+
+
+class SupplementLogEntry(BaseModel):
+    date: datetime.date
+    count: int
+    names: list[str]
+
+
 class StatsSummary(BaseModel):
     weight_history: list[BodyCompEntry]
-    daily_calories: list[dict]  # [{date, kcal}]
+    daily_nutrition: list[DailyNutrition]
+    daily_micros: list[DailyMicros]
+    supplement_log: list[SupplementLogEntry]
     macro_avg: MacroTotals
+    micro_avg: MicronutrientAverages
     days_logged: int
     total_days: int
     supplement_adherence_pct: float
     highest_protein_day: Optional[dict] = None  # {date, protein}
     lowest_calorie_day: Optional[dict] = None  # {date, kcal}
+    highest_calorie_day: Optional[dict] = None  # {date, kcal}
+    best_fiber_day: Optional[dict] = None  # {date, fiber}
+    avg_daily_kcal: float = 0
     current_streak: int
