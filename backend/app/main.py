@@ -1,9 +1,11 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.demo_daily import seed_today
 from app.routers import agent, auth, dashboard, foods, settings as settings_router
 
 DESCRIPTION = """
@@ -18,11 +20,32 @@ The dashboard is read-only analytics.
 """
 
 
+async def _daily_demo_loop():
+    """Run demo seeder once on startup, then every 24h at ~00:05."""
+    try:
+        await seed_today()
+    except Exception as e:
+        print(f"[demo_daily] startup seed error: {e}")
+    while True:
+        # Sleep until next 00:05
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=5, second=0, microsecond=0)
+        wait_seconds = (tomorrow - now).total_seconds()
+        await asyncio.sleep(wait_seconds)
+        try:
+            await seed_today()
+        except Exception as e:
+            print(f"[demo_daily] daily seed error: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import subprocess
     subprocess.run(["alembic", "upgrade", "head"], check=True)
+    task = asyncio.create_task(_daily_demo_loop())
     yield
+    task.cancel()
 
 
 app = FastAPI(

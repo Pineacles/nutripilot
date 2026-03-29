@@ -1,7 +1,5 @@
 import { getToken, refreshAccessToken, clearTokens } from "./auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
-
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -12,14 +10,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  let res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  let res = await fetch(`${path}`, { ...init, headers });
 
   // Try refresh on 401
   if (res.status === 401) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       headers["Authorization"] = `Bearer ${getToken()}`;
-      res = await fetch(`${API_URL}${path}`, { ...init, headers });
+      res = await fetch(`${path}`, { ...init, headers });
     } else {
       clearTokens();
       window.location.href = "/login";

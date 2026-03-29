@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { DashboardCard } from "@/components/dashboard-card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { apiFetch } from "@/lib/api";
 
 interface FoodResult {
@@ -48,7 +52,7 @@ export default function ScannerPage() {
     try {
       // We need to hit the foods barcode endpoint — use a special dashboard route
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/foods/barcode/${code}`,
+        `/api/foods/barcode/${code}`,
         {
           headers: {
             "X-API-Key": "dev-api-key-change-in-production", // For demo; in prod this would be handled differently
@@ -115,12 +119,12 @@ export default function ScannerPage() {
 
   return (
     <DashboardLayout title="Barcode Scanner">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Scanner / Input */}
         <DashboardCard title="Scan">
           <div className="space-y-4">
             {/* Camera viewfinder */}
-            <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
+            <div className="relative rounded-xl overflow-hidden bg-black aspect-video border border-border">
               <video
                 ref={videoRef}
                 className={`w-full h-full object-cover ${scanning ? "" : "hidden"}`}
@@ -130,64 +134,73 @@ export default function ScannerPage() {
               />
               {!scanning && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                  <svg className="h-12 w-12 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <svg className="h-12 w-12 text-muted-foreground/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5zM13.5 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z" />
                   </svg>
-                  <button
-                    onClick={startScanning}
-                    className="rounded-xl bg-[#22c55e] px-6 py-2.5 text-sm font-semibold text-[#0f0f0f] transition-opacity hover:opacity-90"
-                  >
+                  <Button onClick={startScanning} size="lg">
                     Start Camera
-                  </button>
+                  </Button>
                 </div>
               )}
               {scanning && (
                 <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-32 border-2 border-[#22c55e] rounded-lg opacity-50" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-32 border-2 border-primary rounded-lg opacity-50 shadow-[0_0_15px_rgba(34,197,94,0.2)]" />
                 </div>
               )}
             </div>
 
             {/* Manual entry */}
             <form onSubmit={handleManualSubmit} className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
                 placeholder="Or enter barcode manually..."
-                className="flex-1 rounded-xl border border-white/5 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-[#22c55e]/50 font-mono"
+                className="flex-1 h-10 font-mono"
               />
-              <button
+              <Button
                 type="submit"
                 disabled={!manualCode.trim() || loading}
-                className="rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/15 disabled:opacity-30"
+                variant="secondary"
+                size="lg"
               >
                 Look up
-              </button>
+              </Button>
             </form>
 
-            {error && <p className="text-sm text-[#ef4444]">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
         </DashboardCard>
 
         {/* Result */}
         <DashboardCard title="Result">
           {loading ? (
-            <div className="flex h-32 items-center justify-center">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#22c55e] border-t-transparent" />
+            <div className="space-y-3 py-4">
+              <div className="h-6 w-3/4 rounded bg-muted animate-pulse" />
+              <div className="h-4 w-1/2 rounded bg-muted/50 animate-pulse" />
+              <div className="space-y-2 mt-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-5 rounded bg-muted/30 animate-pulse" />
+                ))}
+              </div>
             </div>
           ) : !result ? (
-            <div className="flex h-32 items-center justify-center">
-              <p className="text-sm text-white/30">Scan a barcode or enter one manually</p>
+            <div className="flex flex-col items-center justify-center h-32 text-center">
+              <svg className="h-10 w-10 text-muted-foreground/30 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <p className="text-sm text-muted-foreground">Scan a barcode or enter one manually</p>
             </div>
           ) : (
             <div>
-              <h4 className="text-lg font-semibold text-white mb-1">{result.name}</h4>
+              <h4 className="text-lg font-semibold text-foreground mb-1">{result.name}</h4>
               <div className="flex items-center gap-2 mb-4">
                 {result.barcode && (
-                  <span className="text-xs text-white/30 font-mono bg-white/5 px-2 py-0.5 rounded">{result.barcode}</span>
+                  <Badge variant="secondary" className="font-mono text-[10px]">
+                    {result.barcode}
+                  </Badge>
                 )}
-                <span className="text-xs text-white/30">{result.source}</span>
+                <span className="text-xs text-muted-foreground">{result.source}</span>
               </div>
 
               {result.nutrients ? (
@@ -197,20 +210,21 @@ export default function ScannerPage() {
                     if (val == null) return null;
                     const isMain = ["kcal", "protein", "carbs", "fat"].includes(key);
                     return (
-                      <div key={key} className={`flex items-center justify-between ${isMain ? "" : "opacity-60"}`}>
-                        <span className={`text-white/70 ${isMain ? "text-sm font-medium" : "text-xs"}`}>{meta.label}</span>
-                        <span className={`tabular-nums text-white ${isMain ? "text-sm font-bold" : "text-xs"}`}>
+                      <div key={key} className={`flex items-center justify-between py-0.5 ${isMain ? "" : "opacity-60"}`}>
+                        <span className={`text-muted-foreground ${isMain ? "text-sm font-medium" : "text-xs"}`}>{meta.label}</span>
+                        <span className={`tabular-nums text-foreground ${isMain ? "text-sm font-bold" : "text-xs"}`}>
                           {Math.round(val * 10) / 10} {meta.unit}
                         </span>
                       </div>
                     );
                   })}
-                  <p className="text-[9px] text-white/20 mt-3 pt-2 border-t border-white/5">
+                  <Separator className="my-2" />
+                  <p className="text-[9px] text-muted-foreground/50">
                     Per 100g
                   </p>
                 </div>
               ) : (
-                <p className="text-sm text-white/30">No nutrient data</p>
+                <p className="text-sm text-muted-foreground">No nutrient data</p>
               )}
             </div>
           )}

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isLoggedIn } from "@/lib/auth";
 import { Sidebar } from "@/components/sidebar";
+import { NavBar } from "@/components/nav-bar";
 
 interface Props {
   title: string;
@@ -12,17 +13,31 @@ interface Props {
 
 export function DashboardLayout({ title, children }: Props) {
   const router = useRouter();
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    if (!isLoggedIn()) router.replace("/login");
+    if (!isLoggedIn()) {
+      router.replace("/login");
+    } else {
+      setAuthed(true);
+    }
   }, [router]);
 
+  if (!authed) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#0f0f0f]">
+    <div className="min-h-screen bg-background">
       <Sidebar />
-      <main className="ml-56">
-        <div className="max-w-7xl mx-auto px-8 py-6">
-          <h1 className="text-xl font-semibold text-white mb-6">{title}</h1>
+      <NavBar />
+      <main className="lg:ml-56 pb-20 lg:pb-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <h1 className="text-xl font-semibold text-foreground mb-6">{title}</h1>
           {children}
         </div>
       </main>

@@ -73,12 +73,12 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 z-50 flex w-56 flex-col border-r border-white/5 bg-[#111113]">
+    <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-56 flex-col border-r border-border bg-card">
       <div className="px-5 py-6">
-        <h1 className="text-lg font-bold tracking-tight text-white">
+        <h1 className="text-lg font-bold tracking-tight text-foreground">
           NutriPilot
         </h1>
-        <p className="text-[10px] text-white/30 mt-0.5 uppercase tracking-widest">
+        <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-widest">
           Dashboard
         </p>
       </div>
@@ -90,10 +90,10 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 active
-                  ? "bg-[#22c55e]/10 text-[#22c55e]"
-                  : "text-white/50 hover:bg-white/5 hover:text-white/80"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >
               {item.icon}
@@ -106,7 +106,7 @@ export function Sidebar() {
       <div className="px-3 pb-5">
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/30 transition-colors hover:bg-white/5 hover:text-white/50"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/50 transition-colors duration-150 hover:bg-secondary hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />

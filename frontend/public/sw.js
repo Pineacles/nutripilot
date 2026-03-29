@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutripilot-v1";
+const CACHE_NAME = "nutripilot-v2";
 const STATIC_ASSETS = ["/today", "/weekly", "/statistics", "/settings", "/foods", "/scanner"];
 
 self.addEventListener("install", (event) => {
@@ -20,6 +20,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
+  // Skip caching _next/static assets — Next.js uses content hashes
+  if (request.url.includes("/_next/")) {
+    return;
+  }
+
   // API calls: network-first
   if (request.url.includes("/api/")) {
     event.respondWith(
@@ -34,7 +39,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static: cache-first
+  // Navigation requests: network-first (so new HTML always loads fresh CSS/JS references)
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Other static assets: cache-first
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request))
   );

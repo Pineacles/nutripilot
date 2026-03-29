@@ -37,13 +37,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <head>
         <link rel="icon" href="/icons/icon-192.png" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="min-h-full flex flex-col bg-[#0f0f0f] text-[#e8e8e8]">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
         <script
           dangerouslySetInnerHTML={{

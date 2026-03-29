@@ -30,7 +30,7 @@ export function MealsLogCard({ meals }: Props) {
   return (
     <DashboardCard title="Meals" className="col-span-2">
       {sorted.length === 0 ? (
-        <p className="text-sm text-white/30">No meals logged today</p>
+        <p className="text-sm text-muted-foreground">No meals logged today</p>
       ) : (
         <div className="space-y-1">
           {sorted.map((group) => {
@@ -40,42 +40,44 @@ export function MealsLogCard({ meals }: Props) {
               <div key={group.meal_type}>
                 <button
                   onClick={() => toggle(group.meal_type)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-white/5"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-muted/60"
                 >
                   <div className="flex items-center gap-2">
                     <svg
-                      className={`h-3.5 w-3.5 text-white/30 transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${isCollapsed ? "" : "rotate-90"}`}
                       fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
-                    <span className="text-sm font-medium text-white/70">
+                    <span className="text-sm font-medium text-foreground/80">
                       {mealLabels[group.meal_type] || group.meal_type}
                     </span>
-                    <span className="text-xs text-white/30">{group.items.length} items</span>
+                    <span className="text-xs text-muted-foreground">{group.items.length} items</span>
                   </div>
-                  <span className="text-sm tabular-nums text-white/50">
+                  <span className="text-sm tabular-nums text-muted-foreground">
                     {Math.round(groupKcal)} kcal
                   </span>
                 </button>
-                {!isCollapsed && (
-                  <div className="ml-8 space-y-1 pb-2">
-                    {group.items.map((item, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between rounded-lg px-3 py-1.5 text-sm"
-                      >
-                        <div>
-                          <span className="text-white/80">{item.food_name}</span>
-                          <span className="ml-2 text-xs text-white/25">{item.quantity_g}g</span>
-                        </div>
-                        <span className="tabular-nums text-white/40">
-                          {item.kcal != null ? `${Math.round(item.kcal)} kcal` : "—"}
-                        </span>
+                <div
+                  className={`ml-8 space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out ${
+                    isCollapsed ? "max-h-0 opacity-0 pb-0" : "max-h-[500px] opacity-100 pb-2"
+                  }`}
+                >
+                  {group.items.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-lg px-3 py-1.5 text-sm transition-colors duration-150 hover:bg-muted/40"
+                    >
+                      <div>
+                        <span className="text-foreground/80">{item.food_name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground/60">{item.quantity_g}g</span>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <span className="tabular-nums text-muted-foreground">
+                        {item.kcal != null ? `${Math.round(item.kcal)} kcal` : "\u2014"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             );
           })}

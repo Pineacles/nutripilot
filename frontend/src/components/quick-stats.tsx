@@ -23,10 +23,10 @@ export function QuickStatsCard({ data }: Props) {
         {stats.map((s) => (
           <div
             key={s.label}
-            className="rounded-xl bg-white/[0.03] border border-white/5 p-3 text-center"
+            className="rounded-xl bg-muted/40 border border-border p-4 text-center transition-colors duration-150 hover:bg-muted/70"
           >
-            <p className="text-2xl font-bold tabular-nums text-white">{s.value}</p>
-            <p className="text-[10px] text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
+            <p className="text-3xl font-bold tabular-nums text-foreground">{s.value}</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{s.label}</p>
           </div>
         ))}
       </div>

@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: nutripilot
       POSTGRES_DB: nutripilot
     ports:
-      - "5432:5432"
+      - "5488:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -18,12 +18,12 @@ services:
   api:
     build: ./backend
     ports:
-      - "8001:8000"
+      - "8099:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://nutripilot:nutripilot@db:5432/nutripilot
       JWT_SECRET: dev-secret-change-in-production
       API_KEY: dev-api-key-change-in-production
-      CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3099,https://nutripilot.pineappleles.ch
     depends_on:
       db:
         condition: service_healthy
@@ -31,15 +31,14 @@ services:
       - ./backend:/app
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
     ports:
-      - "3001:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8001
+      - "3099:3000"
+    # API calls use relative URLs proxied via Next.js rewrites — no NEXT_PUBLIC_API_URL needed
     depends_on:
       - api
-    volumes:
-      - ./frontend/src:/app/src
 
 volumes:
   pgdata:

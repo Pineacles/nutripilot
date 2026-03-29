@@ -12,6 +12,22 @@ import {
 import type { BodyCompEntry } from "@/lib/types";
 import { DashboardCard } from "./dashboard-card";
 
+/* ── Color constants (Recharts needs hex values) ── */
+const COLOR_BODY_FAT  = "#f9c74f";
+const COLOR_MUSCLE    = "#4f9cf9";
+const COLOR_GRID      = "rgba(255,255,255,0.05)";
+const COLOR_TICK      = "rgba(255,255,255,0.3)";
+
+const TOOLTIP_STYLE = {
+  backgroundColor: "#1a1a1a",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: 12,
+  color: "#e8e8e8",
+  fontSize: 12,
+  padding: "8px 12px",
+  boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+} as const;
+
 interface Props {
   data: BodyCompEntry[];
 }
@@ -22,7 +38,7 @@ export function BodyFatCard({ data }: Props) {
   if (points.length === 0) {
     return (
       <DashboardCard title="Body Fat %" className="col-span-1">
-        <p className="text-sm text-white/30">No body fat data yet</p>
+        <p className="text-sm text-muted-foreground">No body fat data yet</p>
       </DashboardCard>
     );
   }
@@ -35,10 +51,10 @@ export function BodyFatCard({ data }: Props) {
   return (
     <DashboardCard title="Body Fat %" className="col-span-1">
       <div className="flex items-baseline gap-2 -mt-1">
-        <span className="text-2xl font-bold tabular-nums text-white">{latest.body_fat_pct}%</span>
+        <span className="text-2xl font-bold tabular-nums text-foreground">{latest.body_fat_pct}%</span>
         {points.length > 1 && (
           <span className={`text-sm font-semibold tabular-nums ${
-            latest.body_fat_pct! <= points[0].body_fat_pct! ? "text-[#22c55e]" : "text-[#ef4444]"
+            latest.body_fat_pct! <= points[0].body_fat_pct! ? "text-primary" : "text-destructive"
           }`}>
             {latest.body_fat_pct! <= points[0].body_fat_pct! ? "" : "+"}
             {(latest.body_fat_pct! - points[0].body_fat_pct!).toFixed(1)}%
@@ -47,16 +63,29 @@ export function BodyFatCard({ data }: Props) {
       </div>
       <ResponsiveContainer width="100%" height={140}>
         <LineChart data={points}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRID} vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-            axisLine={false} tickLine={false}
+            tick={{ fill: COLOR_TICK, fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
             tickFormatter={(v) => new Date(v).toLocaleDateString("en", { weekday: "short" })}
           />
-          <YAxis domain={[min, max]} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
-          <Tooltip contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#e8e8e8", fontSize: 12 }} />
-          <Line type="monotone" dataKey="body_fat_pct" stroke="#f59e0b" strokeWidth={2} dot={{ fill: "#f59e0b", r: 3, strokeWidth: 0 }} />
+          <YAxis
+            domain={[min, max]}
+            tick={{ fill: COLOR_TICK, fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            width={30}
+          />
+          <Tooltip contentStyle={TOOLTIP_STYLE} />
+          <Line
+            type="monotone"
+            dataKey="body_fat_pct"
+            stroke={COLOR_BODY_FAT}
+            strokeWidth={2}
+            dot={{ fill: COLOR_BODY_FAT, r: 3, strokeWidth: 0 }}
+          />
         </LineChart>
       </ResponsiveContainer>
     </DashboardCard>
@@ -69,7 +98,7 @@ export function MuscleCard({ data }: Props) {
   if (points.length === 0) {
     return (
       <DashboardCard title="Muscle Mass %" className="col-span-1">
-        <p className="text-sm text-white/30">No muscle data yet</p>
+        <p className="text-sm text-muted-foreground">No muscle data yet</p>
       </DashboardCard>
     );
   }
@@ -82,10 +111,10 @@ export function MuscleCard({ data }: Props) {
   return (
     <DashboardCard title="Muscle Mass %" className="col-span-1">
       <div className="flex items-baseline gap-2 -mt-1">
-        <span className="text-2xl font-bold tabular-nums text-white">{latest.muscle_mass_pct}%</span>
+        <span className="text-2xl font-bold tabular-nums text-foreground">{latest.muscle_mass_pct}%</span>
         {points.length > 1 && (
           <span className={`text-sm font-semibold tabular-nums ${
-            latest.muscle_mass_pct! >= points[0].muscle_mass_pct! ? "text-[#22c55e]" : "text-[#ef4444]"
+            latest.muscle_mass_pct! >= points[0].muscle_mass_pct! ? "text-primary" : "text-destructive"
           }`}>
             {latest.muscle_mass_pct! >= points[0].muscle_mass_pct! ? "+" : ""}
             {(latest.muscle_mass_pct! - points[0].muscle_mass_pct!).toFixed(1)}%
@@ -94,16 +123,29 @@ export function MuscleCard({ data }: Props) {
       </div>
       <ResponsiveContainer width="100%" height={140}>
         <LineChart data={points}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRID} vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-            axisLine={false} tickLine={false}
+            tick={{ fill: COLOR_TICK, fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
             tickFormatter={(v) => new Date(v).toLocaleDateString("en", { weekday: "short" })}
           />
-          <YAxis domain={[min, max]} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
-          <Tooltip contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#e8e8e8", fontSize: 12 }} />
-          <Line type="monotone" dataKey="muscle_mass_pct" stroke="#3b82f6" strokeWidth={2} dot={{ fill: "#3b82f6", r: 3, strokeWidth: 0 }} />
+          <YAxis
+            domain={[min, max]}
+            tick={{ fill: COLOR_TICK, fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            width={30}
+          />
+          <Tooltip contentStyle={TOOLTIP_STYLE} />
+          <Line
+            type="monotone"
+            dataKey="muscle_mass_pct"
+            stroke={COLOR_MUSCLE}
+            strokeWidth={2}
+            dot={{ fill: COLOR_MUSCLE, r: 3, strokeWidth: 0 }}
+          />
         </LineChart>
       </ResponsiveContainer>
     </DashboardCard>

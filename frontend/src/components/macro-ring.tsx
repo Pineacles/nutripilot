@@ -4,15 +4,21 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import type { MacroTotals, MacroTargets } from "@/lib/types";
 import { DashboardCard } from "./dashboard-card";
 
+/* ── Color constants (Recharts needs hex values) ── */
+const COLOR_SUCCESS = "#4ade80";
+const COLOR_WARNING = "#f9c74f";
+const COLOR_DANGER  = "#f94f4f";
+const COLOR_RING_BG = "#1f1f23";
+
 interface Props {
   totals: MacroTotals;
   targets: MacroTargets;
 }
 
 function getRingColor(pct: number): string {
-  if (pct > 1.0) return "#ef4444";  // over target — red
-  if (pct > 0.9) return "#f59e0b";  // 90-100% — amber
-  return "#22c55e";                   // under 90% — green
+  if (pct > 1.0) return COLOR_DANGER;   // over target — red
+  if (pct > 0.9) return COLOR_WARNING;  // 90-100% — amber
+  return COLOR_SUCCESS;                // under 90% — green
 }
 
 export function CalorieRingCard({ totals, targets }: Props) {
@@ -24,13 +30,16 @@ export function CalorieRingCard({ totals, targets }: Props) {
 
   const data = [
     { value: pct * 100, fill: ringColor },
-    { value: (1 - pct) * 100, fill: "#1f1f23" },
+    { value: (1 - pct) * 100, fill: COLOR_RING_BG },
   ];
 
   return (
     <DashboardCard title="Calories">
       <div className="flex flex-col items-center justify-center flex-1">
-        <div className="relative h-[180px] w-[180px]">
+        <div
+          className="relative h-[180px] w-[180px]"
+          style={{ filter: `drop-shadow(0 0 12px ${ringColor}33)` }}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -51,13 +60,17 @@ export function CalorieRingCard({ totals, targets }: Props) {
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-bold tabular-nums text-white">{eaten}</span>
-            <span className="text-xs text-white/40">/ {Math.round(targets.kcal)} kcal</span>
+            <span className="text-3xl font-extrabold tabular-nums tracking-tight text-foreground">
+              {eaten}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              / {Math.round(targets.kcal)} kcal
+            </span>
           </div>
         </div>
-        <p className="text-sm text-white/50 mt-2 tabular-nums">
+        <p className="text-sm text-muted-foreground mt-2 tabular-nums">
           {rawPct > 1.0 ? (
-            <span className="text-[#ef4444] font-semibold">{Math.round(totals.kcal - targets.kcal)} over</span>
+            <span className="text-destructive font-semibold">{Math.round(totals.kcal - targets.kcal)} over</span>
           ) : (
             <span style={{ color: ringColor }} className="font-semibold">{remaining} remaining</span>
           )}

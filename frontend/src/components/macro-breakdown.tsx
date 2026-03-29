@@ -31,25 +31,25 @@ export function MacroBreakdownCard({ totals, targets }: Props) {
 
           // For budget items, bar turns red when over
           let barColor = m.color;
-          if (m.mode === "budget" && rawPct > 100) barColor = "#ef4444";
-          else if (m.mode === "budget" && rawPct > 80) barColor = "#f59e0b";
+          if (m.mode === "budget" && rawPct > 100) barColor = "hsl(var(--destructive))";
+          else if (m.mode === "budget" && rawPct > 80) barColor = "hsl(var(--warning))";
 
           const isOver = m.mode === "budget" && rawPct > 100;
 
           return (
-            <div key={m.key}>
-              <div className="flex items-baseline justify-between mb-1">
-                <span className="text-sm text-white/70">{m.label}</span>
-                <span className="text-sm tabular-nums text-white">
-                  <span className={`font-semibold ${isOver ? "text-[#ef4444]" : ""}`}>
+            <div key={m.key} className="group rounded-lg px-2 py-1.5 -mx-2 transition-colors duration-150 hover:bg-muted/50">
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors duration-150">{m.label}</span>
+                <span className="text-sm tabular-nums text-foreground">
+                  <span className={`font-semibold ${isOver ? "text-destructive" : ""}`}>
                     {current}{m.unit}
                   </span>
-                  <span className="text-white/30"> / {target}{m.unit}</span>
+                  <span className="text-muted-foreground/50"> / {target}{m.unit}</span>
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-[#1f1f23] overflow-hidden">
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-500"
+                  className="h-full rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${barPct}%`, backgroundColor: barColor }}
                 />
               </div>
