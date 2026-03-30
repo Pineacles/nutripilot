@@ -11,6 +11,7 @@ import {
   Tooltip,
 } from "recharts";
 import type { WeightDelta } from "@/lib/types";
+import { fmt } from "@/lib/utils";
 import { DashboardCard } from "./dashboard-card";
 
 /* ── Shared tooltip style ── */
@@ -40,35 +41,47 @@ function CustomTooltip({ active, payload, label }: any) {
   return (
     <div style={TT_STYLE}>
       <p style={{ fontWeight: 600, marginBottom: 2 }}>{label}</p>
-      <p style={{ color: "#ffffff" }}>{payload[0].value} kg</p>
+      <p style={{ color: "#ffffff" }}>{typeof payload[0].value === "number" ? fmt(payload[0].value) : payload[0].value} kg</p>
     </div>
   );
 }
 
-export function WeightTrendCard({ weight, goalKg = 78 }: Props) {
-  const startKg = weight.start_kg || goalKg;
-  const endKg = weight.end_kg || goalKg;
-  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+export function WeightTrendCard({ weight, bodyComp, goalKg = 78 }: Props & { bodyComp?: { date: string; weight_kg: number }[] }) {
+  // Use real body_comp data if available, otherwise try to derive from weight delta
+  const realPoints = bodyComp?.filter(d => d.weight_kg != null) ?? [];
 
-  const points = dayNames.map((day, i) => {
-    const progress = i / 6;
-    const baseWeight = startKg + (endKg - startKg) * progress;
-    const jitter = (Math.random() - 0.5) * 0.3;
-    return {
-      day,
-      weight: Math.round((baseWeight + jitter) * 10) / 10,
-    };
-  });
+  if (realPoints.length === 0 && weight.start_kg == null) {
+    return (
+      <DashboardCard title="Weight Trend" span="lg:col-span-1">
+        <p className="text-sm text-muted-foreground py-8 text-center">No weight data this week</p>
+      </DashboardCard>
+    );
+  }
 
-  const allW = points.map((p) => p.weight);
+  const points = realPoints.length > 0
+    ? realPoints.map(d => ({
+        day: new Date(d.date).toLocaleDateString("en", { weekday: "short" }),
+        weight: d.weight_kg,
+      }))
+    : (() => {
+        // Fallback: interpolate from start/end
+        const startKg = weight.start_kg!;
+        const endKg = weight.end_kg ?? startKg;
+        return ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((day, i) => ({
+          day,
+          weight: Math.round((startKg + (endKg - startKg) * (i / 6)) * 10) / 10,
+        }));
+      })();
+
+  const allW = points.map(p => p.weight);
   const minW = Math.floor(Math.min(...allW, goalKg) - 1);
   const maxW = Math.ceil(Math.max(...allW, goalKg) + 1);
 
   return (
     <DashboardCard title="Weight Trend" span="lg:col-span-1">
       <div className="flex items-baseline gap-2 -mt-1">
-        {weight.end_kg && (
-          <span className="text-2xl font-bold tabular-nums text-foreground">{weight.end_kg} kg</span>
+        {weight.end_kg != null && (
+          <span className="text-2xl font-bold tabular-nums text-foreground">{fmt(weight.end_kg)} kg</span>
         )}
         {weight.delta != null && (
           <span
@@ -76,7 +89,7 @@ export function WeightTrendCard({ weight, goalKg = 78 }: Props) {
               weight.delta <= 0 ? "text-primary" : "text-destructive"
             }`}
           >
-            {weight.delta > 0 ? "+" : ""}{weight.delta} kg
+            {weight.delta > 0 ? "+" : ""}{fmt(weight.delta)} kg
           </span>
         )}
       </div>

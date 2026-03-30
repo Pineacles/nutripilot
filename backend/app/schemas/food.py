@@ -28,12 +28,16 @@ class NutrientData(BaseModel):
 class FoodCreate(BaseModel):
     name: str = Field(min_length=1, max_length=500)
     barcode: str | None = Field(default=None, min_length=4, max_length=50)
+    serving_size_g: float | None = None
+    serving_label: str | None = Field(default=None, max_length=100)
     nutrients: NutrientData
 
 
 class FoodUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=500)
     barcode: Optional[str] = Field(None, min_length=4, max_length=50)
+    serving_size_g: Optional[float] = None
+    serving_label: Optional[str] = Field(None, max_length=100)
     nutrients: Optional[NutrientData] = None
 
 
@@ -42,6 +46,8 @@ class FoodResponse(BaseModel):
     name: str
     barcode: str | None
     source: str
+    serving_size_g: float | None = None
+    serving_label: str | None = None
     nutrients: NutrientData | None
 
     model_config = {"from_attributes": True}
@@ -54,5 +60,7 @@ class FoodSearchResult(BaseModel):
     kcal: float | None = None
     protein: float | None = None
     source: str | None = None
+    serving_size_g: float | None = None
+    serving_label: str | None = None
 
     model_config = {"from_attributes": True}

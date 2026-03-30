@@ -12,6 +12,7 @@ from app.config import settings
 from app.demo_daily import seed_today
 from app.rate_limit import limiter
 from app.routers import agent, auth, dashboard, foods, settings as settings_router
+from app.services.sync_worker import run_all_syncs
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -36,30 +37,44 @@ The dashboard is read-only analytics.
 """
 
 
-async def _daily_demo_loop():
-    """Run demo seeder once on startup, then every 24h at ~00:05."""
+async def _daily_tasks_loop():
+    """Run demo seeder + integration syncs on startup, then daily at ~00:05 and ~06:00."""
+    from datetime import datetime, timedelta
+
+    # Startup: seed demo + sync integrations
     try:
         await seed_today()
     except Exception as e:
-        print(f"[demo_daily] startup seed error: {e}")
+        print(f"[daily] demo seed error: {e}")
+    try:
+        await run_all_syncs()
+    except Exception as e:
+        print(f"[daily] integration sync error: {e}")
+
     while True:
-        # Sleep until next 00:05
-        from datetime import datetime, timedelta
         now = datetime.now()
-        tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=5, second=0, microsecond=0)
-        wait_seconds = (tomorrow - now).total_seconds()
-        await asyncio.sleep(wait_seconds)
+        # Next run at 06:00 (integration sync time)
+        next_run = (now + timedelta(days=1)).replace(hour=6, minute=0, second=0, microsecond=0)
+        if now.hour < 6:
+            next_run = now.replace(hour=6, minute=0, second=0, microsecond=0)
+        wait_seconds = (next_run - now).total_seconds()
+        await asyncio.sleep(max(wait_seconds, 60))
+
         try:
             await seed_today()
         except Exception as e:
-            print(f"[demo_daily] daily seed error: {e}")
+            print(f"[daily] demo seed error: {e}")
+        try:
+            await run_all_syncs()
+        except Exception as e:
+            print(f"[daily] integration sync error: {e}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import subprocess
     subprocess.run(["alembic", "upgrade", "head"], check=True, timeout=60)
-    task = asyncio.create_task(_daily_demo_loop())
+    task = asyncio.create_task(_daily_tasks_loop())
     yield
     task.cancel()
 

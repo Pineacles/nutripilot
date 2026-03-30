@@ -35,8 +35,9 @@ def _aggregate_weight_per_day(weight_logs) -> list[BodyCompEntry]:
 
     Strategy:
     - weight_kg: average of all entries that day
-    - body_fat_pct: average of non-null values, or None
-    - muscle_mass_pct: average of non-null values, or None
+    - body_fat_pct / muscle_mass_pct: average of non-null values, or None
+    - body_fat_kg / muscle_mass_kg: average of non-null values, or None
+    - If only pct or kg is available, derive the other from averaged weight
     """
     from collections import OrderedDict
     by_date: OrderedDict[date, list] = OrderedDict()
@@ -47,17 +48,36 @@ def _aggregate_weight_per_day(weight_logs) -> list[BodyCompEntry]:
     for d, entries in by_date.items():
         avg_weight = round(sum(e.weight_kg for e in entries) / len(entries), 1)
 
-        bf_vals = [e.body_fat_pct for e in entries if e.body_fat_pct is not None]
-        avg_bf = round(sum(bf_vals) / len(bf_vals), 1) if bf_vals else None
+        bf_pct_vals = [e.body_fat_pct for e in entries if e.body_fat_pct is not None]
+        avg_bf_pct = round(sum(bf_pct_vals) / len(bf_pct_vals), 1) if bf_pct_vals else None
 
-        mm_vals = [e.muscle_mass_pct for e in entries if e.muscle_mass_pct is not None]
-        avg_mm = round(sum(mm_vals) / len(mm_vals), 1) if mm_vals else None
+        mm_pct_vals = [e.muscle_mass_pct for e in entries if e.muscle_mass_pct is not None]
+        avg_mm_pct = round(sum(mm_pct_vals) / len(mm_pct_vals), 1) if mm_pct_vals else None
+
+        bf_kg_vals = [e.body_fat_kg for e in entries if getattr(e, 'body_fat_kg', None) is not None]
+        avg_bf_kg = round(sum(bf_kg_vals) / len(bf_kg_vals), 2) if bf_kg_vals else None
+
+        mm_kg_vals = [e.muscle_mass_kg for e in entries if getattr(e, 'muscle_mass_kg', None) is not None]
+        avg_mm_kg = round(sum(mm_kg_vals) / len(mm_kg_vals), 2) if mm_kg_vals else None
+
+        # Calculate missing derived values
+        if avg_bf_pct is not None and avg_bf_kg is None:
+            avg_bf_kg = round(avg_weight * avg_bf_pct / 100, 2)
+        elif avg_bf_kg is not None and avg_bf_pct is None:
+            avg_bf_pct = round(avg_bf_kg / avg_weight * 100, 1)
+
+        if avg_mm_pct is not None and avg_mm_kg is None:
+            avg_mm_kg = round(avg_weight * avg_mm_pct / 100, 2)
+        elif avg_mm_kg is not None and avg_mm_pct is None:
+            avg_mm_pct = round(avg_mm_kg / avg_weight * 100, 1)
 
         result.append(BodyCompEntry(
             date=d,
             weight_kg=avg_weight,
-            body_fat_pct=avg_bf,
-            muscle_mass_pct=avg_mm,
+            body_fat_pct=avg_bf_pct,
+            muscle_mass_pct=avg_mm_pct,
+            body_fat_kg=avg_bf_kg,
+            muscle_mass_kg=avg_mm_kg,
         ))
     return result
 
@@ -145,6 +165,7 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
     macro_totals = {"kcal": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "fiber": 0.0, "sugar": 0.0, "sodium": 0.0}
     micro_fields = ["calcium", "potassium", "omega3", "zinc", "vit_d", "vit_k2", "vit_c", "magnesium", "b12", "iron"]
     micro_totals: dict[str, float] = {f: 0.0 for f in micro_fields}
+    daily_kcal: dict[date, float] = defaultdict(float)
 
     for log in food_logs:
         days_with_data.add(log.date)
@@ -152,13 +173,15 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
         n = log.food.nutrients
         if not n:
             continue
-        macro_totals["kcal"] += (n.kcal or 0) * ratio
+        kcal = (n.kcal or 0) * ratio
+        macro_totals["kcal"] += kcal
         macro_totals["protein"] += (n.protein or 0) * ratio
         macro_totals["carbs"] += (n.carbs or 0) * ratio
         macro_totals["fat"] += (n.fat or 0) * ratio
         macro_totals["fiber"] += (n.fiber or 0) * ratio
         macro_totals["sugar"] += (n.sugar or 0) * ratio
         macro_totals["sodium"] += ((n.salt or 0) * 400) * ratio
+        daily_kcal[log.date] += kcal
 
         for field in micro_fields:
             val = getattr(n, field, None)
@@ -182,10 +205,17 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
     end_kg = body_comp[-1].weight_kg if body_comp else None
     delta = round(end_kg - start_kg, 2) if start_kg is not None and end_kg is not None else None
 
+    from app.schemas.summary import DailyCalories
+    daily_cal_list = [
+        DailyCalories(date=d, kcal=round(k, 1))
+        for d, k in sorted(daily_kcal.items())
+    ]
+
     return WeekSummary(
         start_date=start_date,
         end_date=end_date,
         daily_avg=MacroTotals(**{k: round(v / num_days, 1) for k, v in macro_totals.items()}),
+        daily_calories=daily_cal_list,
         micronutrient_avg=MicronutrientAverages(
             **{f: round(micro_totals[f] / num_days, 2) if micro_totals[f] > 0 else None for f in micro_fields}
         ),

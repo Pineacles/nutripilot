@@ -74,12 +74,20 @@ class BodyCompEntry(BaseModel):
     weight_kg: float
     body_fat_pct: Optional[float] = None
     muscle_mass_pct: Optional[float] = None
+    body_fat_kg: Optional[float] = None
+    muscle_mass_kg: Optional[float] = None
+
+
+class DailyCalories(BaseModel):
+    date: datetime.date
+    kcal: float
 
 
 class WeekSummary(BaseModel):
     start_date: datetime.date
     end_date: datetime.date
     daily_avg: MacroTotals
+    daily_calories: list[DailyCalories]
     micronutrient_avg: MicronutrientAverages
     weight: WeightDelta
     body_comp: list[BodyCompEntry]

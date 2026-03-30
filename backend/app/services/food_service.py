@@ -9,7 +9,8 @@ from app.schemas.food import FoodCreate, NutrientData
 
 
 async def create_food(db: AsyncSession, data: FoodCreate, source: str = "manual") -> Food:
-    food = Food(name=data.name, barcode=data.barcode, source=source)
+    food = Food(name=data.name, barcode=data.barcode, source=source,
+                serving_size_g=data.serving_size_g, serving_label=data.serving_label)
     db.add(food)
     await db.flush()
 
@@ -21,9 +22,11 @@ async def create_food(db: AsyncSession, data: FoodCreate, source: str = "manual"
 
 
 async def create_food_from_external(
-    db: AsyncSession, name: str, barcode: str | None, source: str, nutrients: NutrientData
+    db: AsyncSession, name: str, barcode: str | None, source: str, nutrients: NutrientData,
+    serving_size_g: float | None = None, serving_label: str | None = None,
 ) -> Food:
-    food = Food(name=name, barcode=barcode, source=source)
+    food = Food(name=name, barcode=barcode, source=source,
+                serving_size_g=serving_size_g, serving_label=serving_label)
     db.add(food)
     await db.flush()
 
@@ -42,6 +45,8 @@ async def search_foods(db: AsyncSession, query: str, limit: int = 10) -> list[di
             Food.barcode,
             Nutrient.kcal,
             Nutrient.protein,
+            Food.serving_size_g,
+            Food.serving_label,
         )
         .outerjoin(Nutrient, Food.id == Nutrient.food_id)
         .where(func.similarity(Food.name, query) > 0.1)
@@ -51,7 +56,8 @@ async def search_foods(db: AsyncSession, query: str, limit: int = 10) -> list[di
     result = await db.execute(stmt)
     rows = result.all()
     return [
-        {"id": r.id, "name": r.name, "barcode": r.barcode, "kcal": r.kcal, "protein": r.protein}
+        {"id": r.id, "name": r.name, "barcode": r.barcode, "kcal": r.kcal, "protein": r.protein,
+         "serving_size_g": r.serving_size_g, "serving_label": r.serving_label}
         for r in rows
     ]
 
@@ -80,6 +86,8 @@ async def search_foods_with_fallback(db: AsyncSession, query: str, limit: int = 
                 "kcal": item.get("kcal"),
                 "protein": item.get("protein"),
                 "source": "openfoodfacts",
+                "serving_size_g": item.get("serving_size_g"),
+                "serving_label": item.get("serving_label"),
             })
 
     return local_results[:limit]

@@ -62,6 +62,16 @@ export default function ScannerPage() {
     setScanning(true);
     clearState();
     try {
+      // Explicitly request camera permission first — some browsers won't
+      // prompt unless getUserMedia is called directly before the library uses it.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      // Attach the stream to the video element so the browser associates the permission
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
       const { BrowserMultiFormatReader } = await import("@zxing/browser");
       const reader = new BrowserMultiFormatReader();
 
@@ -70,11 +80,12 @@ export default function ScannerPage() {
       const controls = await reader.decodeFromVideoDevice(
         undefined,
         videoRef.current,
-        (res, err) => {
+        (res) => {
           if (res) {
             const code = res.getText();
             controls.stop();
-            // Flash green on the overlay before transitioning
+            // Stop the manual stream tracks too
+            stream.getTracks().forEach((t) => t.stop());
             setFlashGreen(true);
             setTimeout(() => {
               setFlashGreen(false);
@@ -85,8 +96,15 @@ export default function ScannerPage() {
           }
         }
       );
-    } catch (e) {
-      setError("Camera access denied or not available. Please allow camera permissions in your browser settings and try again.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("NotAllowedError") || msg.includes("Permission")) {
+        setError("Camera permission denied. Please allow camera access in your browser settings, then try again.");
+      } else if (msg.includes("NotFoundError") || msg.includes("Requested device not found")) {
+        setError("No camera found on this device. Use the manual barcode input below.");
+      } else {
+        setError("Could not start camera. Make sure no other app is using it, then try again.");
+      }
       setErrorType("camera");
       setScanning(false);
     }

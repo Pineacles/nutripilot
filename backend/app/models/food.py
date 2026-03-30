@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, Float, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,6 +15,8 @@ class Food(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     barcode: Mapped[str | None] = mapped_column(String(50), unique=True)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
+    serving_size_g: Mapped[float | None] = mapped_column(Float)
+    serving_label: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     nutrients: Mapped["Nutrient"] = relationship(back_populates="food", uselist=False, lazy="joined")

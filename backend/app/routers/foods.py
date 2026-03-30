@@ -24,6 +24,8 @@ def _food_to_response(food) -> FoodResponse:
         name=food.name,
         barcode=food.barcode,
         source=food.source,
+        serving_size_g=food.serving_size_g,
+        serving_label=food.serving_label,
         nutrients=nutrients,
     )
 

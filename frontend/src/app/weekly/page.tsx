@@ -2,6 +2,7 @@
 
 import { useWeekSummary } from "@/hooks/use-summary";
 import { useSettings } from "@/hooks/use-settings";
+import { fmt } from "@/lib/utils";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { CalorieChartCard } from "@/components/calorie-chart";
 import { WeightTrendCard } from "@/components/weight-trend";
@@ -65,11 +66,11 @@ export default function WeeklyPage() {
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Weight Change</p>
               <p className="text-2xl font-bold tabular-nums text-foreground">
                 {data.weight.delta != null
-                  ? `${data.weight.delta > 0 ? "+" : ""}${data.weight.delta} kg`
+                  ? `${data.weight.delta > 0 ? "+" : ""}${fmt(data.weight.delta)} kg`
                   : "--"}
               </p>
               <p className="text-xs text-amber-400 font-medium mt-0.5">
-                {data.weight.end_kg ? `${data.weight.end_kg} kg current` : "no data"}
+                {data.weight.end_kg ? `${fmt(data.weight.end_kg)} kg current` : "no data"}
               </p>
             </div>
             <div className="pill pill-purple rounded-xl p-4">
@@ -91,10 +92,11 @@ export default function WeeklyPage() {
             <CalorieChartCard
               dailyAvgKcal={data.daily_avg.kcal}
               targetKcal={targetKcal}
+              dailyData={data.daily_calories}
             />
 
             {/* Weight trend: 1 col */}
-            <WeightTrendCard weight={data.weight} goalKg={78} />
+            <WeightTrendCard weight={data.weight} bodyComp={data.body_comp} goalKg={78} />
 
             {/* Body composition: 1 col */}
             {data.body_comp.length > 0 && (

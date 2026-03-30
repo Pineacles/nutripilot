@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,7 +14,7 @@ from app.models.supplement import Supplement
 from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
 from app.models.weight_log import WeightLog
-from app.schemas.food_log import FoodLogByBarcodeCreate, FoodLogCreate, FoodLogResponse, FoodLogUpdate
+from app.schemas.food_log import FoodLogByBarcodeCreate, FoodLogByNameCreate, FoodLogCreate, FoodLogResponse, FoodLogUpdate
 from app.schemas.integration import IntegrationCreate, IntegrationResponse, IntegrationUpdate
 from app.schemas.settings import (
     MicronutrientTargetItem,
@@ -46,10 +47,20 @@ async def log_food(
             detail={"detail": "Food not found", "code": "FOOD_NOT_FOUND"},
         )
 
-    entry = await logging_service.log_food(db, user.id, food.id, body.quantity_g, body.meal_type, body.date)
+    # Resolve quantity
+    if body.quantity_g is not None:
+        quantity_g = body.quantity_g
+    elif body.servings is not None and food.serving_size_g:
+        quantity_g = body.servings * food.serving_size_g
+    elif body.servings is not None:
+        quantity_g = body.servings * 100
+    else:
+        quantity_g = 100
+
+    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date)
 
     n = food.nutrients
-    ratio = body.quantity_g / 100.0
+    ratio = quantity_g / 100.0
     return FoodLogResponse(
         id=entry.id,
         food_name=food.name,
@@ -60,6 +71,8 @@ async def log_food(
         protein=round((n.protein or 0) * ratio, 1) if n else None,
         carbs=round((n.carbs or 0) * ratio, 1) if n else None,
         fat=round((n.fat or 0) * ratio, 1) if n else None,
+        serving_size_g=food.serving_size_g,
+        serving_label=food.serving_label,
     )
 
 
@@ -76,10 +89,20 @@ async def log_food_by_barcode(
             detail={"detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": body.barcode},
         )
 
-    entry = await logging_service.log_food(db, user.id, food.id, body.quantity_g, body.meal_type, body.date)
+    # Resolve quantity
+    if body.quantity_g is not None:
+        quantity_g = body.quantity_g
+    elif body.servings is not None and food.serving_size_g:
+        quantity_g = body.servings * food.serving_size_g
+    elif body.servings is not None:
+        quantity_g = body.servings * 100
+    else:
+        quantity_g = 100
+
+    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date)
 
     n = food.nutrients
-    ratio = body.quantity_g / 100.0
+    ratio = quantity_g / 100.0
     return FoodLogResponse(
         id=entry.id,
         food_name=food.name,
@@ -90,6 +113,61 @@ async def log_food_by_barcode(
         protein=round((n.protein or 0) * ratio, 1) if n else None,
         carbs=round((n.carbs or 0) * ratio, 1) if n else None,
         fat=round((n.fat or 0) * ratio, 1) if n else None,
+        serving_size_g=food.serving_size_g,
+        serving_label=food.serving_label,
+    )
+
+
+@router.post("/log/food-by-name", response_model=FoodLogResponse, status_code=status.HTTP_201_CREATED)
+async def log_food_by_name(
+    body: FoodLogByNameCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    results = await food_service.search_foods(db, body.food_name, limit=1)
+    if not results:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "FOOD_NOT_FOUND_BY_NAME",
+                "query": body.food_name,
+                "suggestion": "Try creating the food first with POST /api/foods",
+            },
+        )
+
+    food = await food_service.get_food_by_id(db, results[0]["id"])
+    if food is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "FOOD_NOT_FOUND"},
+        )
+
+    # Resolve quantity
+    if body.quantity_g is not None:
+        quantity_g = body.quantity_g
+    elif body.servings is not None and food.serving_size_g:
+        quantity_g = body.servings * food.serving_size_g
+    elif body.servings is not None:
+        quantity_g = body.servings * 100
+    else:
+        quantity_g = 100
+
+    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date)
+
+    n = food.nutrients
+    ratio = quantity_g / 100.0
+    return FoodLogResponse(
+        id=entry.id,
+        food_name=food.name,
+        quantity_g=entry.quantity_g,
+        meal_type=entry.meal_type,
+        date=entry.date,
+        kcal=round((n.kcal or 0) * ratio, 1) if n else None,
+        protein=round((n.protein or 0) * ratio, 1) if n else None,
+        carbs=round((n.carbs or 0) * ratio, 1) if n else None,
+        fat=round((n.fat or 0) * ratio, 1) if n else None,
+        serving_size_g=food.serving_size_g,
+        serving_label=food.serving_label,
     )
 
 
@@ -112,6 +190,26 @@ async def log_supplement(
     )
 
 
+@router.get("/log/weight", response_model=list[WeightLogResponse])
+async def list_weight_logs(
+    source: str | None = Query(None, max_length=50),
+    from_date: date | None = Query(None, alias="from"),
+    to_date: date | None = Query(None, alias="to"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    stmt = select(WeightLog).where(WeightLog.user_id == user.id)
+    if source:
+        stmt = stmt.where(WeightLog.source == source)
+    if from_date:
+        stmt = stmt.where(WeightLog.date >= from_date)
+    if to_date:
+        stmt = stmt.where(WeightLog.date <= to_date)
+    stmt = stmt.order_by(WeightLog.date.asc(), WeightLog.logged_at.asc())
+    result = await db.execute(stmt)
+    return [WeightLogResponse.model_validate(w) for w in result.scalars().all()]
+
+
 @router.post("/log/weight", response_model=WeightLogResponse, status_code=status.HTTP_201_CREATED)
 async def log_weight(
     body: WeightLogCreate,
@@ -119,13 +217,16 @@ async def log_weight(
     user: User = Depends(get_current_user_api_key),
 ):
     entry = await logging_service.log_weight(
-        db, user.id, body.weight_kg, body.body_fat_pct, body.muscle_mass_pct, body.source or "manual", body.date
+        db, user.id, body.weight_kg, body.body_fat_pct, body.muscle_mass_pct,
+        body.body_fat_kg, body.muscle_mass_kg, body.source or "manual", body.date
     )
     return WeightLogResponse(
         id=entry.id,
         weight_kg=entry.weight_kg,
         body_fat_pct=entry.body_fat_pct,
         muscle_mass_pct=entry.muscle_mass_pct,
+        body_fat_kg=entry.body_fat_kg,
+        muscle_mass_kg=entry.muscle_mass_kg,
         source=entry.source,
         date=entry.date,
     )
@@ -320,6 +421,8 @@ async def update_food_log(
         protein=round((n.protein or 0) * ratio, 1) if n else None,
         carbs=round((n.carbs or 0) * ratio, 1) if n else None,
         fat=round((n.fat or 0) * ratio, 1) if n else None,
+        serving_size_g=food.serving_size_g if food else None,
+        serving_label=food.serving_label if food else None,
     )
 
 
@@ -359,6 +462,8 @@ async def update_weight_log(
         weight_kg=log.weight_kg,
         body_fat_pct=log.body_fat_pct,
         muscle_mass_pct=log.muscle_mass_pct,
+        body_fat_kg=log.body_fat_kg,
+        muscle_mass_kg=log.muscle_mass_kg,
         source=log.source,
         date=log.date,
     )
@@ -498,3 +603,28 @@ async def agent_delete_integration(
         raise HTTPException(status_code=404, detail={"code": "INTEGRATION_NOT_FOUND"})
     await db.delete(integration)
     await db.commit()
+
+
+@router.post("/integrations/{integration_id}/sync")
+async def agent_sync_integration(
+    integration_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    """Manually trigger a sync for an integration."""
+    from app.services.sync_worker import sync_integration
+
+    # Verify ownership
+    result = await db.execute(
+        select(Integration).where(Integration.id == integration_id, Integration.user_id == user.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail={"code": "INTEGRATION_NOT_FOUND"})
+
+    sync_result = await sync_integration(integration_id)
+    if not sync_result.get("ok"):
+        raise HTTPException(
+            status_code=502,
+            detail={"code": "SYNC_FAILED", "error": sync_result.get("error", "Unknown error")},
+        )
+    return sync_result

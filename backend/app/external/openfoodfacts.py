@@ -12,7 +12,7 @@ async def search_by_text(query: str, limit: int = 10) -> list[dict]:
         "action": "process",
         "json": 1,
         "page_size": limit,
-        "fields": "product_name,nutriments,code",
+        "fields": "product_name,nutriments,code,serving_quantity,serving_size",
     }
     async with httpx.AsyncClient(timeout=10) as client:
         try:
@@ -35,11 +35,13 @@ async def search_by_text(query: str, limit: int = 10) -> list[dict]:
             "kcal": n.get("energy-kcal_100g"),
             "protein": n.get("proteins_100g"),
             "source": "openfoodfacts",
+            "serving_size_g": product.get("serving_quantity"),
+            "serving_label": product.get("serving_size"),
         })
     return results
 
 
-async def lookup_barcode(barcode: str) -> tuple[str, NutrientData] | None:
+async def lookup_barcode(barcode: str) -> tuple[str, NutrientData, float | None, str | None] | None:
     """Look up a barcode on OpenFoodFacts. Returns (product_name, nutrients) or None."""
     url = f"https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
     async with httpx.AsyncClient(timeout=10) as client:
@@ -75,4 +77,6 @@ async def lookup_barcode(barcode: str) -> tuple[str, NutrientData] | None:
         b12=n.get("vitamin-b12_100g"),
         iron=n.get("iron_100g"),
     )
-    return name, nutrients
+    serving_size_g = product.get("serving_quantity")  # numeric grams
+    serving_label = product.get("serving_size")  # text like "1 slice (30g)"
+    return name, nutrients, serving_size_g, serving_label

@@ -17,13 +17,19 @@ async def lookup_barcode(db: AsyncSession, barcode: str) -> Food | None:
     # 2. OpenFoodFacts
     result = await openfoodfacts.lookup_barcode(barcode)
     if result is not None:
-        name, nutrients = result
-        return await create_food_from_external(db, name, barcode, "openfoodfacts", nutrients)
+        name, nutrients, serving_size_g, serving_label = result
+        return await create_food_from_external(
+            db, name, barcode, "openfoodfacts", nutrients,
+            serving_size_g=serving_size_g, serving_label=serving_label,
+        )
 
     # 3. USDA FoodData Central
     result = await usda.lookup_barcode(barcode)
     if result is not None:
-        name, nutrients = result
-        return await create_food_from_external(db, name, barcode, "usda", nutrients)
+        name, nutrients, serving_size_g, serving_label = result
+        return await create_food_from_external(
+            db, name, barcode, "usda", nutrients,
+            serving_size_g=serving_size_g, serving_label=serving_label,
+        )
 
     return None

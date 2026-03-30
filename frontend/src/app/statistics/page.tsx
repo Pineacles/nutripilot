@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { apiFetch } from "@/lib/api";
+import { fmt } from "@/lib/utils";
 import type { StatsSummary, UserSettings } from "@/lib/types";
 
 /* ─── Helpers ─── */
@@ -135,7 +136,7 @@ function ChartTooltip({ active, payload, label, valueSuffix = "", valueKey }: {
         if (filtered.some(f => f.dataKey === `avg_${p.dataKey}`)) return null;
         return (
           <p key={i} style={{ ...TT_ITEM_STYLE, fontWeight: 700, marginBottom: 2 }}>
-            {p.name ?? p.dataKey}: {typeof p.value === "number" ? p.value.toLocaleString() : p.value}{valueSuffix}
+            {p.name ?? p.dataKey}: {typeof p.value === "number" ? fmt(p.value) : p.value}{valueSuffix}
           </p>
         );
       })}
@@ -162,7 +163,7 @@ function MultiLineTooltip({ active, payload, label }: {
           <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: p.color }} />
           <span style={{ ...TT_ITEM_STYLE, color: "#ccc" }}>{(p.name ?? p.dataKey).replace(/^avg_/, "")}:</span>
           <span style={{ ...TT_ITEM_STYLE, fontWeight: 600 }}>
-            {typeof p.value === "number" ? p.value.toLocaleString() : "--"}
+            {typeof p.value === "number" ? fmt(p.value) : "--"}
           </span>
         </div>
       ))}
@@ -530,7 +531,7 @@ export default function StatisticsPage() {
                     </Pie>
                     <Tooltip
                       contentStyle={TT_STYLE}
-                      formatter={(value: unknown, name: unknown) => [`${value}%`, String(name)]}
+                      formatter={(value: unknown, name: unknown) => [`${typeof value === "number" ? fmt(value) : value}%`, String(name)]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -716,7 +717,7 @@ export default function StatisticsPage() {
                       <span className="text-xs font-medium text-foreground">{micro.label}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold tabular-nums text-foreground">
-                          {typeof avg === "number" ? (avg % 1 === 0 ? avg : avg.toFixed(1)) : avg} {micro.unit}
+                          {typeof avg === "number" ? fmt(avg) : avg} {micro.unit}
                         </span>
                         <span className="text-[10px] text-muted-foreground/60">/ {micro.target} {micro.unit}</span>
                         <span className={`text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full ${badgeColor}`}>

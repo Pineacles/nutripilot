@@ -8,9 +8,9 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
-  Legend,
 } from "recharts";
 import type { BodyCompEntry } from "@/lib/types";
+import { fmt } from "@/lib/utils";
 import { DashboardCard } from "./dashboard-card";
 
 /* ── Color constants ── */
@@ -43,7 +43,7 @@ function CustomTooltip({ active, payload, label }: any) {
       <p style={{ fontWeight: 600, marginBottom: 4 }}>{day}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} style={{ color: p.color }}>
-          {p.dataKey === "body_fat_pct" ? "Body Fat" : "Muscle"}: {p.value}%
+          {p.dataKey === "body_fat_pct" ? "Body Fat" : "Muscle"}: {typeof p.value === "number" ? p.value.toFixed(1) : p.value}%
         </p>
       ))}
     </div>
@@ -81,57 +81,57 @@ export function BodyCompCard({ data }: Props) {
 
   return (
     <DashboardCard title="Body Composition" span="lg:col-span-1">
-      {/* Delta indicators */}
-      <div className="flex items-center gap-4 -mt-1 mb-1">
-        {latestFat != null && (
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-lg font-bold tabular-nums" style={{ color: COLOR_BODY_FAT }}>{latestFat}%</span>
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">fat</span>
-            {firstFat != null && (
-              <span className={`text-xs font-semibold tabular-nums ${latestFat <= firstFat ? "text-primary" : "text-destructive"}`}>
-                {latestFat <= firstFat ? "" : "+"}{(latestFat - firstFat).toFixed(1)}
-              </span>
-            )}
-          </div>
-        )}
-        {latestMuscle != null && (
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-lg font-bold tabular-nums" style={{ color: COLOR_MUSCLE }}>{latestMuscle}%</span>
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">muscle</span>
-            {firstMuscle != null && (
-              <span className={`text-xs font-semibold tabular-nums ${latestMuscle >= firstMuscle ? "text-primary" : "text-destructive"}`}>
-                {latestMuscle >= firstMuscle ? "+" : ""}{(latestMuscle - firstMuscle).toFixed(1)}
-              </span>
-            )}
-          </div>
-        )}
+      {/* Stats row — values + legend integrated */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-5">
+          {latestFat != null && (
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLOR_BODY_FAT }} />
+              <div>
+                <span className="text-base font-bold tabular-nums" style={{ color: COLOR_BODY_FAT }}>{fmt(latestFat)}%</span>
+                <span className="text-[10px] text-muted-foreground ml-1">fat</span>
+              </div>
+              {firstFat != null && (
+                <span className={`text-[11px] font-semibold tabular-nums ${latestFat <= firstFat ? "text-primary" : "text-destructive"}`}>
+                  {latestFat <= firstFat ? "" : "+"}{(latestFat - firstFat).toFixed(1)}
+                </span>
+              )}
+            </div>
+          )}
+          {latestMuscle != null && (
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLOR_MUSCLE }} />
+              <div>
+                <span className="text-base font-bold tabular-nums" style={{ color: COLOR_MUSCLE }}>{fmt(latestMuscle)}%</span>
+                <span className="text-[10px] text-muted-foreground ml-1">muscle</span>
+              </div>
+              {firstMuscle != null && (
+                <span className={`text-[11px] font-semibold tabular-nums ${latestMuscle >= firstMuscle ? "text-primary" : "text-destructive"}`}>
+                  {latestMuscle >= firstMuscle ? "+" : ""}{(latestMuscle - firstMuscle).toFixed(1)}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-      <ResponsiveContainer width="100%" height={180}>
-        <LineChart data={data}>
+      <ResponsiveContainer width="100%" height={140}>
+        <LineChart data={data} margin={{ top: 10, right: 5, bottom: 5, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRID} vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fill: COLOR_TICK, fontSize: 10 }}
+            tick={{ fill: COLOR_TICK, fontSize: 9 }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => new Date(v).toLocaleDateString("en", { weekday: "short" })}
           />
           <YAxis
             domain={[min, max]}
-            tick={{ fill: COLOR_TICK, fontSize: 10 }}
+            tick={{ fill: COLOR_TICK, fontSize: 9 }}
             axisLine={false}
             tickLine={false}
-            width={30}
+            width={28}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend
-            verticalAlign="top"
-            align="right"
-            iconType="circle"
-            iconSize={8}
-            wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}
-            formatter={(value: string) => (value === "body_fat_pct" ? "Body Fat" : "Muscle")}
-          />
           {hasFat && (
             <Line
               type="monotone"

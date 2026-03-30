@@ -26,7 +26,7 @@ _NUTRIENT_MAP = {
 }
 
 
-async def lookup_barcode(barcode: str) -> tuple[str, NutrientData] | None:
+async def lookup_barcode(barcode: str) -> tuple[str, NutrientData, float | None, str | None] | None:
     """Look up a barcode on USDA FoodData Central. Returns (name, nutrients) or None."""
     if not settings.usda_api_key:
         return None
@@ -59,4 +59,9 @@ async def lookup_barcode(barcode: str) -> tuple[str, NutrientData] | None:
             nutrient_values[field] = value
 
     nutrients = NutrientData(**nutrient_values)
-    return name, nutrients
+
+    # Extract serving size if available
+    serving_size_g = food.get("servingSize")
+    serving_label = food.get("householdServingFullText")
+
+    return name, nutrients, serving_size_g, serving_label

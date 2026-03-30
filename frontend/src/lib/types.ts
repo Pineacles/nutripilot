@@ -68,12 +68,15 @@ export interface BodyCompEntry {
   weight_kg: number;
   body_fat_pct: number | null;
   muscle_mass_pct: number | null;
+  body_fat_kg: number | null;
+  muscle_mass_kg: number | null;
 }
 
 export interface WeekSummary {
   start_date: string;
   end_date: string;
   daily_avg: MacroTotals;
+  daily_calories: { date: string; kcal: number }[];
   micronutrient_avg: MicronutrientAverages;
   weight: WeightDelta;
   body_comp: BodyCompEntry[];

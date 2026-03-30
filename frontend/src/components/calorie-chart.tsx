@@ -40,23 +40,39 @@ function CustomTooltip({ active, payload, label }: any) {
   return (
     <div style={TT_STYLE}>
       <p style={{ fontWeight: 600, marginBottom: 2 }}>{label}</p>
-      <p style={{ color: COLOR_PRIMARY }}>{payload[0].value.toLocaleString()} kcal</p>
+      <p style={{ color: COLOR_PRIMARY }}>{typeof payload[0].value === "number" ? Math.round(payload[0].value).toLocaleString() : payload[0].value} kcal</p>
     </div>
   );
 }
 
-export function CalorieChartCard({ dailyAvgKcal, targetKcal }: Props) {
-  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+export function CalorieChartCard({ dailyAvgKcal, targetKcal, dailyData }: Props & { dailyData?: { date: string; kcal: number }[] }) {
   const todayIdx = (new Date().getDay() + 6) % 7; // Mon=0
 
-  const data = dayNames.map((day, i) => {
-    const factor = i <= todayIdx ? 0.8 + Math.random() * 0.4 : 0;
-    return {
-      day,
-      kcal: i <= todayIdx ? Math.round(dailyAvgKcal * factor) : 0,
-      isToday: i === todayIdx,
-    };
-  });
+  // Use real daily data if provided, otherwise show empty state
+  const data = dailyData && dailyData.length > 0
+    ? dailyData.map((d, i) => ({
+        day: new Date(d.date + "T00:00:00").toLocaleDateString("en", { weekday: "short" }),
+        kcal: Math.round(d.kcal),
+        isToday: i === dailyData.length - 1,
+      }))
+    : (() => {
+        // No real data — show empty bars
+        if (dailyAvgKcal < 1) return [];
+        const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        return dayNames.map((day, i) => ({
+          day,
+          kcal: 0,
+          isToday: i === todayIdx,
+        }));
+      })();
+
+  if (data.length === 0) {
+    return (
+      <DashboardCard title="7-Day Calories" span="lg:col-span-2">
+        <p className="text-sm text-muted-foreground py-8 text-center">No calorie data this week</p>
+      </DashboardCard>
+    );
+  }
 
   return (
     <DashboardCard title="7-Day Calories" span="lg:col-span-2">

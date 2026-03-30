@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { apiFetch } from "@/lib/api";
+import { fmt, rnd } from "@/lib/utils";
 import type { StatsSummary, UserSettings, BodyCompEntry } from "@/lib/types";
 
 /* ─── Helpers ─── */
@@ -36,7 +37,7 @@ function rollingAvg<T extends Record<string, any>>(data: T[], key: string, windo
     const start = Math.max(0, i - window + 1);
     const slice = data.slice(start, i + 1).filter(x => x[key] != null);
     const avg = slice.length > 0 ? slice.reduce((sum: number, x: any) => sum + x[key], 0) / slice.length : null;
-    return { ...d, [`${key}_avg`]: avg != null ? Math.round(avg * 10) / 10 : null };
+    return { ...d, [`${key}_avg`]: avg != null ? rnd(avg, 1) : null };
   });
 }
 
@@ -93,7 +94,7 @@ function ChartTooltip({ active, payload, label, valueSuffix = "", valueKey }: {
     <div style={TT_STYLE}>
       <p style={{ color: "#999", fontSize: 11, marginBottom: 4 }}>{fmtDateFull(label ?? "")}</p>
       <p style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
-        {typeof item.value === "number" ? item.value.toLocaleString(undefined, { maximumFractionDigits: 1 }) : "--"}{valueSuffix}
+        {typeof item.value === "number" ? fmt(item.value) : "--"}{valueSuffix}
       </p>
     </div>
   );
@@ -113,7 +114,7 @@ function MultiLineTooltip({ active, payload, label }: {
           <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: p.color }} />
           <span style={{ color: "#ccc", fontSize: 12 }}>{p.name ?? p.dataKey}:</span>
           <span style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>
-            {p.value.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+            {fmt(p.value)}
           </span>
         </div>
       ))}
@@ -321,37 +322,37 @@ export default function BodyCompositionPage() {
           <div className="clay-card p-4">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Current Weight</p>
             <p className="text-xl font-bold text-foreground">
-              {currentWeight != null ? `${currentWeight} kg` : "--"}
+              {currentWeight != null ? `${fmt(currentWeight)} kg` : "--"}
             </p>
           </div>
           <div className="clay-card p-4">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Weight Change</p>
             <p className={`text-xl font-bold ${weightChange != null && weightChange < 0 ? "text-green-400" : weightChange != null && weightChange > 0 ? "text-amber-400" : "text-foreground"}`}>
-              {weightChange != null ? `${weightChange > 0 ? "+" : ""}${weightChange} kg` : "--"}
+              {weightChange != null ? `${weightChange > 0 ? "+" : ""}${fmt(weightChange)} kg` : "--"}
             </p>
           </div>
           <div className="clay-card p-4">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Body Fat</p>
             <p className="text-xl font-bold pill-amber" style={{ background: "none", padding: 0, color: COLORS.amber }}>
-              {currentBf != null ? `${currentBf}%` : "--"}
+              {currentBf != null ? `${fmt(currentBf)}%` : "--"}
             </p>
           </div>
           <div className="clay-card p-4">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Muscle Mass</p>
             <p className="text-xl font-bold" style={{ color: COLORS.blue }}>
-              {currentMuscle != null ? `${currentMuscle}%` : "--"}
+              {currentMuscle != null ? `${fmt(currentMuscle)}%` : "--"}
             </p>
           </div>
           <div className="clay-card p-4">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">BMI</p>
             <p className="text-xl font-bold text-foreground">
-              {bmi != null ? bmi : "--"}
+              {bmi != null ? fmt(bmi) : "--"}
             </p>
           </div>
           <div className="clay-card p-4">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Weekly Avg</p>
             <p className={`text-xl font-bold ${weeklyAvgChange != null && weeklyAvgChange < 0 ? "text-green-400" : weeklyAvgChange != null && weeklyAvgChange > 0 ? "text-amber-400" : "text-foreground"}`}>
-              {weeklyAvgChange != null ? `${weeklyAvgChange > 0 ? "+" : ""}${weeklyAvgChange} kg/w` : "--"}
+              {weeklyAvgChange != null ? `${weeklyAvgChange > 0 ? "+" : ""}${fmt(weeklyAvgChange, 2)} kg/w` : "--"}
             </p>
           </div>
         </div>
@@ -396,7 +397,7 @@ export default function BodyCompositionPage() {
                 <div key={s.label} className="pill flex items-center justify-between px-3 py-2">
                   <span className="text-xs text-muted-foreground">{s.label}</span>
                   <span className={`text-sm font-semibold ${s.cls || "text-foreground"}`}>
-                    {s.value != null ? `${s.value} ${s.unit}` : "--"}
+                    {s.value != null ? `${fmt(s.value, s.unit === "kg/w" ? 2 : 1)} ${s.unit}` : "--"}
                   </span>
                 </div>
               ))}
@@ -475,7 +476,7 @@ export default function BodyCompositionPage() {
                     </Pie>
                     <Tooltip
                       contentStyle={TT_STYLE}
-                      formatter={(value: any, name: any) => [`${value}%`, name]}
+                      formatter={(value: any, name: any) => [`${fmt(value)}%`, name]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -484,7 +485,7 @@ export default function BodyCompositionPage() {
                     <div key={entry.name} className="flex items-center gap-1.5">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
                       <span className="text-xs text-muted-foreground">{entry.name}</span>
-                      <span className="text-xs font-semibold text-foreground">{entry.value}%</span>
+                      <span className="text-xs font-semibold text-foreground">{fmt(entry.value)}%</span>
                     </div>
                   ))}
                 </div>
@@ -529,7 +530,7 @@ export default function BodyCompositionPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-muted-foreground">Weight</span>
                   <span className="text-xs font-medium text-foreground">
-                    {currentWeight != null ? `${currentWeight} kg` : "--"} / {targetWeight} kg
+                    {currentWeight != null ? `${fmt(currentWeight)} kg` : "--"} / {targetWeight} kg
                   </span>
                 </div>
                 {currentWeight != null && startingWeight != null ? (() => {
@@ -560,7 +561,7 @@ export default function BodyCompositionPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-muted-foreground">Body Fat</span>
                   <span className="text-xs font-medium text-foreground">
-                    {currentBf != null ? `${currentBf}%` : "--"} / {targetBf}%
+                    {currentBf != null ? `${fmt(currentBf)}%` : "--"} / {targetBf}%
                   </span>
                 </div>
                 {currentBf != null && validBf.length > 0 ? (() => {
@@ -605,7 +606,7 @@ export default function BodyCompositionPage() {
                 <div className="pill flex items-center justify-between px-3 py-2">
                   <span className="text-xs text-muted-foreground">Avg weekly rate</span>
                   <span className={`text-xs font-semibold ${weeklyAvgChange != null && weeklyAvgChange < 0 ? "text-green-400" : "text-amber-400"}`}>
-                    {weeklyAvgChange != null ? `${weeklyAvgChange > 0 ? "+" : ""}${weeklyAvgChange} kg/w` : "--"}
+                    {weeklyAvgChange != null ? `${weeklyAvgChange > 0 ? "+" : ""}${fmt(weeklyAvgChange, 2)} kg/w` : "--"}
                   </span>
                 </div>
               </div>

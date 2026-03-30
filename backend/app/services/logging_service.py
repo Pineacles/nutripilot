@@ -58,14 +58,29 @@ async def log_weight(
     weight_kg: float,
     body_fat_pct: float | None = None,
     muscle_mass_pct: float | None = None,
+    body_fat_kg: float | None = None,
+    muscle_mass_kg: float | None = None,
     source: str = "manual",
     log_date: date | None = None,
 ) -> WeightLog:
+    # Auto-calculate missing values
+    if body_fat_pct is not None and body_fat_kg is None:
+        body_fat_kg = round(weight_kg * body_fat_pct / 100, 2)
+    elif body_fat_kg is not None and body_fat_pct is None:
+        body_fat_pct = round(body_fat_kg / weight_kg * 100, 1)
+
+    if muscle_mass_pct is not None and muscle_mass_kg is None:
+        muscle_mass_kg = round(weight_kg * muscle_mass_pct / 100, 2)
+    elif muscle_mass_kg is not None and muscle_mass_pct is None:
+        muscle_mass_pct = round(muscle_mass_kg / weight_kg * 100, 1)
+
     entry = WeightLog(
         user_id=user_id,
         weight_kg=weight_kg,
-        muscle_mass_pct=muscle_mass_pct,
         body_fat_pct=body_fat_pct,
+        muscle_mass_pct=muscle_mass_pct,
+        body_fat_kg=body_fat_kg,
+        muscle_mass_kg=muscle_mass_kg,
         source=source,
         date=log_date or date.today(),
     )
