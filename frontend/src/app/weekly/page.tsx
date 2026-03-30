@@ -9,6 +9,7 @@ import { WeightTrendCard } from "@/components/weight-trend";
 import { MacroAveragesCard } from "@/components/macro-averages";
 import { MicronutrientSummaryCard } from "@/components/micronutrient-summary";
 import { BodyCompCard } from "@/components/body-comp";
+import { HydrationWeeklyCard } from "@/components/hydration-weekly";
 
 export default function WeeklyPage() {
   const { data, loading } = useWeekSummary();
@@ -107,6 +108,14 @@ export default function WeeklyPage() {
             <MacroAveragesCard
               dailyAvg={data.daily_avg}
               targets={settings?.nutrition_targets}
+            />
+
+            {/* Hydration & Caffeine weekly */}
+            <HydrationWeeklyCard
+              dailyWater={data.daily_water ?? []}
+              dailyCaffeine={data.daily_caffeine ?? []}
+              targetWater={settings?.nutrition_targets?.target_water_ml ?? 2500}
+              targetCaffeine={settings?.nutrition_targets?.target_caffeine_mg ?? 400}
             />
 
             {/* Micronutrients: 2 cols */}

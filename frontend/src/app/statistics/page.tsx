@@ -55,6 +55,7 @@ interface DailyNutritionLike {
   fiber: number;
   sugar: number;
   sodium: number;
+  alcohol: number;
   date: string;
   [key: string]: unknown;
 }
@@ -237,6 +238,9 @@ export default function StatisticsPage() {
   const targetFiber = settings?.nutrition_targets?.target_fiber_g ?? 30;
   const targetSugar = settings?.nutrition_targets?.target_sugar_g ?? 50;
   const targetSodium = settings?.nutrition_targets?.target_sodium_mg ?? 2300;
+  const targetAlcohol = settings?.nutrition_targets?.target_alcohol_g ?? 0;
+  const targetWaterMl = settings?.nutrition_targets?.target_water_ml ?? 2500;
+  const targetCaffeineMg = settings?.nutrition_targets?.target_caffeine_mg ?? 400;
   const targetWeight = 78;
 
   // Macro distribution pie data
@@ -286,7 +290,7 @@ export default function StatisticsPage() {
   const weightData = data.weight_history ?? [];
   const bodyCompData = weightData.filter(d => d.body_fat_pct != null || d.muscle_mass_pct != null);
   const nutrition = data.daily_nutrition ?? [];
-  const rollingNutrition = computeRollingAvg(nutrition as DailyNutritionLike[], ["kcal", "protein", "carbs", "fat", "fiber", "sugar", "sodium"]);
+  const rollingNutrition = computeRollingAvg(nutrition as DailyNutritionLike[], ["kcal", "protein", "carbs", "fat", "fiber", "sugar", "sodium", "alcohol"]);
   const avgKcal = data.avg_daily_kcal ?? (nutrition.length > 0 ? Math.round(nutrition.reduce((s, d) => s + d.kcal, 0) / nutrition.length) : 0);
   const logPct = data.total_days > 0 ? Math.round((data.days_logged / data.total_days) * 100) : 0;
 
@@ -689,6 +693,137 @@ export default function StatisticsPage() {
             )}
           </SectionCard>
         ))}
+
+        {/* Alcohol Trend */}
+        <SectionCard title="Alcohol Trend">
+          {nutrition.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No data</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={140}>
+              <ComposedChart data={rollingNutrition} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                <defs>
+                  <linearGradient id="alcoholGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={COLORS.orange} stopOpacity={0.2} />
+                    <stop offset="95%" stopColor={COLORS.orange} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray={GRID_DASH} stroke={GRID_STROKE} vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "#888", fontSize: 9 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={nthTickFormatter(rollingNutrition, 4)}
+                />
+                <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
+                <Tooltip content={<ChartTooltip valueSuffix=" g" valueKey="avg_alcohol" />} />
+                {targetAlcohol > 0 && (
+                  <ReferenceLine y={targetAlcohol} stroke={COLORS.orange} strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.6} />
+                )}
+                <Line
+                  type="monotone"
+                  dataKey="alcohol"
+                  stroke="transparent"
+                  strokeWidth={0}
+                  dot={{ fill: COLORS.orange, r: 1.5, fillOpacity: 0.25, strokeWidth: 0 }}
+                  activeDot={false}
+                  animationDuration={600}
+                  legendType="none"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="avg_alcohol"
+                  name="Alcohol (7d avg)"
+                  stroke={COLORS.orange}
+                  strokeWidth={1.5}
+                  fill="url(#alcoholGrad)"
+                  dot={false}
+                  animationDuration={600}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </SectionCard>
+
+        {/* Water Trend */}
+        <SectionCard title="Water Trend">
+          {(!data.daily_water || data.daily_water.length === 0) ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No water data</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={140}>
+              <AreaChart data={data.daily_water} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                <defs>
+                  <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={COLORS.cyan} stopOpacity={0.25} />
+                    <stop offset="95%" stopColor={COLORS.cyan} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray={GRID_DASH} stroke={GRID_STROKE} vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "#888", fontSize: 9 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={nthTickFormatter(data.daily_water as { date: string }[], 4)}
+                />
+                <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
+                <Tooltip content={<ChartTooltip valueSuffix=" ml" valueKey="total_ml" />} />
+                <ReferenceLine y={targetWaterMl} stroke={COLORS.cyan} strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.6} />
+                <Area
+                  type="monotone"
+                  dataKey="total_ml"
+                  name="Water (ml)"
+                  stroke={COLORS.cyan}
+                  strokeWidth={2}
+                  fill="url(#waterGrad)"
+                  dot={{ fill: COLORS.cyan, r: 2, strokeWidth: 0 }}
+                  activeDot={{ r: 4, stroke: COLORS.cyan, strokeWidth: 2, fill: "#1e1e22" }}
+                  animationDuration={600}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </SectionCard>
+
+        {/* Caffeine Trend */}
+        <SectionCard title="Caffeine Trend">
+          {(!data.daily_caffeine || data.daily_caffeine.length === 0) ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No caffeine data</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={140}>
+              <AreaChart data={data.daily_caffeine} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                <defs>
+                  <linearGradient id="caffGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#92400e" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#92400e" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray={GRID_DASH} stroke={GRID_STROKE} vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "#888", fontSize: 9 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={nthTickFormatter(data.daily_caffeine as { date: string }[], 4)}
+                />
+                <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
+                <Tooltip content={<ChartTooltip valueSuffix=" mg" valueKey="total_mg" />} />
+                <ReferenceLine y={targetCaffeineMg} stroke="#b45309" strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.6} />
+                <Area
+                  type="monotone"
+                  dataKey="total_mg"
+                  name="Caffeine (mg)"
+                  stroke="#92400e"
+                  strokeWidth={2}
+                  fill="url(#caffGrad)"
+                  dot={{ fill: "#92400e", r: 2, strokeWidth: 0 }}
+                  activeDot={{ r: 4, stroke: "#92400e", strokeWidth: 2, fill: "#1e1e22" }}
+                  animationDuration={600}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </SectionCard>
 
         {/* Micronutrient Averages */}
         <SectionCard title="Micronutrient Averages" span="lg:col-span-3">

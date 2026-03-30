@@ -4,8 +4,10 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.caffeine_log import CaffeineLog
 from app.models.food_log import FoodLog
 from app.models.supplement import Supplement
+from app.models.water_log import WaterLog
 from app.models.weight_log import WeightLog
 
 
@@ -188,6 +190,38 @@ async def upsert_weight(
         muscle_mass_kg=muscle_mass_kg,
         source=source,
         date=target_date,
+    )
+    db.add(entry)
+    await db.commit()
+    await db.refresh(entry)
+    return entry
+
+
+async def log_water(
+    db: AsyncSession,
+    user_id: UUID,
+    amount_ml: float,
+    log_date: date | None = None,
+) -> WaterLog:
+    entry = WaterLog(user_id=user_id, amount_ml=amount_ml, date=log_date or date.today())
+    db.add(entry)
+    await db.commit()
+    await db.refresh(entry)
+    return entry
+
+
+async def log_caffeine(
+    db: AsyncSession,
+    user_id: UUID,
+    amount_mg: float,
+    source_name: str | None = None,
+    log_date: date | None = None,
+) -> CaffeineLog:
+    entry = CaffeineLog(
+        user_id=user_id,
+        amount_mg=amount_mg,
+        source_name=source_name,
+        date=log_date or date.today(),
     )
     db.add(entry)
     await db.commit()

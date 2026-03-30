@@ -7,12 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_api_key
 from app.database import get_db
+from app.models.caffeine_log import CaffeineLog
 from app.models.food_log import FoodLog
 from app.models.integration import Integration
 from app.models.micronutrient_target import MicronutrientTarget
 from app.models.supplement import Supplement
 from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
+from app.models.water_log import WaterLog
 from app.models.weight_log import WeightLog
 from app.schemas.food_log import FoodLogByBarcodeCreate, FoodLogByNameCreate, FoodLogCreate, FoodLogResponse, FoodLogUpdate
 from app.schemas.integration import IntegrationCreate, IntegrationResponse, IntegrationUpdate
@@ -28,6 +30,8 @@ from app.schemas.settings import (
 )
 from app.schemas.supplement import SupplementCreate, SupplementLogUpdate, SupplementResponse
 from app.schemas.summary import StatsSummary, TodaySummary, WeekSummary
+from app.schemas.caffeine_log import CaffeineLogCreate, CaffeineLogResponse, CaffeineLogUpdate
+from app.schemas.water_log import WaterLogCreate, WaterLogResponse, WaterLogUpdate
 from app.schemas.weight_log import WeightLogCreate, WeightLogResponse, WeightLogUpdate
 from app.services import barcode_service, food_service, logging_service, summary_service
 
@@ -275,6 +279,9 @@ async def agent_get_settings(
             target_fiber_g=user.target_fiber_g,
             target_sugar_g=user.target_sugar_g,
             target_sodium_mg=user.target_sodium_mg,
+            target_alcohol_g=user.target_alcohol_g,
+            target_water_ml=user.target_water_ml,
+            target_caffeine_mg=user.target_caffeine_mg,
         ),
         micronutrient_targets=micro_targets,
         supplement_definitions=[SupplementDefinitionResponse.model_validate(s) for s in supps],
@@ -295,6 +302,9 @@ async def agent_update_nutrition_targets(
     user.target_fiber_g = body.target_fiber_g
     user.target_sugar_g = body.target_sugar_g
     user.target_sodium_mg = body.target_sodium_mg
+    user.target_alcohol_g = body.target_alcohol_g
+    user.target_water_ml = body.target_water_ml
+    user.target_caffeine_mg = body.target_caffeine_mg
     await db.commit()
     return NutritionTargetsResponse(
         target_kcal=user.target_kcal,
@@ -304,6 +314,9 @@ async def agent_update_nutrition_targets(
         target_fiber_g=user.target_fiber_g,
         target_sugar_g=user.target_sugar_g,
         target_sodium_mg=user.target_sodium_mg,
+        target_alcohol_g=user.target_alcohol_g,
+        target_water_ml=user.target_water_ml,
+        target_caffeine_mg=user.target_caffeine_mg,
     )
 
 
@@ -517,6 +530,94 @@ async def delete_supplement_log(
     user: User = Depends(get_current_user_api_key),
 ):
     result = await db.execute(select(Supplement).where(Supplement.id == log_id, Supplement.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    await db.delete(log)
+    await db.commit()
+
+
+# --- Water Logging ---
+
+@router.post("/log/water", response_model=WaterLogResponse, status_code=status.HTTP_201_CREATED)
+async def log_water(
+    body: WaterLogCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    entry = await logging_service.log_water(db, user.id, body.amount_ml, body.date)
+    return WaterLogResponse.model_validate(entry)
+
+
+@router.put("/log/water/{log_id}", response_model=WaterLogResponse)
+async def update_water_log(
+    log_id: UUID,
+    body: WaterLogUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(WaterLog).where(WaterLog.id == log_id, WaterLog.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(log, field, value)
+    await db.commit()
+    await db.refresh(log)
+    return WaterLogResponse.model_validate(log)
+
+
+@router.delete("/log/water/{log_id}", status_code=204)
+async def delete_water_log(
+    log_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(WaterLog).where(WaterLog.id == log_id, WaterLog.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    await db.delete(log)
+    await db.commit()
+
+
+# --- Caffeine Logging ---
+
+@router.post("/log/caffeine", response_model=CaffeineLogResponse, status_code=status.HTTP_201_CREATED)
+async def log_caffeine(
+    body: CaffeineLogCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    entry = await logging_service.log_caffeine(db, user.id, body.amount_mg, body.source_name, body.date)
+    return CaffeineLogResponse.model_validate(entry)
+
+
+@router.put("/log/caffeine/{log_id}", response_model=CaffeineLogResponse)
+async def update_caffeine_log(
+    log_id: UUID,
+    body: CaffeineLogUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(CaffeineLog).where(CaffeineLog.id == log_id, CaffeineLog.user_id == user.id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(log, field, value)
+    await db.commit()
+    await db.refresh(log)
+    return CaffeineLogResponse.model_validate(log)
+
+
+@router.delete("/log/caffeine/{log_id}", status_code=204)
+async def delete_caffeine_log(
+    log_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    result = await db.execute(select(CaffeineLog).where(CaffeineLog.id == log_id, CaffeineLog.user_id == user.id))
     log = result.scalar_one_or_none()
     if not log:
         raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})

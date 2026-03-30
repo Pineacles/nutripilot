@@ -18,6 +18,7 @@ const allMacros = [
   { key: "fiber" as const, label: "Fiber", gradient: "linear-gradient(90deg, #84cc16, #a3e635)", unit: "g", mode: "fill" as const },
   { key: "sugar" as const, label: "Sugar", gradient: "linear-gradient(90deg, #ec4899, #f472b6)", unit: "g", mode: "budget" as const },
   { key: "sodium" as const, label: "Sodium", gradient: "linear-gradient(90deg, #a78bfa, #c4b5fd)", unit: "mg", mode: "budget" as const },
+  { key: "alcohol" as const, label: "Alcohol", gradient: "linear-gradient(90deg, #f97316, #fb923c)", unit: "g", mode: "budget" as const },
 ];
 
 export function MacroBreakdownCard({ totals, targets, span }: Props) {

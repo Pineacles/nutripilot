@@ -12,6 +12,7 @@ class MacroTotals(BaseModel):
     fiber: float = 0
     sugar: float = 0
     sodium: float = 0  # mg
+    alcohol: float = 0
 
 
 class MacroTargets(BaseModel):
@@ -22,6 +23,7 @@ class MacroTargets(BaseModel):
     fiber: float
     sugar: float
     sodium: float  # mg
+    alcohol: float
 
 
 class MealItem(BaseModel):
@@ -42,12 +44,34 @@ class SupplementEntry(BaseModel):
     time_of_day: Optional[str] = None
 
 
+class DailyWater(BaseModel):
+    date: datetime.date
+    total_ml: float
+
+
+class DailyCaffeine(BaseModel):
+    date: datetime.date
+    total_mg: float
+
+
+class WaterTotals(BaseModel):
+    total_ml: float
+    target_ml: float
+
+
+class CaffeineTotals(BaseModel):
+    total_mg: float
+    target_mg: float
+
+
 class TodaySummary(BaseModel):
     date: datetime.date
     totals: MacroTotals
     targets: MacroTargets
     meals: list[MealGroup]
     supplements: list[SupplementEntry]
+    water: WaterTotals
+    caffeine: CaffeineTotals
 
 
 class MicronutrientAverages(BaseModel):
@@ -91,6 +115,8 @@ class WeekSummary(BaseModel):
     micronutrient_avg: MicronutrientAverages
     weight: WeightDelta
     body_comp: list[BodyCompEntry]
+    daily_water: list[DailyWater]
+    daily_caffeine: list[DailyCaffeine]
 
 
 class DailyNutrition(BaseModel):
@@ -102,6 +128,7 @@ class DailyNutrition(BaseModel):
     fiber: float
     sugar: float
     sodium: float
+    alcohol: float
 
 
 class DailyMicros(BaseModel):
@@ -137,5 +164,9 @@ class StatsSummary(BaseModel):
     lowest_calorie_day: Optional[dict] = None  # {date, kcal}
     highest_calorie_day: Optional[dict] = None  # {date, kcal}
     best_fiber_day: Optional[dict] = None  # {date, fiber}
+    daily_water: list[DailyWater]
+    daily_caffeine: list[DailyCaffeine]
+    avg_water_ml: float = 0
+    avg_caffeine_mg: float = 0
     avg_daily_kcal: float = 0
     current_streak: int

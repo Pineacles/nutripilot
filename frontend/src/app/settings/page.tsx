@@ -88,6 +88,9 @@ export default function SettingsPage() {
     target_fiber_g: 30,
     target_sugar_g: 50,
     target_sodium_mg: 2300,
+    target_alcohol_g: 0,
+    target_water_ml: 2500,
+    target_caffeine_mg: 400,
   });
   const [nutritionSaved, setNutritionSaved] = useState(false);
 
@@ -244,6 +247,9 @@ export default function SettingsPage() {
               { label: "Fiber Target", key: "target_fiber_g" as const, unit: "g" },
               { label: "Sugar Limit", key: "target_sugar_g" as const, unit: "g" },
               { label: "Sodium Limit", key: "target_sodium_mg" as const, unit: "mg" },
+              { label: "Alcohol Limit", key: "target_alcohol_g" as const, unit: "g" },
+              { label: "Water Target", key: "target_water_ml" as const, unit: "ml" },
+              { label: "Caffeine Limit", key: "target_caffeine_mg" as const, unit: "mg" },
             ].map((field) => (
               <div key={field.key} className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{field.label}</Label>

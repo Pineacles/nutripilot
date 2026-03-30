@@ -23,5 +23,8 @@ class User(Base):
     target_fiber_g: Mapped[float] = mapped_column(Float, default=30.0)
     target_sugar_g: Mapped[float] = mapped_column(Float, default=50.0)
     target_sodium_mg: Mapped[float] = mapped_column(Float, default=2300.0)
+    target_alcohol_g: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
+    target_water_ml: Mapped[float] = mapped_column(Float, nullable=False, server_default="2500")
+    target_caffeine_mg: Mapped[float] = mapped_column(Float, nullable=False, server_default="400")
     target_weight_kg: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

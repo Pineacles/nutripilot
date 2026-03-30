@@ -13,6 +13,9 @@ class NutritionTargetsUpdate(BaseModel):
     target_fiber_g: float = Field(default=30, ge=0, le=200)
     target_sugar_g: float = Field(default=50, ge=0, le=500)
     target_sodium_mg: float = Field(default=2300, ge=0, le=10000)
+    target_alcohol_g: float = Field(ge=0, le=500)
+    target_water_ml: float = Field(ge=0, le=20000)
+    target_caffeine_mg: float = Field(ge=0, le=5000)
 
 
 class NutritionTargetsResponse(BaseModel):
@@ -23,6 +26,9 @@ class NutritionTargetsResponse(BaseModel):
     target_fiber_g: float
     target_sugar_g: float
     target_sodium_mg: float
+    target_alcohol_g: float
+    target_water_ml: float
+    target_caffeine_mg: float
 
 
 class MicronutrientTargetItem(BaseModel):

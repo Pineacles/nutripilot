@@ -31,5 +31,6 @@ class Nutrient(Base):
     magnesium: Mapped[float | None] = mapped_column(Float)
     b12: Mapped[float | None] = mapped_column(Float)
     iron: Mapped[float | None] = mapped_column(Float)
+    alcohol: Mapped[float | None] = mapped_column(Float)
 
     food: Mapped["Food"] = relationship(back_populates="nutrients")

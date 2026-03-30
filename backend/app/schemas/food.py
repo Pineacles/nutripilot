@@ -23,6 +23,7 @@ class NutrientData(BaseModel):
     magnesium: float | None = None
     b12: float | None = None
     iron: float | None = None
+    alcohol: float | None = None
 
 
 class FoodCreate(BaseModel):

@@ -58,6 +58,9 @@ async def get_settings(
             target_fiber_g=user.target_fiber_g,
             target_sugar_g=user.target_sugar_g,
             target_sodium_mg=user.target_sodium_mg,
+            target_alcohol_g=user.target_alcohol_g,
+            target_water_ml=user.target_water_ml,
+            target_caffeine_mg=user.target_caffeine_mg,
         ),
         micronutrient_targets=micro_targets,
         supplement_definitions=[SupplementDefinitionResponse.model_validate(s) for s in supps],
@@ -80,6 +83,9 @@ async def update_nutrition_targets(
     user.target_fiber_g = body.target_fiber_g
     user.target_sugar_g = body.target_sugar_g
     user.target_sodium_mg = body.target_sodium_mg
+    user.target_alcohol_g = body.target_alcohol_g
+    user.target_water_ml = body.target_water_ml
+    user.target_caffeine_mg = body.target_caffeine_mg
     await db.commit()
     return NutritionTargetsResponse(
         target_kcal=user.target_kcal,
@@ -89,6 +95,9 @@ async def update_nutrition_targets(
         target_fiber_g=user.target_fiber_g,
         target_sugar_g=user.target_sugar_g,
         target_sodium_mg=user.target_sodium_mg,
+        target_alcohol_g=user.target_alcohol_g,
+        target_water_ml=user.target_water_ml,
+        target_caffeine_mg=user.target_caffeine_mg,
     )
 
 

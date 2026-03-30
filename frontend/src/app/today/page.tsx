@@ -6,6 +6,7 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { CalorieRingCard } from "@/components/macro-ring";
 import { MacroBreakdownCard } from "@/components/macro-breakdown";
 import { QuickStatsCard } from "@/components/quick-stats";
+import { HydrationCard } from "@/components/hydration-card";
 import { MealsLogCard } from "@/components/meals-list";
 import { SupplementsCard } from "@/components/supplement-checklist";
 
@@ -41,6 +42,10 @@ export default function TodayPage() {
           <CalorieRingCard totals={data.totals} targets={data.targets} />
           <MacroBreakdownCard totals={data.totals} targets={data.targets} />
           <QuickStatsCard data={data} />
+
+          {data.water && data.caffeine && (
+            <HydrationCard water={data.water} caffeine={data.caffeine} />
+          )}
 
           {hasMeals && <MealsLogCard meals={data.meals} />}
 

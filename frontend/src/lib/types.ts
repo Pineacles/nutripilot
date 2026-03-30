@@ -6,6 +6,7 @@ export interface MacroTotals {
   fiber: number;
   sugar: number;
   sodium: number;
+  alcohol: number;
 }
 
 export interface MacroTargets {
@@ -16,6 +17,7 @@ export interface MacroTargets {
   fiber: number;
   sugar: number;
   sodium: number;
+  alcohol: number;
 }
 
 export interface MealItem {
@@ -42,6 +44,8 @@ export interface TodaySummary {
   targets: MacroTargets;
   meals: MealGroup[];
   supplements: SupplementEntry[];
+  water: WaterTotals;
+  caffeine: CaffeineTotals;
 }
 
 export interface MicronutrientAverages {
@@ -80,6 +84,8 @@ export interface WeekSummary {
   micronutrient_avg: MicronutrientAverages;
   weight: WeightDelta;
   body_comp: BodyCompEntry[];
+  daily_water: DailyWater[];
+  daily_caffeine: DailyCaffeine[];
 }
 
 export interface DailyNutrition {
@@ -91,6 +97,7 @@ export interface DailyNutrition {
   fiber: number;
   sugar: number;
   sodium: number;
+  alcohol: number;
 }
 
 export interface DailyMicros {
@@ -119,6 +126,10 @@ export interface StatsSummary {
   supplement_log: SupplementLogEntry[];
   macro_avg: MacroTotals;
   micro_avg: MicronutrientAverages;
+  daily_water: DailyWater[];
+  daily_caffeine: DailyCaffeine[];
+  avg_water_ml: number;
+  avg_caffeine_mg: number;
   days_logged: number;
   total_days: number;
   supplement_adherence_pct: number;
@@ -146,6 +157,29 @@ export interface NutritionTargets {
   target_fiber_g: number;
   target_sugar_g: number;
   target_sodium_mg: number;
+  target_alcohol_g: number;
+  target_water_ml: number;
+  target_caffeine_mg: number;
+}
+
+export interface WaterTotals {
+  total_ml: number;
+  target_ml: number;
+}
+
+export interface CaffeineTotals {
+  total_mg: number;
+  target_mg: number;
+}
+
+export interface DailyWater {
+  date: string;
+  total_ml: number;
+}
+
+export interface DailyCaffeine {
+  date: string;
+  total_mg: number;
 }
 
 export interface MicronutrientTargetItem {
