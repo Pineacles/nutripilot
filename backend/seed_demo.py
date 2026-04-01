@@ -13,7 +13,8 @@ from sqlalchemy import select, delete
 from app.database import async_session
 from app.models import (
     Food, FoodLog, MicronutrientTarget, Nutrient,
-    Supplement, SupplementDefinition, User, WeightLog,
+    Supplement, SupplementDefinition, User, WaterLog,
+    CaffeineLog, WeightLog,
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -126,9 +127,13 @@ async def seed_demo():
             print(f"Wiping existing demo user data...")
             await db.execute(delete(FoodLog).where(FoodLog.user_id == existing.id))
             await db.execute(delete(WeightLog).where(WeightLog.user_id == existing.id))
+            await db.execute(delete(WaterLog).where(WaterLog.user_id == existing.id))
+            await db.execute(delete(CaffeineLog).where(CaffeineLog.user_id == existing.id))
             await db.execute(delete(Supplement).where(Supplement.user_id == existing.id))
             await db.execute(delete(SupplementDefinition).where(SupplementDefinition.user_id == existing.id))
             await db.execute(delete(MicronutrientTarget).where(MicronutrientTarget.user_id == existing.id))
+            from app.models.integration import Integration
+            await db.execute(delete(Integration).where(Integration.user_id == existing.id))
             await db.execute(delete(User).where(User.id == existing.id))
             await db.commit()
 
@@ -146,6 +151,9 @@ async def seed_demo():
             target_sugar_g=50.0,
             target_sodium_mg=2300.0,
             target_weight_kg=78.0,
+            target_water_ml=2500.0,
+            target_caffeine_mg=400.0,
+            target_alcohol_g=20.0,  # moderate drinking limit
         )
         db.add(user)
         await db.flush()
@@ -224,6 +232,8 @@ async def seed_demo():
         total_food_logs = 0
         total_weight_logs = 0
         total_supplement_logs = 0
+        total_water_logs = 0
+        total_caffeine_logs = 0
         _warned_foods: set[str] = set()
 
         for day_offset in range(90):
@@ -323,12 +333,47 @@ async def seed_demo():
                     ))
                     total_supplement_logs += 1
 
+            # --- Water logs (1500-3500ml per day, 2-5 entries) ---
+            num_water = random.choice([2, 3, 3, 4, 5])
+            for _ in range(num_water):
+                amount = random.randint(200, 600)
+                db.add(WaterLog(
+                    user_id=user_id,
+                    date=current_date,
+                    amount_ml=float(amount),
+                ))
+                total_water_logs += 1
+
+            # --- Caffeine logs (0-3 per day, morning/afternoon) ---
+            num_caffeine = random.choice([0, 1, 1, 2, 2, 3])
+            caffeine_sources = [
+                ("espresso", 63),
+                ("cappuccino", 80),
+                ("filter coffee", 95),
+                ("green tea", 30),
+                ("energy drink", 80),
+                ("black tea", 47),
+            ]
+            for _ in range(num_caffeine):
+                source, mg = random.choice(caffeine_sources)
+                # Add some variation
+                mg = mg + random.randint(-10, 10)
+                db.add(CaffeineLog(
+                    user_id=user_id,
+                    date=current_date,
+                    amount_mg=float(max(mg, 10)),
+                    source_name=source,
+                ))
+                total_caffeine_logs += 1
+
         await db.commit()
 
         print(f"\nSeeded 90 days of data:")
         print(f"  Food logs:       {total_food_logs}")
         print(f"  Weight logs:     {total_weight_logs}")
         print(f"  Supplement logs: {total_supplement_logs}")
+        print(f"  Water logs:      {total_water_logs}")
+        print(f"  Caffeine logs:   {total_caffeine_logs}")
         print(f"  Foods in DB:     {len(food_map)}")
         print(f"  Supplements:     {len(SUPPLEMENT_DEFS)} definitions")
         print(f"  Micro targets:   {len(MICRONUTRIENT_TARGETS)}")

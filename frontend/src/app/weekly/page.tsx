@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useWeekSummary } from "@/hooks/use-summary";
 import { useSettings } from "@/hooks/use-settings";
 import { fmt } from "@/lib/utils";
@@ -12,7 +13,8 @@ import { BodyCompCard } from "@/components/body-comp";
 import { HydrationWeeklyCard } from "@/components/hydration-weekly";
 
 export default function WeeklyPage() {
-  const { data, loading } = useWeekSummary();
+  const [mode, setMode] = useState<"last7" | "week">("last7");
+  const { data, loading } = useWeekSummary(mode);
   const { data: settings } = useSettings();
 
   const targetKcal = settings?.nutrition_targets.target_kcal ?? 2000;
@@ -45,6 +47,26 @@ export default function WeeklyPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* ── Mode toggle ── */}
+          <div className="flex items-center gap-1.5 -mt-1">
+            {([
+              { value: "last7" as const, label: "Last 7 days" },
+              { value: "week" as const, label: "This week (Mon–Sun)" },
+            ]).map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setMode(opt.value)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
+                  mode === opt.value
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           {/* ── Hero metrics row ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="pill pill-green rounded-xl p-4">
@@ -122,6 +144,7 @@ export default function WeeklyPage() {
             <MicronutrientSummaryCard
               microAvg={data.micronutrient_avg}
               microTargets={settings?.micronutrient_targets}
+              dateRange={{ from: data.start_date, to: data.end_date }}
             />
           </div>
         </div>

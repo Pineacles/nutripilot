@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from sqlalchemy import select, func
 
 from app.database import async_session
-from app.models import Food, FoodLog, Supplement, User, WeightLog
+from app.models import Food, FoodLog, Supplement, User, WeightLog, WaterLog, CaffeineLog
 
 
 # ---------------------------------------------------------------------------
@@ -170,5 +170,28 @@ async def seed_today():
                 ))
                 supp_count += 1
 
+        # Water logs (2-4 entries)
+        water_count = 0
+        for _ in range(random.randint(2, 4)):
+            db.add(WaterLog(
+                user_id=user.id,
+                date=today,
+                amount_ml=float(random.randint(200, 600)),
+            ))
+            water_count += 1
+
+        # Caffeine logs (1-2 entries, morning only for simplicity)
+        caffeine_count = 0
+        for _ in range(random.randint(1, 2)):
+            sources = [("espresso", 63), ("cappuccino", 80), ("filter coffee", 95)]
+            source, mg = random.choice(sources)
+            db.add(CaffeineLog(
+                user_id=user.id,
+                date=today,
+                amount_mg=float(mg + random.randint(-5, 5)),
+                source_name=source,
+            ))
+            caffeine_count += 1
+
         await db.commit()
-        print(f"[demo_daily] Seeded {today}: {count} food logs, 1 weight log, {supp_count} supplements")
+        print(f"[demo_daily] Seeded {today}: {count} food logs, 1 weight log, {supp_count} supplements, {water_count} water logs, {caffeine_count} caffeine logs")

@@ -30,6 +30,13 @@ class MealItem(BaseModel):
     food_name: str
     quantity_g: float
     kcal: Optional[float] = None
+    protein: Optional[float] = None
+    carbs: Optional[float] = None
+    fat: Optional[float] = None
+    fiber: Optional[float] = None
+    sugar: Optional[float] = None
+    sodium: Optional[float] = None
+    alcohol: Optional[float] = None
 
 
 class MealGroup(BaseModel):
@@ -72,6 +79,7 @@ class TodaySummary(BaseModel):
     supplements: list[SupplementEntry]
     water: WaterTotals
     caffeine: CaffeineTotals
+    micronutrients: Optional["MicronutrientAverages"] = None
 
 
 class MicronutrientAverages(BaseModel):

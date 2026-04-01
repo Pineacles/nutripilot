@@ -16,7 +16,7 @@ from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
 from app.models.water_log import WaterLog
 from app.models.weight_log import WeightLog
-from app.schemas.food_log import FoodLogByBarcodeCreate, FoodLogByNameCreate, FoodLogCreate, FoodLogResponse, FoodLogUpdate
+from app.schemas.food_log import DailyLogResponse, FoodLogByBarcodeCreate, FoodLogByNameCreate, FoodLogCreate, FoodLogResponse, FoodLogUpdate
 from app.schemas.integration import IntegrationCreate, IntegrationResponse, IntegrationUpdate
 from app.schemas.settings import (
     MicronutrientTargetItem,
@@ -212,6 +212,86 @@ async def list_weight_logs(
     stmt = stmt.order_by(WeightLog.date.asc(), WeightLog.logged_at.asc())
     result = await db.execute(stmt)
     return [WeightLogResponse.model_validate(w) for w in result.scalars().all()]
+
+
+@router.get("/log/food", response_model=DailyLogResponse)
+async def list_food_logs(
+    day: date | None = Query(None, description="Date to get logs for (default: today)"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    """Get all food log entries for a specific day with full food and nutrient details."""
+    from sqlalchemy.orm import joinedload as jl
+    from app.models.food import Food
+    from app.models.nutrient import Nutrient
+    from app.schemas.food_log import FoodLogDetail, NutrientsPer100g
+
+    target_date = day or date.today()
+    stmt = (
+        select(FoodLog)
+        .where(FoodLog.user_id == user.id, FoodLog.date == target_date)
+        .options(jl(FoodLog.food).joinedload(Food.nutrients))
+        .order_by(FoodLog.logged_at.asc())
+    )
+    result = await db.execute(stmt)
+    logs = result.unique().scalars().all()
+
+    entries = []
+    total_kcal = 0.0
+    for log in logs:
+        food = log.food
+        n = food.nutrients
+        ratio = log.quantity_g / 100.0
+
+        # Nutrients for actual quantity consumed
+        consumed = NutrientsPer100g(
+            kcal=round((n.kcal or 0) * ratio, 1) if n else None,
+            protein=round((n.protein or 0) * ratio, 1) if n else None,
+            carbs=round((n.carbs or 0) * ratio, 1) if n else None,
+            sugar=round((n.sugar or 0) * ratio, 1) if n else None,
+            fiber=round((n.fiber or 0) * ratio, 1) if n else None,
+            fat=round((n.fat or 0) * ratio, 1) if n else None,
+            sat_fat=round((n.sat_fat or 0) * ratio, 1) if n else None,
+            salt=round((n.salt or 0) * ratio, 2) if n else None,
+            calcium=round((n.calcium or 0) * ratio, 1) if n else None,
+            potassium=round((n.potassium or 0) * ratio, 1) if n else None,
+            omega3=round((n.omega3 or 0) * ratio, 1) if n else None,
+            zinc=round((n.zinc or 0) * ratio, 2) if n else None,
+            vit_d=round((n.vit_d or 0) * ratio, 2) if n else None,
+            vit_c=round((n.vit_c or 0) * ratio, 1) if n else None,
+            magnesium=round((n.magnesium or 0) * ratio, 1) if n else None,
+            b12=round((n.b12 or 0) * ratio, 2) if n else None,
+            iron=round((n.iron or 0) * ratio, 2) if n else None,
+            alcohol=round((getattr(n, "alcohol", None) or 0) * ratio, 1) if n else None,
+        ) if n else NutrientsPer100g()
+
+        # Raw nutrients per 100g
+        per_100g = NutrientsPer100g.model_validate(n) if n else None
+
+        total_kcal += consumed.kcal or 0
+
+        entries.append(FoodLogDetail(
+            id=log.id,
+            food_id=food.id,
+            food_name=food.name,
+            food_source=food.source,
+            barcode=food.barcode,
+            serving_size_g=food.serving_size_g,
+            serving_label=food.serving_label,
+            quantity_g=log.quantity_g,
+            meal_type=log.meal_type,
+            date=log.date,
+            logged_at=log.logged_at,
+            nutrients_consumed=consumed,
+            nutrients_per_100g=per_100g,
+        ))
+
+    return DailyLogResponse(
+        date=target_date,
+        total_items=len(entries),
+        total_kcal=round(total_kcal, 1),
+        entries=entries,
+    )
 
 
 @router.post("/log/weight", response_model=WeightLogResponse, status_code=status.HTTP_201_CREATED)
@@ -729,3 +809,108 @@ async def agent_sync_integration(
             detail={"code": "SYNC_FAILED", "error": sync_result.get("error", "Unknown error")},
         )
     return sync_result
+
+
+@router.get("/nutrient-sources")
+async def agent_nutrient_sources(
+    nutrient: str = Query(..., description="Nutrient field name, e.g. 'zinc', 'protein', 'vit_d'"),
+    from_date: date | None = Query(None, alias="from"),
+    to_date: date | None = Query(None, alias="to"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_api_key),
+):
+    """Get foods that contributed to a specific nutrient, ranked by amount."""
+    from sqlalchemy.orm import joinedload
+    from app.models.food import Food
+    from app.models.nutrient import Nutrient
+
+    target_from = from_date or date.today()
+    target_to = to_date or date.today()
+
+    stmt = (
+        select(FoodLog)
+        .where(FoodLog.user_id == user.id, FoodLog.date >= target_from, FoodLog.date <= target_to)
+        .options(joinedload(FoodLog.food).joinedload(Food.nutrients))
+    )
+    result = await db.execute(stmt)
+    logs = result.unique().scalars().all()
+
+    is_sodium = nutrient == "sodium"
+
+    sources = []
+    for log in logs:
+        n = log.food.nutrients
+        if not n:
+            continue
+        ratio = log.quantity_g / 100.0
+
+        if is_sodium:
+            raw_val = (n.salt or 0) * 400
+        else:
+            raw_val = getattr(n, nutrient, None)
+            if raw_val is None:
+                continue
+
+        amount = round(raw_val * ratio, 2)
+        if amount <= 0:
+            continue
+
+        sources.append({
+            "food_name": log.food.name,
+            "quantity_g": log.quantity_g,
+            "amount": amount,
+            "date": str(log.date),
+            "meal_type": log.meal_type,
+        })
+
+    sources.sort(key=lambda x: x["amount"], reverse=True)
+
+    SUPP_MICRO_MAP = {
+        "vit_d": "vitamin_d", "zinc": "zinc", "omega3": "omega3",
+        "iron": "iron", "calcium": "calcium", "magnesium": "magnesium",
+        "b12": "b12", "vit_c": "vit_c", "potassium": "potassium",
+    }
+    supp_key = SUPP_MICRO_MAP.get(nutrient)
+    supp_key_aliases = {nutrient, supp_key} if supp_key else {nutrient}
+    reverse_map = {v: k for k, v in SUPP_MICRO_MAP.items()}
+    if nutrient in reverse_map:
+        supp_key_aliases.add(reverse_map[nutrient])
+    supp_key_aliases.discard(None)
+
+    supp_sources = []
+    if supp_key_aliases:
+        defs_result = await db.execute(select(SupplementDefinition).where(SupplementDefinition.user_id == user.id))
+        defs = {d.name.lower(): d for d in defs_result.scalars().all()}
+
+        supp_result = await db.execute(
+            select(Supplement).where(Supplement.user_id == user.id, Supplement.date >= target_from, Supplement.date <= target_to)
+        )
+        for s in supp_result.scalars().all():
+            defn = defs.get(s.name.lower())
+            if not defn or not defn.micronutrients:
+                continue
+            for alias in supp_key_aliases:
+                if alias in defn.micronutrients:
+                    val = defn.micronutrients[alias]
+                    if isinstance(val, (int, float)) and val > 0:
+                        supp_sources.append({
+                            "food_name": f"{s.name} (supplement)",
+                            "quantity_g": s.dose_amount,
+                            "amount": round(val, 2),
+                            "date": str(s.date),
+                            "meal_type": "supplement",
+                        })
+                    break
+
+    all_sources = sources + supp_sources
+    all_sources.sort(key=lambda x: x["amount"], reverse=True)
+
+    total = round(sum(s["amount"] for s in all_sources), 2)
+
+    return {
+        "nutrient": nutrient,
+        "from_date": str(target_from),
+        "to_date": str(target_to),
+        "total": total,
+        "sources": all_sources[:30],
+    }

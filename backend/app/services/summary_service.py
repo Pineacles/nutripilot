@@ -11,6 +11,7 @@ from app.models.food import Food
 from app.models.food_log import FoodLog
 from app.models.nutrient import Nutrient
 from app.models.supplement import Supplement
+from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
 from app.models.water_log import WaterLog
 from app.models.weight_log import WeightLog
@@ -34,6 +35,49 @@ from app.schemas.summary import (
     WeekSummary,
     WeightDelta,
 )
+
+
+# Map from supplement definition keys to MicronutrientAverages field names
+SUPP_MICRO_KEY_MAP = {
+    "vitamin_d": "vit_d",
+    "zinc": "zinc",
+    "omega3": "omega3",
+    "iron": "iron",
+    "calcium": "calcium",
+    "magnesium": "magnesium",
+    "b12": "b12",
+    "vit_c": "vit_c",
+    "potassium": "potassium",
+}
+
+
+async def _get_supplement_micros(db, user_id, supp_logs, micro_fields, supp_defs=None):
+    """Calculate micronutrient contributions from supplement logs.
+
+    Matches supplement log entries to their definitions by name,
+    then sums the micronutrient values from matched definitions.
+    If supp_defs is provided, reuse it instead of querying the database.
+    """
+    if not supp_logs:
+        return {f: 0.0 for f in micro_fields}
+
+    if supp_defs is None:
+        result = await db.execute(
+            select(SupplementDefinition).where(SupplementDefinition.user_id == user_id)
+        )
+        supp_defs = {d.name.lower(): d for d in result.scalars().all()}
+
+    supp_micros = {f: 0.0 for f in micro_fields}
+    for log in supp_logs:
+        defn = supp_defs.get(log.name.lower())
+        if not defn or not defn.micronutrients:
+            continue
+        for supp_key, value in defn.micronutrients.items():
+            mapped_key = SUPP_MICRO_KEY_MAP.get(supp_key, supp_key)
+            if mapped_key in supp_micros and isinstance(value, (int, float)):
+                supp_micros[mapped_key] += value
+
+    return supp_micros
 
 
 def _aggregate_weight_per_day(weight_logs) -> list[BodyCompEntry]:
@@ -125,9 +169,19 @@ async def get_today_summary(db: AsyncSession, user: User, target_date: date | No
     for log in food_logs:
         ratio = log.quantity_g / 100.0
         n = log.food.nutrients
-        kcal = (n.kcal or 0) * ratio if n else 0
         meals_map[log.meal_type].append(
-            MealItem(food_name=log.food.name, quantity_g=log.quantity_g, kcal=round(kcal, 1))
+            MealItem(
+                food_name=log.food.name,
+                quantity_g=log.quantity_g,
+                kcal=round((n.kcal or 0) * ratio, 1) if n else None,
+                protein=round((n.protein or 0) * ratio, 1) if n else None,
+                carbs=round((n.carbs or 0) * ratio, 1) if n else None,
+                fat=round((n.fat or 0) * ratio, 1) if n else None,
+                fiber=round((n.fiber or 0) * ratio, 1) if n else None,
+                sugar=round((n.sugar or 0) * ratio, 1) if n else None,
+                sodium=round(((n.salt or 0) * 400) * ratio, 1) if n else None,
+                alcohol=round((getattr(n, "alcohol", None) or 0) * ratio, 1) if n else None,
+            )
         )
     meals = [MealGroup(meal_type=mt, items=items) for mt, items in meals_map.items()]
 
@@ -138,6 +192,23 @@ async def get_today_summary(db: AsyncSession, user: User, target_date: date | No
         SupplementEntry(name=s.name, dose_amount=s.dose_amount, dose_unit=s.dose_unit, time_of_day=s.time_of_day)
         for s in supps
     ]
+
+    # Compute micronutrients from food
+    micro_fields = ["calcium", "potassium", "omega3", "zinc", "vit_d", "vit_k2", "vit_c", "magnesium", "b12", "iron"]
+    food_micros = {f: 0.0 for f in micro_fields}
+    for log in food_logs:
+        ratio = log.quantity_g / 100.0
+        n = log.food.nutrients
+        if not n:
+            continue
+        for field in micro_fields:
+            val = getattr(n, field, None)
+            if val is not None:
+                food_micros[field] += val * ratio
+
+    # Add supplement micronutrient contributions
+    supp_micros = await _get_supplement_micros(db, user.id, supps, micro_fields)
+    total_micros = {f: food_micros[f] + supp_micros[f] for f in micro_fields}
 
     # Water
     stmt = select(WaterLog).where(WaterLog.user_id == user.id, WaterLog.date == target_date)
@@ -168,12 +239,15 @@ async def get_today_summary(db: AsyncSession, user: User, target_date: date | No
         supplements=supplement_entries,
         water=WaterTotals(total_ml=round(water_total, 1), target_ml=user.target_water_ml),
         caffeine=CaffeineTotals(total_mg=round(caffeine_total, 1), target_mg=user.target_caffeine_mg),
+        micronutrients=MicronutrientAverages(
+            **{f: round(total_micros[f], 2) if total_micros[f] > 0 else None for f in micro_fields}
+        ),
     )
 
 
-async def get_week_summary(db: AsyncSession, user: User, end_date: date | None = None) -> WeekSummary:
+async def get_week_summary(db: AsyncSession, user: User, end_date: date | None = None, start_override: date | None = None) -> WeekSummary:
     end_date = end_date or date.today()
-    start_date = end_date - timedelta(days=6)
+    start_date = start_override or (end_date - timedelta(days=6))
 
     stmt = (
         select(FoodLog)
@@ -210,6 +284,29 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
             val = getattr(n, field, None)
             if val is not None:
                 micro_totals[field] += val * ratio
+
+    # Add supplement micronutrient contributions for the week
+    result = await db.execute(
+        select(SupplementDefinition).where(SupplementDefinition.user_id == user.id)
+    )
+    supp_defs = {d.name.lower(): d for d in result.scalars().all()}
+
+    stmt = select(Supplement).where(
+        Supplement.user_id == user.id,
+        Supplement.date >= start_date,
+        Supplement.date <= end_date,
+    )
+    result = await db.execute(stmt)
+    all_supp_logs = result.scalars().all()
+
+    for log in all_supp_logs:
+        defn = supp_defs.get(log.name.lower())
+        if not defn or not defn.micronutrients:
+            continue
+        for supp_key, value in defn.micronutrients.items():
+            mapped_key = SUPP_MICRO_KEY_MAP.get(supp_key, supp_key)
+            if mapped_key in micro_totals and isinstance(value, (int, float)):
+                micro_totals[mapped_key] += value
 
     num_days = max(len(days_with_data), 1)
 
@@ -330,6 +427,26 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
             if val is not None:
                 daily_micros_data[log.date][field] += val * ratio
 
+    # Add supplement micronutrient contributions per day
+    # (Supplement logs are fetched below; fetch them here first for micros)
+    stmt = select(Supplement).where(Supplement.user_id == user.id, Supplement.date >= start)
+    result = await db.execute(stmt)
+    all_supps = result.scalars().all()
+
+    result = await db.execute(
+        select(SupplementDefinition).where(SupplementDefinition.user_id == user.id)
+    )
+    supp_defs = {d.name.lower(): d for d in result.scalars().all()}
+
+    for s in all_supps:
+        defn = supp_defs.get(s.name.lower())
+        if not defn or not defn.micronutrients:
+            continue
+        for supp_key, value in defn.micronutrients.items():
+            mapped_key = SUPP_MICRO_KEY_MAP.get(supp_key, supp_key)
+            if mapped_key in micro_fields and isinstance(value, (int, float)):
+                daily_micros_data[s.date][mapped_key] += value
+
     daily_micros = [
         DailyMicros(
             date=d,
@@ -379,10 +496,7 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
         streak += 1
         check_date -= timedelta(days=1)
 
-    # Supplement log and adherence
-    stmt = select(Supplement).where(Supplement.user_id == user.id, Supplement.date >= start)
-    result = await db.execute(stmt)
-    all_supps = result.scalars().all()
+    # Supplement log and adherence (reuse all_supps fetched above for micros)
     supp_by_date: dict[date, list[str]] = defaultdict(list)
     for s in all_supps:
         supp_by_date[s.date].append(s.name)

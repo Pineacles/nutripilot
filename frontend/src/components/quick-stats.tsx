@@ -8,8 +8,6 @@ interface Props {
 }
 
 export function QuickStatsCard({ data }: Props) {
-  // Derive stats from totals — we show fiber, sugar, salt, sat_fat as quick stats
-  // These aren't in the summary yet, so show what we have plus placeholders
   const stats = [
     { label: "Meals", value: data.meals.reduce((acc, m) => acc + m.items.length, 0).toString(), pill: "pill-green" },
     { label: "Supplements", value: data.supplements.length.toString(), pill: "pill-blue" },

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   BarChart,
   Bar,
@@ -46,12 +47,14 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 export function CalorieChartCard({ dailyAvgKcal, targetKcal, dailyData }: Props & { dailyData?: { date: string; kcal: number }[] }) {
+  const router = useRouter();
   const todayIdx = (new Date().getDay() + 6) % 7; // Mon=0
 
   // Use real daily data if provided, otherwise show empty state
   const data = dailyData && dailyData.length > 0
     ? dailyData.map((d, i) => ({
         day: new Date(d.date + "T00:00:00").toLocaleDateString("en", { weekday: "short" }),
+        dateStr: d.date,
         kcal: Math.round(d.kcal),
         isToday: i === dailyData.length - 1,
       }))
@@ -61,6 +64,7 @@ export function CalorieChartCard({ dailyAvgKcal, targetKcal, dailyData }: Props 
         const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         return dayNames.map((day, i) => ({
           day,
+          dateStr: "",
           kcal: 0,
           isToday: i === todayIdx,
         }));
@@ -112,7 +116,17 @@ export function CalorieChartCard({ dailyAvgKcal, targetKcal, dailyData }: Props 
             strokeWidth={1.5}
             label={{ value: `${targetKcal} kcal target`, fill: COLOR_PRIMARY, fontSize: 10, position: "insideTopRight" }}
           />
-          <Bar dataKey="kcal" radius={[6, 6, 0, 0]}>
+          <Bar
+            dataKey="kcal"
+            radius={[6, 6, 0, 0]}
+            cursor="pointer"
+            onClick={(_: unknown, index: number) => {
+              const entry = data[index];
+              if (entry && "dateStr" in entry && entry.dateStr) {
+                router.push(`/today?date=${entry.dateStr}`);
+              }
+            }}
+          >
             {data.map((entry, i) => (
               <Cell
                 key={i}

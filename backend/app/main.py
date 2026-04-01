@@ -12,6 +12,7 @@ from app.config import settings
 from app.demo_daily import seed_today
 from app.rate_limit import limiter
 from app.routers import agent, auth, dashboard, foods, settings as settings_router
+from app.services.integration_logger import setup_integration_logging
 from app.services.sync_worker import run_all_syncs
 
 
@@ -74,6 +75,7 @@ async def _daily_tasks_loop():
 async def lifespan(app: FastAPI):
     import subprocess
     subprocess.run(["alembic", "upgrade", "head"], check=True, timeout=60)
+    setup_integration_logging()
     task = asyncio.create_task(_daily_tasks_loop())
     yield
     task.cancel()

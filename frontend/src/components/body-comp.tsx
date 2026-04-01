@@ -13,13 +13,13 @@ import type { BodyCompEntry } from "@/lib/types";
 import { fmt } from "@/lib/utils";
 import { DashboardCard } from "./dashboard-card";
 
-/* ── Color constants ── */
+/* ── Design tokens (consistent with calorie-chart / hydration-weekly) ── */
 const COLOR_BODY_FAT = "#f9c74f";
 const COLOR_MUSCLE = "#4f9cf9";
-const COLOR_GRID = "rgba(255,255,255,0.05)";
-const COLOR_TICK = "rgba(255,255,255,0.3)";
+const COLOR_GRID = "rgba(255,255,255,0.06)";
+const COLOR_TICK = { fill: "rgba(255,255,255,0.35)", fontSize: 10 };
+const COLOR_CURSOR = "rgba(255,255,255,0.03)";
 
-/* ── Shared tooltip style ── */
 const TT_STYLE: React.CSSProperties = {
   backgroundColor: "#1e1e22",
   border: "1px solid rgba(255,255,255,0.1)",
@@ -82,7 +82,7 @@ export function BodyCompCard({ data }: Props) {
   return (
     <DashboardCard title="Body Composition" span="lg:col-span-1">
       {/* Stats row — values + legend integrated */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-5">
           {latestFat != null && (
             <div className="flex items-center gap-2">
@@ -114,33 +114,35 @@ export function BodyCompCard({ data }: Props) {
           )}
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={140}>
-        <LineChart data={data} margin={{ top: 10, right: 5, bottom: 5, left: 0 }}>
+      <ResponsiveContainer width="100%" height={160}>
+        <LineChart data={data} margin={{ top: 10, right: 8, bottom: 5, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRID} vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fill: COLOR_TICK, fontSize: 9 }}
+            tick={COLOR_TICK}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => new Date(v).toLocaleDateString("en", { weekday: "short" })}
           />
           <YAxis
             domain={[min, max]}
-            tick={{ fill: COLOR_TICK, fontSize: 9 }}
+            tick={COLOR_TICK}
             axisLine={false}
             tickLine={false}
-            width={28}
+            width={30}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.1)" }} />
           {hasFat && (
             <Line
               type="monotone"
               dataKey="body_fat_pct"
               stroke={COLOR_BODY_FAT}
-              strokeWidth={2}
+              strokeWidth={2.5}
               dot={{ fill: COLOR_BODY_FAT, r: 3, strokeWidth: 0 }}
-              activeDot={{ fill: COLOR_BODY_FAT, r: 5, strokeWidth: 0 }}
+              activeDot={{ fill: COLOR_BODY_FAT, r: 5, stroke: "#1e1e22", strokeWidth: 2 }}
               connectNulls
+              animationDuration={800}
+              animationEasing="ease-out"
             />
           )}
           {hasMuscle && (
@@ -148,10 +150,12 @@ export function BodyCompCard({ data }: Props) {
               type="monotone"
               dataKey="muscle_mass_pct"
               stroke={COLOR_MUSCLE}
-              strokeWidth={2}
+              strokeWidth={2.5}
               dot={{ fill: COLOR_MUSCLE, r: 3, strokeWidth: 0 }}
-              activeDot={{ fill: COLOR_MUSCLE, r: 5, strokeWidth: 0 }}
+              activeDot={{ fill: COLOR_MUSCLE, r: 5, stroke: "#1e1e22", strokeWidth: 2 }}
               connectNulls
+              animationDuration={800}
+              animationEasing="ease-out"
             />
           )}
         </LineChart>

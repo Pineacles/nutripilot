@@ -24,6 +24,13 @@ export interface MealItem {
   food_name: string;
   quantity_g: number;
   kcal: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  fiber: number | null;
+  sugar: number | null;
+  sodium: number | null;
+  alcohol: number | null;
 }
 
 export interface MealGroup {
@@ -46,6 +53,7 @@ export interface TodaySummary {
   supplements: SupplementEntry[];
   water: WaterTotals;
   caffeine: CaffeineTotals;
+  micronutrients?: MicronutrientAverages | null;
 }
 
 export interface MicronutrientAverages {
