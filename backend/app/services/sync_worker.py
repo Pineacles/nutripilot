@@ -414,7 +414,14 @@ def _parse_withings_groups(groups: list[dict], accepted_types: set[int]) -> list
 # ================================================================
 
 # Withings error codes that mean the refresh token is permanently dead
-_WITHINGS_PERMANENT_CODES = {401, 293}
+# 401 = invalid/expired access token
+# 293 = invalid params (e.g., bad callback URL)
+# 503 = invalid params (bad client_id/secret or expired refresh_token)
+# 247 = bad/missing userid
+# 250 = not authorized (OAuth credentials mismatch)
+# 342 = invalid OAuth signature
+# Transient (NOT in this set): 601 = rate limit (retry with backoff)
+_WITHINGS_PERMANENT_CODES = {401, 293, 503, 247, 250, 342}
 
 
 async def _refresh_withings_token(
