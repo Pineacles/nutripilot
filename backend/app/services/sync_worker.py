@@ -413,15 +413,30 @@ def _parse_withings_groups(groups: list[dict], accepted_types: set[int]) -> list
 # Token refreshers — return RefreshResult, classify errors
 # ================================================================
 
-# Withings error codes that mean the refresh token is permanently dead
-# 401 = invalid/expired access token
-# 293 = invalid params (e.g., bad callback URL)
-# 503 = invalid params (bad client_id/secret or expired refresh_token)
-# 247 = bad/missing userid
-# 250 = not authorized (OAuth credentials mismatch)
-# 342 = invalid OAuth signature
-# Transient (NOT in this set): 601 = rate limit (retry with backoff)
-_WITHINGS_PERMANENT_CODES = {401, 293, 503, 247, 250, 342}
+# ── Withings error codes (JSON body "status" field, NOT HTTP codes) ──
+# Permanent (re-auth required):
+#   100 = invalid hash/email
+#   247 = bad/missing userid
+#   250 = invalid userid/publickey
+#   264 = unknown/invalid email
+#   293 = bad callback URL or params
+#   301 = token invalid or doesn't exist
+#   302 = action not permitted for user
+#   303 = invalid params / wrong signature
+#   320 = invalid refresh_token
+#   342 = invalid OAuth signature
+#   343 = account needs re-linking
+#   401 = not enough permissions / expired token
+#   503 = invalid params (bad client_id/secret or expired refresh_token)
+#   2554 = wrong action/webservice
+#   2556 = undefined service
+# Transient (retry with backoff):
+#   304 = token expired (should refresh)
+#   305 = rate limited
+#   500/501/502 = internal server error
+#   601 = too many requests
+_WITHINGS_PERMANENT_CODES = {100, 247, 250, 264, 293, 301, 302, 303, 320, 342, 343, 401, 503, 2554, 2556}
+_WITHINGS_TRANSIENT_CODES = {304, 305, 500, 501, 502, 601}
 
 
 async def _refresh_withings_token(
@@ -469,8 +484,29 @@ async def _refresh_withings_token(
         return RefreshResult(error=f"Withings token refresh error: {type(e).__name__}")
 
 
-# Standard OAuth2 error responses that mean permanent failure
-_OAUTH2_PERMANENT_ERRORS = {"invalid_grant", "unauthorized_client", "invalid_client"}
+# ── Standard OAuth2 error classification (covers Fitbit, Google, generic) ──
+# Permanent errors: the refresh token is dead, user must re-authorize
+_OAUTH2_PERMANENT_ERRORS = {
+    "invalid_grant",          # refresh token expired/revoked (Fitbit, Google, all)
+    "unauthorized_client",    # client not authorized for this grant type
+    "invalid_client",         # client_id/secret wrong
+    "insufficient_scope",     # token lacks required scope (Fitbit) — re-auth with correct scope
+    "access_denied",          # user denied access
+}
+# Transient: the error is temporary, worth retrying
+# - "temporarily_unavailable" = server overloaded
+# - "server_error" = 500 on provider side
+# Provider-specific transient signals:
+# - Fitbit: HTTP 401 with error_type "expired_token" = just needs refresh (NOT permanent)
+# - Fitbit: HTTP 429 = rate limited (150 req/hour), check Fitbit-Rate-Limit-Reset header
+# - Google: HTTP 429 = rate limited (60 req/min), retry with backoff
+# - Google: HTTP 503 = service unavailable, retry
+
+# Known token URLs per integration type (agent can override via field_mapping.token_url)
+_DEFAULT_TOKEN_URLS = {
+    "fitbit_body": "https://api.fitbit.com/oauth2/token",
+    "google_fit": "https://oauth2.googleapis.com/token",
+}
 
 
 async def _refresh_oauth2_token(
@@ -479,14 +515,16 @@ async def _refresh_oauth2_token(
     client_secret: str,
     fm: dict,
 ) -> RefreshResult:
-    """Generic OAuth2 token refresh — works for most providers (Google, Garmin, etc.).
+    """Generic OAuth2 token refresh — works for Fitbit, Google, and any standard provider.
 
-    Uses the standard RFC 6749 token endpoint. The endpoint URL is read from
-    field_mapping["token_url"]. Falls back to a common pattern if not set.
+    Uses the standard RFC 6749 token endpoint. The endpoint URL is determined by:
+    1. field_mapping["token_url"] (explicit override)
+    2. _DEFAULT_TOKEN_URLS[type] (known providers)
     """
-    token_url = fm.get("token_url")
+    itype = fm.get("type", "")
+    token_url = fm.get("token_url") or _DEFAULT_TOKEN_URLS.get(itype)
     if not token_url:
-        return RefreshResult(permanent=True, error="No token_url in field_mapping")
+        return RefreshResult(permanent=True, error="No token_url in field_mapping and no default for this type")
 
     data = {
         "grant_type": "refresh_token",
@@ -506,19 +544,44 @@ async def _refresh_oauth2_token(
                 "expires_in": body.get("expires_in"),
             })
 
-        # Classify HTTP errors
-        is_permanent = resp.status_code in (400, 401, 403)
+        # ── Classify the error ──
+        is_permanent = False
         error_detail = f"HTTP {resp.status_code}"
 
-        # Check for OAuth2 error response body
+        # Parse error body (most OAuth2 providers return JSON errors)
+        oauth_error = ""
+        error_type = ""
         try:
             err_body = resp.json()
             oauth_error = err_body.get("error", "")
-            if oauth_error in _OAUTH2_PERMANENT_ERRORS:
-                is_permanent = True
+            error_type = err_body.get("error_type", "")  # Fitbit-specific
+            error_desc = err_body.get("error_description", "")
             error_detail = f"HTTP {resp.status_code}: {oauth_error}"
+            if error_desc:
+                error_detail += f" ({error_desc})"
         except Exception:
             pass
+
+        # Check permanent conditions
+        if oauth_error in _OAUTH2_PERMANENT_ERRORS:
+            is_permanent = True
+        elif resp.status_code in (400, 403):
+            is_permanent = True  # bad request / forbidden = config error
+        elif resp.status_code == 401:
+            # HTTP 401 is nuanced:
+            # - Fitbit: error_type="expired_token" → transient (just refresh)
+            # - Fitbit: error_type="invalid_token" → permanent (revoked)
+            # - Google/others: usually means invalid credentials → permanent
+            if error_type == "expired_token":
+                is_permanent = False  # transient — token just expired
+            elif error_type == "invalid_token" or oauth_error in _OAUTH2_PERMANENT_ERRORS:
+                is_permanent = True
+            else:
+                is_permanent = True  # default 401 = permanent
+
+        # HTTP 429 and 5xx are always transient
+        elif resp.status_code == 429 or resp.status_code >= 500:
+            is_permanent = False
 
         return RefreshResult(
             permanent=is_permanent,
@@ -540,6 +603,15 @@ async def _refresh_oauth2_token(
 
 _TOKEN_REFRESHERS["withings_measure"] = _refresh_withings_token
 _FETCHERS["withings_measure"] = _fetch_withings
+
+# Fitbit and Google Fit use the generic OAuth2 refresher (standard RFC 6749)
+# with auto-resolved token URLs from _DEFAULT_TOKEN_URLS.
+# Their fetchers use the generic JSON adapter until dedicated adapters are added.
+_TOKEN_REFRESHERS["fitbit_body"] = _refresh_oauth2_token
+_TOKEN_REFRESHERS["google_fit"] = _refresh_oauth2_token
+
+# Garmin uses OAuth 1.0a — tokens don't expire, no refresh needed.
+# The _ensure_valid_token check skips refresh when no refresh_token is present.
 
 
 # ================================================================
@@ -619,6 +691,9 @@ async def _fetch_generic_json(
 
 
 _FETCHERS["generic_json"] = _fetch_generic_json
+_FETCHERS["fitbit_body"] = _fetch_generic_json    # uses generic JSON until dedicated adapter
+_FETCHERS["google_fit"] = _fetch_generic_json     # uses generic JSON until dedicated adapter
+_FETCHERS["garmin_body"] = _fetch_generic_json    # uses generic JSON until dedicated adapter
 
 
 # ================================================================
