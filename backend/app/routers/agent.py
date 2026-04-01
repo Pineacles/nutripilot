@@ -38,7 +38,18 @@ from app.services import barcode_service, food_service, logging_service, summary
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 
-@router.post("/log/food", response_model=FoodLogResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/log/food",
+    response_model=FoodLogResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log food by ID",
+    description=(
+        "Log a food entry by its UUID. Use this when you already have the food_id from a prior search or barcode lookup.\n\n"
+        "**Quantity resolution:** `quantity_g` wins → else `servings × serving_size_g` → else `servings × 100` → else `100g`.\n\n"
+        "**Returns:** the created log with calculated kcal, protein, carbs, and fat for the actual quantity consumed.\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND` if the food_id doesn't exist."
+    ),
+)
 async def log_food(
     body: FoodLogCreate,
     db: AsyncSession = Depends(get_db),
@@ -80,7 +91,18 @@ async def log_food(
     )
 
 
-@router.post("/log/food-by-barcode", response_model=FoodLogResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/log/food-by-barcode",
+    response_model=FoodLogResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log food by barcode",
+    description=(
+        "Log a food entry by scanning its barcode. Looks up the barcode in the local database.\n\n"
+        "**Quantity resolution:** same as `POST /log/food`.\n\n"
+        "**Errors:** `404 BARCODE_NOT_FOUND` if no food matches the barcode. "
+        "In that case, create the food first with `POST /api/foods` (include the barcode), then retry."
+    ),
+)
 async def log_food_by_barcode(
     body: FoodLogByBarcodeCreate,
     db: AsyncSession = Depends(get_db),
@@ -122,7 +144,20 @@ async def log_food_by_barcode(
     )
 
 
-@router.post("/log/food-by-name", response_model=FoodLogResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/log/food-by-name",
+    response_model=FoodLogResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log food by name (fuzzy match)",
+    description=(
+        "Log a food entry by name. Performs a fuzzy search and picks the best match.\n\n"
+        "**This is the most common endpoint for natural-language food logging.** "
+        "Just pass the food name as the user said it.\n\n"
+        "**Quantity resolution:** same as `POST /log/food`.\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND_BY_NAME` if no match is found. "
+        "The error includes a `suggestion` to create the food first with `POST /api/foods`."
+    ),
+)
 async def log_food_by_name(
     body: FoodLogByNameCreate,
     db: AsyncSession = Depends(get_db),
@@ -175,7 +210,19 @@ async def log_food_by_name(
     )
 
 
-@router.post("/log/supplement", response_model=SupplementResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/log/supplement",
+    response_model=SupplementResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log supplement intake",
+    description=(
+        "Record that the user took a supplement. Provide name, dose, unit, and optionally time of day.\n\n"
+        "**Units:** `mg`, `g`, `IU`, `mcg`, `µg`, `ml`.\n\n"
+        "**Time of day:** `morning`, `afternoon`, `evening` (optional).\n\n"
+        "If the supplement has a matching definition (by name), its micronutrient content "
+        "will be automatically included in daily micronutrient totals and nutrient-source queries."
+    ),
+)
 async def log_supplement(
     body: SupplementCreate,
     db: AsyncSession = Depends(get_db),
@@ -194,7 +241,16 @@ async def log_supplement(
     )
 
 
-@router.get("/log/weight", response_model=list[WeightLogResponse])
+@router.get(
+    "/log/weight",
+    response_model=list[WeightLogResponse],
+    summary="List weight logs",
+    description=(
+        "Retrieve weight and body composition entries. Optionally filter by source (e.g. `manual`, `withings`, `garmin`) "
+        "and/or date range.\n\n"
+        "Returns entries sorted by date ascending."
+    ),
+)
 async def list_weight_logs(
     source: str | None = Query(None, max_length=50),
     from_date: date | None = Query(None, alias="from"),
@@ -214,13 +270,24 @@ async def list_weight_logs(
     return [WeightLogResponse.model_validate(w) for w in result.scalars().all()]
 
 
-@router.get("/log/food", response_model=DailyLogResponse)
+@router.get(
+    "/log/food",
+    response_model=DailyLogResponse,
+    summary="List food logs for a day",
+    description=(
+        "Get all food log entries for a specific date with full nutrient details.\n\n"
+        "Each entry includes:\n"
+        "- `nutrients_consumed`: macros + micros for the actual quantity eaten\n"
+        "- `nutrients_per_100g`: reference values per 100g\n"
+        "- Food metadata: name, source, barcode, serving info\n\n"
+        "**Use this to review or audit what was logged.** For aggregate totals, use `GET /summary/today` instead."
+    ),
+)
 async def list_food_logs(
     day: date | None = Query(None, description="Date to get logs for (default: today)"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_api_key),
 ):
-    """Get all food log entries for a specific day with full food and nutrient details."""
     from sqlalchemy.orm import joinedload as jl
     from app.models.food import Food
     from app.models.nutrient import Nutrient
@@ -294,7 +361,19 @@ async def list_food_logs(
     )
 
 
-@router.post("/log/weight", response_model=WeightLogResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/log/weight",
+    response_model=WeightLogResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log weight and body composition",
+    description=(
+        "Record a weight measurement with optional body composition data.\n\n"
+        "**Fields:** `weight_kg` (required), `body_fat_pct`, `muscle_mass_pct`, "
+        "`body_fat_kg`, `muscle_mass_kg`, `source` (e.g. 'manual', 'withings'), `date`.\n\n"
+        "The summary endpoints will automatically average multiple entries on the same day "
+        "and derive missing values (e.g. body_fat_kg from body_fat_pct × weight_kg)."
+    ),
+)
 async def log_weight(
     body: WeightLogCreate,
     db: AsyncSession = Depends(get_db),
@@ -316,7 +395,22 @@ async def log_weight(
     )
 
 
-@router.get("/summary/today", response_model=TodaySummary)
+@router.get(
+    "/summary/today",
+    response_model=TodaySummary,
+    summary="Today's full nutrition snapshot",
+    description=(
+        "Returns everything about today's nutrition in one call:\n\n"
+        "- **totals**: aggregated macros (kcal, protein, carbs, fat, fiber, sugar, sodium, alcohol)\n"
+        "- **targets**: the user's daily targets for comparison\n"
+        "- **meals**: food items grouped by meal type, each with per-item nutrient breakdown\n"
+        "- **supplements**: all supplement logs for the day\n"
+        "- **water**: total ml consumed vs target\n"
+        "- **caffeine**: total mg consumed vs target\n"
+        "- **micronutrients**: aggregated micros from food + supplements (calcium, potassium, omega3, zinc, vit_d, vit_k2, vit_c, magnesium, b12, iron)\n\n"
+        "**This is the go-to endpoint for answering 'how am I doing today?'**"
+    ),
+)
 async def summary_today(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_api_key),
@@ -324,7 +418,20 @@ async def summary_today(
     return await summary_service.get_today_summary(db, user)
 
 
-@router.get("/summary/week", response_model=WeekSummary)
+@router.get(
+    "/summary/week",
+    response_model=WeekSummary,
+    summary="Weekly nutrition and body comp summary",
+    description=(
+        "Returns the last 7 days averaged:\n\n"
+        "- **daily_avg**: average macros per day\n"
+        "- **daily_calories**: per-day kcal breakdown for charting\n"
+        "- **micronutrient_avg**: average daily micros\n"
+        "- **weight**: start/end/delta for the period\n"
+        "- **body_comp**: daily body composition entries\n"
+        "- **daily_water / daily_caffeine**: per-day totals"
+    ),
+)
 async def summary_week(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_api_key),
@@ -334,7 +441,19 @@ async def summary_week(
 
 # --- Agent Settings ---
 
-@router.get("/settings", response_model=UserSettingsResponse)
+@router.get(
+    "/settings",
+    response_model=UserSettingsResponse,
+    summary="Get all user settings",
+    description=(
+        "Returns the user's complete settings:\n\n"
+        "- **nutrition_targets**: daily targets for kcal, protein, carbs, fat, fiber, sugar, sodium, alcohol, water, caffeine\n"
+        "- **micronutrient_targets**: custom targets for micros (e.g. calcium 1000mg)\n"
+        "- **supplement_definitions**: configured supplements with dose and micronutrient content\n"
+        "- **api_key_masked**: last 6 chars of the API key\n\n"
+        "**Always GET settings before updating nutrition targets**, so you can send back all fields (PUT replaces the entire object)."
+    ),
+)
 async def agent_get_settings(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_api_key),
@@ -369,7 +488,18 @@ async def agent_get_settings(
     )
 
 
-@router.put("/settings/nutrition-targets", response_model=NutritionTargetsResponse)
+@router.put(
+    "/settings/nutrition-targets",
+    response_model=NutritionTargetsResponse,
+    summary="Update nutrition targets",
+    description=(
+        "Replace all daily nutrition targets. **All fields are required** — GET settings first to preserve unchanged values.\n\n"
+        "Fields: `target_kcal` (1-10000), `target_protein_g` (0-1000), `target_carbs_g` (0-1000), "
+        "`target_fat_g` (0-500), `target_fiber_g` (0-200, default 30), `target_sugar_g` (0-500, default 50), "
+        "`target_sodium_mg` (0-10000, default 2300), `target_alcohol_g` (0-500), "
+        "`target_water_ml` (0-20000), `target_caffeine_mg` (0-5000)."
+    ),
+)
 async def agent_update_nutrition_targets(
     body: NutritionTargetsUpdate,
     db: AsyncSession = Depends(get_db),
@@ -400,7 +530,18 @@ async def agent_update_nutrition_targets(
     )
 
 
-@router.put("/settings/micronutrient-targets", response_model=list[MicronutrientTargetItem])
+@router.put(
+    "/settings/micronutrient-targets",
+    response_model=list[MicronutrientTargetItem],
+    summary="Replace micronutrient targets",
+    description=(
+        "Replace ALL micronutrient targets at once (delete + re-insert). "
+        "Send the complete list you want — any target not included will be removed.\n\n"
+        "Each item: `{nutrient: str, target_value: float (0-100000), unit: str}`.\n\n"
+        "Common examples: `{nutrient: 'calcium', target_value: 1000, unit: 'mg'}`, "
+        "`{nutrient: 'vit_d', target_value: 50, unit: 'mcg'}`."
+    ),
+)
 async def agent_update_micronutrient_targets(
     body: MicronutrientTargetsUpdate,
     db: AsyncSession = Depends(get_db),
@@ -420,7 +561,17 @@ async def agent_update_micronutrient_targets(
     return new_targets
 
 
-@router.get("/supplements", response_model=list[SupplementDefinitionResponse])
+@router.get(
+    "/supplements",
+    response_model=list[SupplementDefinitionResponse],
+    summary="List supplement definitions",
+    description=(
+        "Get all configured supplement definitions. These define what supplements the user takes, "
+        "their dose, and which micronutrients they contribute.\n\n"
+        "Supplement definitions are separate from supplement logs — "
+        "definitions describe *what* the user takes, logs record *when* they took it."
+    ),
+)
 async def agent_list_supplements(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_api_key),
@@ -431,7 +582,19 @@ async def agent_list_supplements(
     return [SupplementDefinitionResponse.model_validate(s) for s in result.scalars().all()]
 
 
-@router.post("/supplements", response_model=SupplementDefinitionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/supplements",
+    response_model=SupplementDefinitionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create supplement definition",
+    description=(
+        "Define a new supplement the user takes regularly.\n\n"
+        "**micronutrients** (optional dict) maps nutrient keys to amounts per dose. "
+        "Use these keys: `vitamin_d`, `zinc`, `omega3`, `iron`, `calcium`, `magnesium`, `b12`, `vit_c`, `potassium`.\n\n"
+        "Example: `{name: 'Vitamin D3', dose_amount: 4000, dose_unit: 'IU', micronutrients: {vitamin_d: 100}}`\n\n"
+        "When the user logs this supplement, its micronutrient content is automatically counted in daily totals."
+    ),
+)
 async def agent_create_supplement(
     body: SupplementDefinitionCreate,
     db: AsyncSession = Depends(get_db),
@@ -447,7 +610,12 @@ async def agent_create_supplement(
     return SupplementDefinitionResponse.model_validate(supp)
 
 
-@router.put("/supplements/{supp_id}", response_model=SupplementDefinitionResponse)
+@router.put(
+    "/supplements/{supp_id}",
+    response_model=SupplementDefinitionResponse,
+    summary="Update supplement definition",
+    description="Update any field on a supplement definition. Only send the fields you want to change.",
+)
 async def agent_update_supplement(
     supp_id: UUID,
     body: SupplementDefinitionUpdate,
@@ -469,7 +637,12 @@ async def agent_update_supplement(
     return SupplementDefinitionResponse.model_validate(supp)
 
 
-@router.delete("/supplements/{supp_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/supplements/{supp_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete supplement definition",
+    description="Permanently remove a supplement definition. This does NOT delete past supplement logs.",
+)
 async def agent_delete_supplement(
     supp_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -489,7 +662,12 @@ async def agent_delete_supplement(
 
 # --- Food Log CRUD ---
 
-@router.put("/log/food/{log_id}", response_model=FoodLogResponse)
+@router.put(
+    "/log/food/{log_id}",
+    response_model=FoodLogResponse,
+    summary="Update a food log entry",
+    description="Change quantity, meal type, or date on an existing food log. Only send the fields you want to change.",
+)
 async def update_food_log(
     log_id: UUID,
     body: FoodLogUpdate,
@@ -519,7 +697,12 @@ async def update_food_log(
     )
 
 
-@router.delete("/log/food/{log_id}", status_code=204)
+@router.delete(
+    "/log/food/{log_id}",
+    status_code=204,
+    summary="Delete a food log entry",
+    description="Permanently remove a food log entry. Use this when the user says they didn't actually eat something.",
+)
 async def delete_food_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -535,7 +718,12 @@ async def delete_food_log(
 
 # --- Weight Log CRUD ---
 
-@router.put("/log/weight/{log_id}", response_model=WeightLogResponse)
+@router.put(
+    "/log/weight/{log_id}",
+    response_model=WeightLogResponse,
+    summary="Update a weight log entry",
+    description="Change weight, body fat, or muscle mass on an existing weight log. Only send the fields you want to change.",
+)
 async def update_weight_log(
     log_id: UUID,
     body: WeightLogUpdate,
@@ -562,7 +750,12 @@ async def update_weight_log(
     )
 
 
-@router.delete("/log/weight/{log_id}", status_code=204)
+@router.delete(
+    "/log/weight/{log_id}",
+    status_code=204,
+    summary="Delete a weight log entry",
+    description="Permanently remove a weight log entry.",
+)
 async def delete_weight_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -578,7 +771,12 @@ async def delete_weight_log(
 
 # --- Supplement Log CRUD ---
 
-@router.put("/log/supplement/{log_id}", response_model=SupplementResponse)
+@router.put(
+    "/log/supplement/{log_id}",
+    response_model=SupplementResponse,
+    summary="Update a supplement log entry",
+    description="Change name, dose, unit, time of day, or date on an existing supplement log.",
+)
 async def update_supplement_log(
     log_id: UUID,
     body: SupplementLogUpdate,
@@ -603,7 +801,12 @@ async def update_supplement_log(
     )
 
 
-@router.delete("/log/supplement/{log_id}", status_code=204)
+@router.delete(
+    "/log/supplement/{log_id}",
+    status_code=204,
+    summary="Delete a supplement log entry",
+    description="Permanently remove a supplement log entry.",
+)
 async def delete_supplement_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -619,7 +822,13 @@ async def delete_supplement_log(
 
 # --- Water Logging ---
 
-@router.post("/log/water", response_model=WaterLogResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/log/water",
+    response_model=WaterLogResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log water intake",
+    description="Record water consumption in milliliters. Common: glass = 250ml, bottle = 500ml, large bottle = 1000ml.",
+)
 async def log_water(
     body: WaterLogCreate,
     db: AsyncSession = Depends(get_db),
@@ -629,7 +838,12 @@ async def log_water(
     return WaterLogResponse.model_validate(entry)
 
 
-@router.put("/log/water/{log_id}", response_model=WaterLogResponse)
+@router.put(
+    "/log/water/{log_id}",
+    response_model=WaterLogResponse,
+    summary="Update a water log entry",
+    description="Change the amount on an existing water log.",
+)
 async def update_water_log(
     log_id: UUID,
     body: WaterLogUpdate,
@@ -647,7 +861,12 @@ async def update_water_log(
     return WaterLogResponse.model_validate(log)
 
 
-@router.delete("/log/water/{log_id}", status_code=204)
+@router.delete(
+    "/log/water/{log_id}",
+    status_code=204,
+    summary="Delete a water log entry",
+    description="Permanently remove a water log entry.",
+)
 async def delete_water_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -663,7 +882,17 @@ async def delete_water_log(
 
 # --- Caffeine Logging ---
 
-@router.post("/log/caffeine", response_model=CaffeineLogResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/log/caffeine",
+    response_model=CaffeineLogResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log caffeine intake",
+    description=(
+        "Record caffeine consumption in milligrams with optional source name.\n\n"
+        "Common amounts: espresso = 63mg, drip coffee = 95mg, green tea = 28mg, "
+        "energy drink = 80mg, cola = 34mg."
+    ),
+)
 async def log_caffeine(
     body: CaffeineLogCreate,
     db: AsyncSession = Depends(get_db),
@@ -673,7 +902,12 @@ async def log_caffeine(
     return CaffeineLogResponse.model_validate(entry)
 
 
-@router.put("/log/caffeine/{log_id}", response_model=CaffeineLogResponse)
+@router.put(
+    "/log/caffeine/{log_id}",
+    response_model=CaffeineLogResponse,
+    summary="Update a caffeine log entry",
+    description="Change the amount or source name on an existing caffeine log.",
+)
 async def update_caffeine_log(
     log_id: UUID,
     body: CaffeineLogUpdate,
@@ -691,7 +925,12 @@ async def update_caffeine_log(
     return CaffeineLogResponse.model_validate(log)
 
 
-@router.delete("/log/caffeine/{log_id}", status_code=204)
+@router.delete(
+    "/log/caffeine/{log_id}",
+    status_code=204,
+    summary="Delete a caffeine log entry",
+    description="Permanently remove a caffeine log entry.",
+)
 async def delete_caffeine_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -707,7 +946,24 @@ async def delete_caffeine_log(
 
 # --- Stats ---
 
-@router.get("/summary/stats", response_model=StatsSummary)
+@router.get(
+    "/summary/stats",
+    response_model=StatsSummary,
+    summary="Long-range stats (1-365 days)",
+    description=(
+        "Comprehensive statistics over a configurable period (default 90 days).\n\n"
+        "Includes:\n"
+        "- **weight_history / body_comp**: daily body composition trend\n"
+        "- **daily_nutrition**: per-day macro breakdown\n"
+        "- **daily_micros**: per-day micronutrient breakdown\n"
+        "- **macro_avg / micro_avg**: period averages\n"
+        "- **supplement_log / supplement_adherence_pct**: consistency tracking\n"
+        "- **daily_water / daily_caffeine / avg_water_ml / avg_caffeine_mg**: hydration and caffeine trends\n"
+        "- **Records**: highest_protein_day, lowest/highest_calorie_day, best_fiber_day\n"
+        "- **current_streak**: consecutive days with food logged ending today\n"
+        "- **days_logged / total_days**: how many days have data vs period length"
+    ),
+)
 async def agent_stats(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -718,7 +974,12 @@ async def agent_stats(
 
 # --- Integrations (agent-managed) ---
 
-@router.get("/integrations", response_model=list[IntegrationResponse])
+@router.get(
+    "/integrations",
+    response_model=list[IntegrationResponse],
+    summary="List integrations",
+    description="Get all configured integrations (smart scales, external APIs). Sorted by newest first.",
+)
 async def agent_list_integrations(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_api_key),
@@ -729,7 +990,18 @@ async def agent_list_integrations(
     return [IntegrationResponse.model_validate(i) for i in result.scalars().all()]
 
 
-@router.post("/integrations", response_model=IntegrationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/integrations",
+    response_model=IntegrationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create integration (connect a smart scale or API)",
+    description=(
+        "Connect an external data source. The `field_mapping` object tells the sync worker how to map vendor data to NutriPilot fields.\n\n"
+        "**Supported types:** `withings_measure`, `fitbit_body`, `google_fit`, `garmin_body`, `generic_json`.\n\n"
+        "See the `field_mapping` field schema for complete documentation on each integration type, "
+        "including OAuth flows, required keys, measure_map values, error codes, and rate limits."
+    ),
+)
 async def agent_create_integration(
     body: IntegrationCreate,
     db: AsyncSession = Depends(get_db),
@@ -750,7 +1022,15 @@ async def agent_create_integration(
     return IntegrationResponse.model_validate(integration)
 
 
-@router.patch("/integrations/{integration_id}", response_model=IntegrationResponse)
+@router.patch(
+    "/integrations/{integration_id}",
+    response_model=IntegrationResponse,
+    summary="Update integration",
+    description=(
+        "Update any field on an integration. Only send the fields you want to change.\n\n"
+        "**status** can be set to `active`, `paused`, or `error`."
+    ),
+)
 async def agent_update_integration(
     integration_id: UUID,
     body: IntegrationUpdate,
@@ -770,7 +1050,12 @@ async def agent_update_integration(
     return IntegrationResponse.model_validate(integration)
 
 
-@router.delete("/integrations/{integration_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/integrations/{integration_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete integration",
+    description="Permanently remove an integration. Past weight logs synced by this integration are NOT deleted.",
+)
 async def agent_delete_integration(
     integration_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -786,13 +1071,20 @@ async def agent_delete_integration(
     await db.commit()
 
 
-@router.post("/integrations/{integration_id}/sync")
+@router.post(
+    "/integrations/{integration_id}/sync",
+    summary="Trigger manual sync",
+    description=(
+        "Manually trigger a sync for an integration right now (instead of waiting for the cron schedule).\n\n"
+        "**Returns** `{ok: true}` on success.\n\n"
+        "**Errors:** `404 INTEGRATION_NOT_FOUND`, `502 SYNC_FAILED` with error details."
+    ),
+)
 async def agent_sync_integration(
     integration_id: UUID,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_api_key),
 ):
-    """Manually trigger a sync for an integration."""
     from app.services.sync_worker import sync_integration
 
     # Verify ownership
@@ -811,7 +1103,17 @@ async def agent_sync_integration(
     return sync_result
 
 
-@router.get("/nutrient-sources")
+@router.get(
+    "/nutrient-sources",
+    summary="Find nutrient sources",
+    description=(
+        "Find which foods and supplements contributed to a specific nutrient, ranked by amount (top 30).\n\n"
+        "**Nutrient keys:** Any macro (`protein`, `carbs`, `fat`, `fiber`, `sugar`, `sodium`, `alcohol`) "
+        "or micro (`calcium`, `potassium`, `omega3`, `zinc`, `vit_d`, `vit_c`, `magnesium`, `b12`, `iron`).\n\n"
+        "Supplements with matching micronutrient definitions are included automatically.\n\n"
+        "**Returns:** `{nutrient, from_date, to_date, total, sources: [{food_name, quantity_g, amount, date, meal_type}]}`"
+    ),
+)
 async def agent_nutrient_sources(
     nutrient: str = Query(..., description="Nutrient field name, e.g. 'zinc', 'protein', 'vit_d'"),
     from_date: date | None = Query(None, alias="from"),

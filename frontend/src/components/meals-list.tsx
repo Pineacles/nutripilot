@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { MealGroup, MealItem } from "@/lib/types";
 import { DashboardCard } from "./dashboard-card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmt } from "@/lib/utils";
 
 const mealOrder = ["breakfast", "lunch", "dinner", "snack"];
@@ -33,14 +34,10 @@ export function MealsLogCard({ meals }: Props) {
   );
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<{ item: MealItem; mealType: string } | null>(null);
 
   function toggle(mealType: string) {
     setCollapsed((prev) => ({ ...prev, [mealType]: !prev[mealType] }));
-  }
-
-  function toggleItem(key: string) {
-    setExpandedItem((prev) => (prev === key ? null : key));
   }
 
   return (
@@ -79,64 +76,75 @@ export function MealsLogCard({ meals }: Props) {
                     isCollapsed ? "max-h-0 opacity-0 pb-0" : "max-h-[1000px] opacity-100 pb-2 pt-1"
                   }`}
                 >
-                  {group.items.map((item, i) => {
-                    const itemKey = `${group.meal_type}-${i}`;
-                    const isExpanded = expandedItem === itemKey;
-                    return (
-                      <div key={i}>
-                        <button
-                          onClick={() => toggleItem(itemKey)}
-                          className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-all duration-150 border-l-2 ${
-                            isExpanded
-                              ? "bg-muted/40 border-primary/50"
-                              : "border-transparent hover:bg-muted/20 hover:border-primary/20"
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <svg
-                              className={`h-3 w-3 text-muted-foreground/50 shrink-0 transition-transform duration-150 ${isExpanded ? "rotate-90" : ""}`}
-                              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                            </svg>
-                            <span className="text-foreground/80 truncate">{item.food_name}</span>
-                            <span className="text-xs text-muted-foreground/50 shrink-0">{item.quantity_g}g</span>
-                          </div>
-                          <span className="tabular-nums text-muted-foreground shrink-0 ml-2">
-                            {item.kcal != null ? `${Math.round(item.kcal)} kcal` : "\u2014"}
-                          </span>
-                        </button>
-                        {/* Nutrient detail panel */}
-                        <div
-                          className={`overflow-hidden transition-all duration-200 ease-out ${
-                            isExpanded ? "max-h-40 opacity-100" : "max-h-0 opacity-0"
-                          }`}
-                        >
-                          <div className="ml-7 mr-2 mt-1 mb-2 grid grid-cols-4 gap-x-4 gap-y-1.5 px-3 py-2.5 rounded-lg bg-muted/20">
-                            {NUTRIENT_COLORS.map((n) => {
-                              const val = item[n.key];
-                              if (val == null || (typeof val === "number" && val === 0 && n.key === "alcohol")) return null;
-                              return (
-                                <div key={n.key} className="flex items-baseline gap-1">
-                                  <div className="w-1.5 h-1.5 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: n.color }} />
-                                  <span className="text-[11px] text-muted-foreground">{n.label}</span>
-                                  <span className="text-[11px] font-medium tabular-nums text-foreground ml-auto">
-                                    {typeof val === "number" ? fmt(val) : val}{n.unit}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                  {group.items.map((item, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedItem({ item, mealType: group.meal_type })}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-all duration-150 border-l-2 border-transparent hover:bg-muted/20 hover:border-primary/20"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-foreground/80 truncate">{item.food_name}</span>
+                        <span className="text-xs text-muted-foreground/50 shrink-0">{item.quantity_g}g</span>
                       </div>
-                    );
-                  })}
+                      <span className="tabular-nums text-muted-foreground shrink-0 ml-2">
+                        {item.kcal != null ? `${Math.round(item.kcal)} kcal` : "\u2014"}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-lg">{selectedItem?.item.food_name}</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              {selectedItem?.item.quantity_g}g · {mealLabels[selectedItem?.mealType || ""] || selectedItem?.mealType}
+            </p>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="overflow-y-auto flex-1 -mx-1 px-1 thin-scrollbar">
+              <div className="space-y-1.5 py-2">
+                {/* Calories row */}
+                <div className="pill rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#ef4444" }} />
+                      <span className="text-sm text-foreground">Calories</span>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums text-foreground">
+                      {selectedItem.item.kcal != null ? `${fmt(selectedItem.item.kcal)} kcal` : "\u2014"}
+                    </span>
+                  </div>
+                </div>
+                {/* Nutrient rows */}
+                {NUTRIENT_COLORS.map((n) => {
+                  const val = selectedItem.item[n.key];
+                  if (val == null) return null;
+                  if (typeof val === "number" && val === 0 && n.key === "alcohol") return null;
+                  return (
+                    <div key={n.key} className="pill rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: n.color }} />
+                          <span className="text-sm text-foreground">{n.label}</span>
+                        </div>
+                        <span className="text-sm font-semibold tabular-nums text-foreground">
+                          {typeof val === "number" ? fmt(val) : val} {n.unit}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardCard>
   );
 }
