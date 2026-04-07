@@ -20,17 +20,17 @@ export function useTodaySummary(dateStr?: string) {
   return { data, loading };
 }
 
-export function useWeekSummary(mode: "last7" | "week" = "last7") {
+export function useWeekSummary(mode: "last7" | "week" = "last7", offset: number = 0) {
   const [data, setData] = useState<WeekSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    apiFetch<WeekSummary>(`/api/dashboard/weekly?mode=${mode}`)
+    apiFetch<WeekSummary>(`/api/dashboard/weekly?mode=${mode}&offset=${offset}`)
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [mode]);
+  }, [mode, offset]);
 
   return { data, loading };
 }

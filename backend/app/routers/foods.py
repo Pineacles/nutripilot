@@ -87,7 +87,7 @@ async def get_by_barcode(
         "**Required:** `name`, `nutrients` (at minimum provide `kcal`).\n\n"
         "**Optional:** `barcode` (4-50 chars), `serving_size_g`, `serving_label` (e.g. '1 slice', '1 cup').\n\n"
         "**Nutrient fields (all per 100g):**\n"
-        "- Macros: kcal, protein, carbs, sugar, fiber, fat, sat_fat, salt, alcohol\n"
+        "- Macros: kcal, protein, carbs, sugar, fiber, fat, sat_fat, salt, alcohol, caffeine_mg\n"
         "- Micros: calcium, potassium, omega3, zinc, vit_d, vit_k2, vit_c, magnesium, b12, iron\n\n"
         "**Use this when a food doesn't exist in the database** (e.g. after a failed search or barcode lookup). "
         "Get nutrient values from the food packaging or a reliable source."

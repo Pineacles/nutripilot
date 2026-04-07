@@ -880,18 +880,22 @@ async def delete_water_log(
     await db.commit()
 
 
-# --- Caffeine Logging ---
+# --- Caffeine Logging (DEPRECATED) ---
 
 @router.post(
     "/log/caffeine",
     response_model=CaffeineLogResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Log caffeine intake",
+    summary="DEPRECATED — Log caffeine intake",
     description=(
-        "Record caffeine consumption in milligrams with optional source name.\n\n"
-        "Common amounts: espresso = 63mg, drip coffee = 95mg, green tea = 28mg, "
-        "energy drink = 80mg, cola = 34mg."
+        "**DEPRECATED: Caffeine is now tracked automatically through food nutrients.** "
+        "Instead of using this endpoint, log a caffeinated food/drink via `POST /log/food-by-name` "
+        "(e.g. 'espresso', 'coffee', 'energy drink', 'green tea'). Foods with caffeine data will "
+        "automatically count toward the user's daily caffeine total.\n\n"
+        "If a food doesn't have caffeine data yet, create it with `POST /api/foods` and include "
+        "`caffeine_mg` in the nutrients object (value per 100g)."
     ),
+    deprecated=True,
 )
 async def log_caffeine(
     body: CaffeineLogCreate,
@@ -905,8 +909,9 @@ async def log_caffeine(
 @router.put(
     "/log/caffeine/{log_id}",
     response_model=CaffeineLogResponse,
-    summary="Update a caffeine log entry",
-    description="Change the amount or source name on an existing caffeine log.",
+    summary="DEPRECATED — Update a caffeine log entry",
+    description="**DEPRECATED.** Caffeine is now tracked through food nutrients. Use food log endpoints instead.",
+    deprecated=True,
 )
 async def update_caffeine_log(
     log_id: UUID,
@@ -928,8 +933,9 @@ async def update_caffeine_log(
 @router.delete(
     "/log/caffeine/{log_id}",
     status_code=204,
-    summary="Delete a caffeine log entry",
-    description="Permanently remove a caffeine log entry.",
+    summary="DEPRECATED — Delete a caffeine log entry",
+    description="**DEPRECATED.** Caffeine is now tracked through food nutrients. Use food log endpoints instead.",
+    deprecated=True,
 )
 async def delete_caffeine_log(
     log_id: UUID,
@@ -978,7 +984,12 @@ async def agent_stats(
     "/integrations",
     response_model=list[IntegrationResponse],
     summary="List integrations",
-    description="Get all configured integrations (smart scales, external APIs). Sorted by newest first.",
+    description=(
+        "Get all configured integrations (smart scales, external APIs). Sorted by newest first.\n\n"
+        "Check the `status` field: `active` = working, `error` = temporary failure (will retry), "
+        "`needs_reauth` = tokens expired (user must re-authorize), `paused` = manually paused.\n\n"
+        "To fetch latest data from a scale, use `POST /api/agent/integrations/{id}/sync`."
+    ),
 )
 async def agent_list_integrations(
     db: AsyncSession = Depends(get_db),
@@ -999,7 +1010,10 @@ async def agent_list_integrations(
         "Connect an external data source. The `field_mapping` object tells the sync worker how to map vendor data to NutriPilot fields.\n\n"
         "**Supported types:** `withings_measure`, `fitbit_body`, `google_fit`, `garmin_body`, `generic_json`.\n\n"
         "See the `field_mapping` field schema for complete documentation on each integration type, "
-        "including OAuth flows, required keys, measure_map values, error codes, and rate limits."
+        "including OAuth flows, required keys, measure_map values, error codes, and rate limits.\n\n"
+        "**WARNING:** After creating an integration, NEVER call the provider's API directly. "
+        "Use `POST /api/agent/integrations/{id}/sync` to fetch data. Calling provider APIs directly "
+        "will consume OAuth refresh tokens and permanently break the integration."
     ),
 )
 async def agent_create_integration(
@@ -1073,11 +1087,23 @@ async def agent_delete_integration(
 
 @router.post(
     "/integrations/{integration_id}/sync",
-    summary="Trigger manual sync",
+    summary="Trigger manual sync (fetch latest data from scale/device)",
     description=(
-        "Manually trigger a sync for an integration right now (instead of waiting for the cron schedule).\n\n"
-        "**Returns** `{ok: true}` on success.\n\n"
-        "**Errors:** `404 INTEGRATION_NOT_FOUND`, `502 SYNC_FAILED` with error details."
+        "Manually trigger a data sync for an integration right now. "
+        "This is the **correct way** to fetch the latest data from Withings, Fitbit, Google Fit, Garmin, etc.\n\n"
+        "**IMPORTANT: Never call external provider APIs (Withings, Fitbit, etc.) directly.** "
+        "Doing so will consume OAuth tokens and permanently break the integration. "
+        "Always use this endpoint instead — it safely handles token refresh, API calls, "
+        "and data storage in one atomic operation.\n\n"
+        "**When to use:**\n"
+        "- User says 'sync my scale', 'get my latest weight', 'fetch data from Withings'\n"
+        "- User wants to see recent weigh-in data that hasn't been synced yet\n"
+        "- After setting up a new integration to pull initial data\n\n"
+        "**Returns** `{ok: true, entries_synced: N}` on success.\n\n"
+        "**Errors:**\n"
+        "- `404 INTEGRATION_NOT_FOUND` — wrong ID or not owned by this user\n"
+        "- `502 SYNC_FAILED` — sync failed (check error details). If `needs_reauth`, "
+        "the user must re-authorize through the provider's OAuth flow to get fresh tokens."
     ),
 )
 async def agent_sync_integration(
@@ -1108,7 +1134,7 @@ async def agent_sync_integration(
     summary="Find nutrient sources",
     description=(
         "Find which foods and supplements contributed to a specific nutrient, ranked by amount (top 30).\n\n"
-        "**Nutrient keys:** Any macro (`protein`, `carbs`, `fat`, `fiber`, `sugar`, `sodium`, `alcohol`) "
+        "**Nutrient keys:** Any macro (`protein`, `carbs`, `fat`, `fiber`, `sugar`, `sodium`, `alcohol`, `caffeine_mg`) "
         "or micro (`calcium`, `potassium`, `omega3`, `zinc`, `vit_d`, `vit_c`, `magnesium`, `b12`, `iron`).\n\n"
         "Supplements with matching micronutrient definitions are included automatically.\n\n"
         "**Returns:** `{nutrient, from_date, to_date, total, sources: [{food_name, quantity_g, amount, date, meal_type}]}`"

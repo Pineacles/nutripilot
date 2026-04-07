@@ -22,6 +22,7 @@ const NUTRIENT_COLORS: { key: keyof MealItem; label: string; unit: string; color
   { key: "sugar", label: "Sugar", unit: "g", color: "#ec4899" },
   { key: "sodium", label: "Sodium", unit: "mg", color: "#a78bfa" },
   { key: "alcohol", label: "Alcohol", unit: "g", color: "#f97316" },
+  { key: "caffeine_mg", label: "Caffeine", unit: "mg", color: "#92400e" },
 ];
 
 interface Props {
@@ -125,7 +126,7 @@ export function MealsLogCard({ meals }: Props) {
                 {NUTRIENT_COLORS.map((n) => {
                   const val = selectedItem.item[n.key];
                   if (val == null) return null;
-                  if (typeof val === "number" && val === 0 && n.key === "alcohol") return null;
+                  if (typeof val === "number" && val === 0 && (n.key === "alcohol" || n.key === "caffeine_mg")) return null;
                   return (
                     <div key={n.key} className="pill rounded-lg p-3">
                       <div className="flex items-center justify-between">

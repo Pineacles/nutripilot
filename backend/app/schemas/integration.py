@@ -144,7 +144,30 @@ Configuration object that tells the sync worker how to map external API data to 
 `weight_kg`, `body_fat_pct`, `muscle_mass_pct`, `body_fat_kg`, `muscle_mass_kg`
 
 **Do NOT invent custom field names.** Only use the exact target names listed above as measure_map values.
-If a scale does not report a measurement (e.g. Fitbit has no muscle mass), do NOT include it in measure_map.\
+If a scale does not report a measurement (e.g. Fitbit has no muscle mass), do NOT include it in measure_map.
+
+---
+
+**`conversions` — Post-mapping value transformations (optional)**
+
+Scales like Withings report "muscle mass" as BIA lean mass (everything except fat and bone),
+which is ~60-65% of body weight. This is NOT comparable to DEXA skeletal muscle mass (~35-45%).
+
+Use `conversions` to apply a scaling factor so stored values are DEXA-equivalent:
+```json
+"conversions": {
+  "muscle_mass_kg": {
+    "factor": 0.62,
+    "description": "BIA lean mass to DEXA skeletal muscle estimate"
+  }
+}
+```
+
+- **factor** (float): Multiplied with the raw value before storing. E.g. Withings 52kg × 0.62 = 32.2kg skeletal muscle.
+- **description** (str, optional): Human-readable note for what the conversion does.
+- After conversion, `muscle_mass_pct` is auto-derived from the converted `muscle_mass_kg` / `weight_kg`.
+- Applies to any field in `measure_map` values: `weight_kg`, `body_fat_pct`, `muscle_mass_kg`, etc.
+- Common factor for Withings/BIA → DEXA skeletal muscle: **0.55–0.65** depending on individual body composition.\
 """
 
 _FIELD_MAPPING_EXAMPLES = {

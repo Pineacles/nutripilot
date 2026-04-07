@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 import typing
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -144,11 +145,9 @@ async def _ensure_valid_token(
                 fm["refresh_token"] = result.tokens["refresh_token"]
 
             # Track expiry so we can skip unnecessary refreshes
-            expires_in = result.tokens.get("expires_in")
-            if expires_in:
-                fm["token_expires_at"] = datetime.now(timezone.utc).timestamp() + int(expires_in)
-            else:
-                fm.pop("token_expires_at", None)
+            # Default to 3 hours (10800s) for Withings if not provided
+            expires_in = result.tokens.get("expires_in") or 10800
+            fm["token_expires_at"] = datetime.now(timezone.utc).timestamp() + int(expires_in)
 
             fm.pop("last_error", None)
             integration.field_mapping = fm
@@ -167,8 +166,8 @@ async def _ensure_valid_token(
             await _update_status(db, integration, "needs_reauth", result.error, log)
             return False
 
-        # Transient failure — backoff and retry
-        backoff = BACKOFF_BASE_SECONDS * (4 ** (attempt - 1))
+        # Transient failure — backoff and retry (with jitter to avoid thundering herd)
+        backoff = BACKOFF_BASE_SECONDS * (4 ** (attempt - 1)) + random.uniform(0, 2)
         log.warning("token_refresh_retry", attempt=attempt,
                     error_type="transient",
                     http_status=result.http_status,
@@ -231,10 +230,11 @@ async def sync_integration(integration_id: UUID) -> dict:
             measure_map = fm.get("measure_map", {})
             source_label = fm.get("source_label", integration.name.lower().replace(" ", "_"))
             data_type = fm.get("data_type", "weight")
+            conversions = fm.get("conversions")
 
             # -- Step 3: Write via generic upsert --
             if data_type == "weight":
-                synced = await _write_weight_records(db, integration.user_id, raw_records, measure_map, source_label, log)
+                synced = await _write_weight_records(db, integration.user_id, raw_records, measure_map, source_label, log, conversions)
             else:
                 await _update_status(db, integration, "error", f"Unsupported data_type: {data_type}", log)
                 log.mark_failed(f"unsupported_data_type:{data_type}")
@@ -251,12 +251,19 @@ async def _write_weight_records(
     measure_map: dict[str, str],
     source_label: str,
     log: SyncLogger,
+    conversions: dict[str, dict] | None = None,
 ) -> int:
     """Generic writer: maps raw records to weight_log fields and upserts.
 
     Each raw_record has a "date" key and numeric keys (vendor measure type IDs).
     measure_map maps those keys -> NutriPilot field names (e.g., "1" -> "weight_kg").
+
+    ``conversions`` (optional): post-mapping transformations for specific fields.
+    Example: {"muscle_mass_kg": {"factor": 0.55, "description": "BIA to DEXA skeletal muscle"}}
+    Applied after mapping, before upsert. Derived fields (e.g. muscle_mass_pct)
+    are recalculated from the converted values.
     """
+    conversions = conversions or {}
     synced = 0
     skipped = 0
     for record in raw_records:
@@ -276,6 +283,15 @@ async def _write_weight_records(
         if "weight_kg" not in mapped:
             skipped += 1
             continue
+
+        # Apply conversions (e.g. BIA muscle mass → DEXA-equivalent)
+        for field, conv in conversions.items():
+            if field in mapped and "factor" in conv:
+                mapped[field] = round(mapped[field] * conv["factor"], 2)
+
+        # Derive muscle_mass_pct from converted muscle_mass_kg
+        if "muscle_mass_kg" in mapped and "muscle_mass_pct" not in mapped:
+            mapped["muscle_mass_pct"] = round(mapped["muscle_mass_kg"] / mapped["weight_kg"] * 100, 1)
 
         try:
             await upsert_weight(
@@ -305,10 +321,16 @@ async def _update_status(
     error_msg: str | None,
     log: SyncLogger,
 ) -> None:
-    """Update integration status and last_synced_at."""
+    """Update integration status. Only advances last_synced_at on success.
+
+    last_synced_at is used as the Withings ``lastupdate`` parameter to fetch
+    only new measurements. If we advance it on failures, we'd skip measurements
+    that arrived between the last success and the next successful sync.
+    """
     old_status = integration.status
     integration.status = status
-    integration.last_synced_at = datetime.now(timezone.utc)
+    if status == "active":
+        integration.last_synced_at = datetime.now(timezone.utc)
     fm = integration.field_mapping or {}
     if error_msg:
         fm["last_error"] = error_msg
@@ -375,15 +397,23 @@ async def _call_withings_api(
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(url, data=params, headers=headers)
-            body = resp.json()
-        if body.get("status") != 0:
+
+        if resp.status_code >= 500:
+            log.error("withings_api_error", http_status=resp.status_code,
+                      detail=f"Withings server error (HTTP {resp.status_code})")
+            return None
+
+        body = resp.json()
+        status_code = body.get("status")
+        if status_code != 0:
+            error_desc = body.get("error", "")
             log.error("withings_api_error",
-                      provider_code=body.get("status"),
-                      detail=f"getmeas returned non-zero status")
+                      provider_code=status_code,
+                      detail=f"getmeas failed: status={status_code} error={error_desc!r}")
             return None
         return body.get("body", {}).get("measuregrps", [])
     except Exception as e:
-        log.error("withings_api_exception", detail=str(e))
+        log.error("withings_api_exception", detail=f"{type(e).__name__}: {e}")
         return None
 
 
@@ -414,29 +444,42 @@ def _parse_withings_groups(groups: list[dict], accepted_types: set[int]) -> list
 # ================================================================
 
 # ── Withings error codes (JSON body "status" field, NOT HTTP codes) ──
-# Permanent (re-auth required):
-#   100 = invalid hash/email
-#   247 = bad/missing userid
-#   250 = invalid userid/publickey
-#   264 = unknown/invalid email
-#   293 = bad callback URL or params
-#   301 = token invalid or doesn't exist
-#   302 = action not permitted for user
-#   303 = invalid params / wrong signature
-#   320 = invalid refresh_token
-#   342 = invalid OAuth signature
-#   343 = account needs re-linking
-#   401 = not enough permissions / expired token
-#   503 = invalid params (bad client_id/secret or expired refresh_token)
+# IMPORTANT: Withings ALWAYS returns HTTP 200 — errors are in the JSON "status" field.
+# These are Withings-specific codes, not HTTP status codes.
+#
+# Permanent (re-auth required — retrying with same params won't help):
+#   100  = invalid hash/email
+#   247  = bad/missing userid
+#   250  = invalid userid/publickey
+#   264  = unknown/invalid email
+#   293  = bad callback URL or params
+#   301  = token invalid or doesn't exist
+#   302  = action not permitted for user
+#   303  = invalid params / wrong signature
+#   304  = invalid params (NOT "token expired" — Withings codes != HTTP codes)
+#   320  = invalid refresh_token
+#   342  = invalid OAuth signature
+#   343  = account needs re-linking
+#   401  = not enough permissions / expired token
+#   501  = invalid params (per python_withings_api STATUS_INVALID_PARAMS)
+#   502  = invalid params (per python_withings_api STATUS_INVALID_PARAMS)
+#   503  = invalid params (bad client_id/secret or consumed refresh_token)
 #   2554 = wrong action/webservice
 #   2556 = undefined service
+#
 # Transient (retry with backoff):
-#   304 = token expired (should refresh)
-#   305 = rate limited
-#   500/501/502 = internal server error
-#   601 = too many requests
-_WITHINGS_PERMANENT_CODES = {100, 247, 250, 264, 293, 301, 302, 303, 320, 342, 343, 401, 503, 2554, 2556}
-_WITHINGS_TRANSIENT_CODES = {304, 305, 500, 501, 502, 601}
+#   305  = rate limited
+#   522  = timeout (Withings side)
+#   601  = too many requests
+#
+# Note on 503: Withings refresh tokens are SINGLE-USE. Each refresh returns a new
+# refresh_token. If the previous refresh succeeded but the new token wasn't saved
+# (crash, timeout, etc.), the old refresh_token is dead. The only fix is re-auth.
+_WITHINGS_PERMANENT_CODES = {
+    100, 247, 250, 264, 293, 301, 302, 303, 304, 320, 342, 343, 401,
+    501, 502, 503, 2554, 2556,
+}
+_WITHINGS_TRANSIENT_CODES = {305, 522, 601}
 
 
 async def _refresh_withings_token(
@@ -445,7 +488,11 @@ async def _refresh_withings_token(
     client_secret: str,
     fm: dict,
 ) -> RefreshResult:
-    """Withings uses a non-standard OAuth2 endpoint with action= parameter."""
+    """Withings uses a non-standard OAuth2 endpoint with action= parameter.
+
+    Withings always returns HTTP 200 — errors are in the JSON body "status" field.
+    If the HTTP response itself fails (5xx, timeout), that's a real server error (transient).
+    """
     url = "https://wbsapi.withings.net/v2/oauth2"
     data = {
         "action": "requesttoken",
@@ -457,9 +504,23 @@ async def _refresh_withings_token(
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(url, data=data)
-            body = resp.json()
 
+        # Real HTTP errors (not Withings status codes) — these are transient server issues
+        if resp.status_code >= 500:
+            return RefreshResult(
+                error=f"Withings API server error (HTTP {resp.status_code})",
+                http_status=resp.status_code,
+            )
+        if resp.status_code >= 400:
+            return RefreshResult(
+                permanent=True,
+                error=f"Withings API client error (HTTP {resp.status_code})",
+                http_status=resp.status_code,
+            )
+
+        body = resp.json()
         status_code = body.get("status")
+
         if status_code == 0:
             tokens = body.get("body", {})
             return RefreshResult(tokens={
@@ -468,11 +529,12 @@ async def _refresh_withings_token(
                 "expires_in": tokens.get("expires_in"),
             })
 
-        # Classify the error
+        # Classify the Withings error code
         is_permanent = status_code in _WITHINGS_PERMANENT_CODES
+        error_desc = body.get("error", "")
         return RefreshResult(
             permanent=is_permanent,
-            error=f"Withings token refresh returned status {status_code}",
+            error=f"Withings token refresh failed: status={status_code} error={error_desc!r}",
             provider_code=status_code,
         )
 
@@ -480,8 +542,11 @@ async def _refresh_withings_token(
         return RefreshResult(error="Withings token endpoint timed out", http_status=0)
     except httpx.ConnectError:
         return RefreshResult(error="Could not connect to Withings", http_status=0)
+    except (ValueError, KeyError):
+        # JSON decode failed or unexpected structure — likely transient
+        return RefreshResult(error="Withings returned invalid JSON response")
     except Exception as e:
-        return RefreshResult(error=f"Withings token refresh error: {type(e).__name__}")
+        return RefreshResult(error=f"Withings token refresh error: {type(e).__name__}: {e}")
 
 
 # ── Standard OAuth2 error classification (covers Fitbit, Google, generic) ──

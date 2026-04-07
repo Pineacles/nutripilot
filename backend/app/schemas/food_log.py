@@ -86,6 +86,7 @@ class NutrientsPer100g(BaseModel):
     b12: Optional[float] = None
     iron: Optional[float] = None
     alcohol: Optional[float] = None
+    caffeine_mg: Optional[float] = None
 
     model_config = {"from_attributes": True}
 

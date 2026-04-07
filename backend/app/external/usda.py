@@ -23,6 +23,7 @@ _NUTRIENT_MAP = {
     1090: "magnesium",
     1178: "b12",
     1089: "iron",
+    1057: "caffeine_mg",
 }
 
 

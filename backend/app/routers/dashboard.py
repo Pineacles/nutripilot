@@ -33,17 +33,18 @@ async def dashboard_today(
 @router.get("/weekly", response_model=WeekSummary)
 async def dashboard_weekly(
     mode: str = Query("last7", pattern="^(last7|week)$"),
+    offset: int = Query(0, ge=0, le=52, description="Weeks back from current. 0 = this week, 1 = last week, etc."),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
     from datetime import date, timedelta
     if mode == "week":
-        today = date.today()
-        # Monday of current week
+        today = date.today() - timedelta(weeks=offset)
         monday = today - timedelta(days=today.weekday())
         sunday = monday + timedelta(days=6)
         return await summary_service.get_week_summary(db, user, end_date=sunday, start_override=monday)
-    return await summary_service.get_week_summary(db, user)
+    end = date.today() - timedelta(weeks=offset)
+    return await summary_service.get_week_summary(db, user, end_date=end)
 
 
 @router.get("/stats", response_model=StatsSummary)

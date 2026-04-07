@@ -213,6 +213,8 @@ export default function BodyCompositionPage() {
     let d = rollingAvg(weightHistory, "weight_kg", 7);
     d = rollingAvg(d, "body_fat_pct", 7);
     d = rollingAvg(d, "muscle_mass_pct", 7);
+    d = rollingAvg(d, "body_fat_kg", 7);
+    d = rollingAvg(d, "muscle_mass_kg", 7);
     return d;
   }, [weightHistory]);
 
@@ -231,6 +233,16 @@ export default function BodyCompositionPage() {
 
   const validMuscle = weightHistory.filter(e => e.muscle_mass_pct != null);
   const currentMuscle = validMuscle.length > 0 ? validMuscle[validMuscle.length - 1].muscle_mass_pct : null;
+
+  const validFatKg = weightHistory.filter(e => e.body_fat_kg != null);
+  const currentFatKg = validFatKg.length > 0 ? validFatKg[validFatKg.length - 1].body_fat_kg : null;
+  const startFatKg = validFatKg.length > 0 ? validFatKg[0].body_fat_kg : null;
+  const fatKgChange = currentFatKg != null && startFatKg != null ? Math.round((currentFatKg - startFatKg) * 10) / 10 : null;
+
+  const validMuscleKg = weightHistory.filter(e => e.muscle_mass_kg != null);
+  const currentMuscleKg = validMuscleKg.length > 0 ? validMuscleKg[validMuscleKg.length - 1].muscle_mass_kg : null;
+  const startMuscleKg = validMuscleKg.length > 0 ? validMuscleKg[0].muscle_mass_kg : null;
+  const muscleKgChange = currentMuscleKg != null && startMuscleKg != null ? Math.round((currentMuscleKg - startMuscleKg) * 10) / 10 : null;
 
   const bmi = currentWeight != null ? Math.round((currentWeight / (1.75 * 1.75)) * 10) / 10 : null;
 
@@ -318,29 +330,47 @@ export default function BodyCompositionPage() {
         </div>
 
         {/* ─── Row 1: Hero metric pills ─── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           <div className="clay-card p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Current Weight</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Weight</p>
             <p className="text-xl font-bold text-foreground">
               {currentWeight != null ? `${fmt(currentWeight)} kg` : "--"}
             </p>
           </div>
           <div className="clay-card p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Weight Change</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Change</p>
             <p className={`text-xl font-bold ${weightChange != null && weightChange < 0 ? "text-green-400" : weightChange != null && weightChange > 0 ? "text-amber-400" : "text-foreground"}`}>
               {weightChange != null ? `${weightChange > 0 ? "+" : ""}${fmt(weightChange)} kg` : "--"}
             </p>
           </div>
           <div className="clay-card p-4">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Body Fat</p>
-            <p className="text-xl font-bold pill-amber" style={{ background: "none", padding: 0, color: COLORS.amber }}>
+            <p className="text-xl font-bold" style={{ color: COLORS.amber }}>
               {currentBf != null ? `${fmt(currentBf)}%` : "--"}
+            </p>
+            {currentFatKg != null && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">{fmt(currentFatKg)} kg</p>
+            )}
+          </div>
+          <div className="clay-card p-4">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Fat Change</p>
+            <p className={`text-xl font-bold ${fatKgChange != null && fatKgChange < 0 ? "text-green-400" : fatKgChange != null && fatKgChange > 0 ? "text-amber-400" : "text-foreground"}`}>
+              {fatKgChange != null ? `${fatKgChange > 0 ? "+" : ""}${fmt(fatKgChange)} kg` : "--"}
             </p>
           </div>
           <div className="clay-card p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Muscle Mass</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Muscle</p>
             <p className="text-xl font-bold" style={{ color: COLORS.blue }}>
               {currentMuscle != null ? `${fmt(currentMuscle)}%` : "--"}
+            </p>
+            {currentMuscleKg != null && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">{fmt(currentMuscleKg)} kg</p>
+            )}
+          </div>
+          <div className="clay-card p-4">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Muscle Change</p>
+            <p className={`text-xl font-bold ${muscleKgChange != null && muscleKgChange > 0 ? "text-green-400" : muscleKgChange != null && muscleKgChange < 0 ? "text-amber-400" : "text-foreground"}`}>
+              {muscleKgChange != null ? `${muscleKgChange > 0 ? "+" : ""}${fmt(muscleKgChange)} kg` : "--"}
             </p>
           </div>
           <div className="clay-card p-4">
@@ -492,6 +522,57 @@ export default function BodyCompositionPage() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground py-12 text-center">No composition data</p>
+            )}
+          </SectionCard>
+        </div>
+
+        {/* ─── Row 3b: Fat kg + Muscle kg Trends ─── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <SectionCard title="Fat Mass (kg)">
+            {enrichedData.some(d => d.body_fat_kg != null) ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={enrichedData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="fatKgGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={COLORS.amber} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={COLORS.amber} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={GRID_STROKE} strokeDasharray={GRID_DASH} />
+                  <XAxis dataKey="date" tickFormatter={nthTickFormatter(enrichedData, 6)} tick={TICK_X} axisLine={false} tickLine={false} />
+                  <YAxis domain={["dataMin - 1", "dataMax + 1"]} tick={TICK_Y} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip valueSuffix=" kg" valueKey="body_fat_kg_avg" />} />
+                  <Area type="monotone" dataKey="body_fat_kg" stroke="none" fill="url(#fatKgGrad)" fillOpacity={1} />
+                  <Line type="monotone" dataKey="body_fat_kg" stroke={COLORS.amber} strokeWidth={0} dot={{ r: 2, fill: COLORS.amber, fillOpacity: 0.3, strokeWidth: 0 }} activeDot={false} connectNulls />
+                  <Line type="monotone" dataKey="body_fat_kg_avg" stroke={COLORS.amber} strokeWidth={2.5} dot={false} connectNulls />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground py-12 text-center">No fat mass data</p>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Muscle Mass (kg)">
+            {enrichedData.some(d => d.muscle_mass_kg != null) ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={enrichedData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="muscleKgGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={COLORS.blue} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={COLORS.blue} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={GRID_STROKE} strokeDasharray={GRID_DASH} />
+                  <XAxis dataKey="date" tickFormatter={nthTickFormatter(enrichedData, 6)} tick={TICK_X} axisLine={false} tickLine={false} />
+                  <YAxis domain={["dataMin - 1", "dataMax + 1"]} tick={TICK_Y} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip valueSuffix=" kg" valueKey="muscle_mass_kg_avg" />} />
+                  <Area type="monotone" dataKey="muscle_mass_kg" stroke="none" fill="url(#muscleKgGrad)" fillOpacity={1} />
+                  <Line type="monotone" dataKey="muscle_mass_kg" stroke={COLORS.blue} strokeWidth={0} dot={{ r: 2, fill: COLORS.blue, fillOpacity: 0.3, strokeWidth: 0 }} activeDot={false} connectNulls />
+                  <Line type="monotone" dataKey="muscle_mass_kg_avg" stroke={COLORS.blue} strokeWidth={2.5} dot={false} connectNulls />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground py-12 text-center">No muscle mass data</p>
             )}
           </SectionCard>
         </div>

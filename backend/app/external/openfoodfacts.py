@@ -76,6 +76,7 @@ async def lookup_barcode(barcode: str) -> tuple[str, NutrientData, float | None,
         magnesium=n.get("magnesium_100g"),
         b12=n.get("vitamin-b12_100g"),
         iron=n.get("iron_100g"),
+        caffeine_mg=n.get("caffeine_100g"),
     )
     serving_size_g = product.get("serving_quantity")  # numeric grams
     serving_label = product.get("serving_size")  # text like "1 slice (30g)"

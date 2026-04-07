@@ -24,6 +24,7 @@ class NutrientData(BaseModel):
     b12: float | None = None
     iron: float | None = None
     alcohol: float | None = None
+    caffeine_mg: float | None = None
 
 
 class FoodCreate(BaseModel):

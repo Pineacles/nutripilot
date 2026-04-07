@@ -37,6 +37,7 @@ class MealItem(BaseModel):
     sugar: Optional[float] = None
     sodium: Optional[float] = None
     alcohol: Optional[float] = None
+    caffeine_mg: Optional[float] = None
 
 
 class MealGroup(BaseModel):

@@ -13,9 +13,22 @@ import { BodyCompCard } from "@/components/body-comp";
 import { HydrationWeeklyCard } from "@/components/hydration-weekly";
 
 export default function WeeklyPage() {
-  const [mode, setMode] = useState<"last7" | "week">("last7");
-  const { data, loading } = useWeekSummary(mode);
+  const [mode, setMode] = useState<"last7" | "week">("week");
+  const [offset, setOffset] = useState(0);
+  const { data, loading } = useWeekSummary(mode, offset);
   const { data: settings } = useSettings();
+
+  function goBack() { setOffset((o) => Math.min(o + 1, 52)); }
+  function goForward() { setOffset((o) => Math.max(o - 1, 0)); }
+
+  function weekLabel() {
+    if (!data) return "";
+    const from = new Date(data.start_date + "T00:00:00");
+    const to = new Date(data.end_date + "T00:00:00");
+    const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    if (offset === 0) return `${fmt(from)} — ${fmt(to)} (current)`;
+    return `${fmt(from)} — ${fmt(to)}`;
+  }
 
   const targetKcal = settings?.nutrition_targets.target_kcal ?? 2000;
 
@@ -47,24 +60,49 @@ export default function WeeklyPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* ── Mode toggle ── */}
-          <div className="flex items-center gap-1.5 -mt-1">
-            {([
-              { value: "last7" as const, label: "Last 7 days" },
-              { value: "week" as const, label: "This week (Mon–Sun)" },
-            ]).map((opt) => (
+          {/* ── Mode toggle + week navigation ── */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 -mt-1">
+            <div className="flex items-center gap-1.5">
+              {([
+                { value: "last7" as const, label: "Last 7 days" },
+                { value: "week" as const, label: "Mon–Sun" },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setMode(opt.value); setOffset(0); }}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
+                    mode === opt.value
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
               <button
-                key={opt.value}
-                onClick={() => setMode(opt.value)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
-                  mode === opt.value
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                onClick={goBack}
+                disabled={offset >= 52}
+                className="p-1.5 rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                {opt.label}
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
               </button>
-            ))}
+              <span className="text-xs text-muted-foreground min-w-[160px] text-center tabular-nums">
+                {weekLabel()}
+              </span>
+              <button
+                onClick={goForward}
+                disabled={offset <= 0}
+                className="p-1.5 rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* ── Hero metrics row ── */}

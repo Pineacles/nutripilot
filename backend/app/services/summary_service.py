@@ -6,7 +6,6 @@ from sqlalchemy import func as sa_func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.models.caffeine_log import CaffeineLog
 from app.models.food import Food
 from app.models.food_log import FoodLog
 from app.models.nutrient import Nutrient
@@ -134,7 +133,7 @@ def _aggregate_weight_per_day(weight_logs) -> list[BodyCompEntry]:
 
 def _aggregate_macros(food_logs):
     """Aggregate all macro fields from food logs."""
-    totals = {"kcal": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "fiber": 0.0, "sugar": 0.0, "sodium": 0.0, "alcohol": 0.0}
+    totals = {"kcal": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "fiber": 0.0, "sugar": 0.0, "sodium": 0.0, "alcohol": 0.0, "caffeine_mg": 0.0}
     for log in food_logs:
         ratio = log.quantity_g / 100.0
         n = log.food.nutrients
@@ -149,6 +148,7 @@ def _aggregate_macros(food_logs):
         # salt field is in grams, convert to mg for sodium (salt * 400 = sodium approx)
         totals["sodium"] += ((n.salt or 0) * 400) * ratio
         totals["alcohol"] += (getattr(n, "alcohol", None) or 0) * ratio
+        totals["caffeine_mg"] += (getattr(n, "caffeine_mg", None) or 0) * ratio
     return totals
 
 
@@ -181,6 +181,7 @@ async def get_today_summary(db: AsyncSession, user: User, target_date: date | No
                 sugar=round((n.sugar or 0) * ratio, 1) if n else None,
                 sodium=round(((n.salt or 0) * 400) * ratio, 1) if n else None,
                 alcohol=round((getattr(n, "alcohol", None) or 0) * ratio, 1) if n else None,
+                caffeine_mg=round((getattr(n, "caffeine_mg", None) or 0) * ratio, 1) if n else None,
             )
         )
     meals = [MealGroup(meal_type=mt, items=items) for mt, items in meals_map.items()]
@@ -216,11 +217,8 @@ async def get_today_summary(db: AsyncSession, user: User, target_date: date | No
     water_logs = result.scalars().all()
     water_total = sum(w.amount_ml for w in water_logs)
 
-    # Caffeine
-    stmt = select(CaffeineLog).where(CaffeineLog.user_id == user.id, CaffeineLog.date == target_date)
-    result = await db.execute(stmt)
-    caffeine_logs = result.scalars().all()
-    caffeine_total = sum(c.amount_mg for c in caffeine_logs)
+    # Caffeine (aggregated from food nutrients)
+    caffeine_total = totals.pop("caffeine_mg")
 
     return TodaySummary(
         date=target_date,
@@ -262,6 +260,7 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
     micro_fields = ["calcium", "potassium", "omega3", "zinc", "vit_d", "vit_k2", "vit_c", "magnesium", "b12", "iron"]
     micro_totals: dict[str, float] = {f: 0.0 for f in micro_fields}
     daily_kcal: dict[date, float] = defaultdict(float)
+    daily_caffeine: dict[date, float] = defaultdict(float)
 
     for log in food_logs:
         days_with_data.add(log.date)
@@ -279,6 +278,7 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
         macro_totals["sodium"] += ((n.salt or 0) * 400) * ratio
         macro_totals["alcohol"] += (getattr(n, "alcohol", None) or 0) * ratio
         daily_kcal[log.date] += kcal
+        daily_caffeine[log.date] += (getattr(n, "caffeine_mg", None) or 0) * ratio
 
         for field in micro_fields:
             val = getattr(n, field, None)
@@ -338,13 +338,6 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
     for w in result.scalars().all():
         daily_water[w.date] += w.amount_ml
 
-    # Caffeine logs for the week
-    daily_caffeine: dict[date, float] = defaultdict(float)
-    stmt = select(CaffeineLog).where(CaffeineLog.user_id == user.id, CaffeineLog.date >= start_date, CaffeineLog.date <= end_date)
-    result = await db.execute(stmt)
-    for c in result.scalars().all():
-        daily_caffeine[c.date] += c.amount_mg
-
     return WeekSummary(
         start_date=start_date,
         end_date=end_date,
@@ -384,6 +377,7 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
     food_logs = result.unique().scalars().all()
 
     daily_data: dict[date, dict] = defaultdict(lambda: {"kcal": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "fiber": 0.0, "sugar": 0.0, "sodium": 0.0, "alcohol": 0.0})
+    daily_caffeine_data: dict[date, float] = defaultdict(float)
     for log in food_logs:
         ratio = log.quantity_g / 100.0
         n = log.food.nutrients
@@ -398,6 +392,7 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
         d["sugar"] += (n.sugar or 0) * ratio
         d["sodium"] += ((n.salt or 0) * 400) * ratio
         d["alcohol"] += (getattr(n, "alcohol", None) or 0) * ratio
+        daily_caffeine_data[log.date] += (getattr(n, "caffeine_mg", None) or 0) * ratio
 
     daily_nutrition = [
         DailyNutrition(
@@ -513,13 +508,6 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
     daily_water_data: dict[date, float] = defaultdict(float)
     for w in result.scalars().all():
         daily_water_data[w.date] += w.amount_ml
-
-    # Caffeine logs for stats period
-    stmt = select(CaffeineLog).where(CaffeineLog.user_id == user.id, CaffeineLog.date >= start)
-    result = await db.execute(stmt)
-    daily_caffeine_data: dict[date, float] = defaultdict(float)
-    for c in result.scalars().all():
-        daily_caffeine_data[c.date] += c.amount_mg
 
     return StatsSummary(
         weight_history=weight_history,

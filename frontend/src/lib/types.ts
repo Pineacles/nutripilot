@@ -31,6 +31,7 @@ export interface MealItem {
   sugar: number | null;
   sodium: number | null;
   alcohol: number | null;
+  caffeine_mg: number | null;
 }
 
 export interface MealGroup {
