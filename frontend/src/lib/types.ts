@@ -83,6 +83,7 @@ export interface BodyCompEntry {
   muscle_mass_pct: number | null;
   body_fat_kg: number | null;
   muscle_mass_kg: number | null;
+  [key: string]: unknown;
 }
 
 export interface WeekSummary {

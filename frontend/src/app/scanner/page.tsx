@@ -46,8 +46,8 @@ export default function ScannerPage() {
     try {
       const data = await apiFetch<FoodResult>(`/api/foods/barcode/${code}`);
       setResult(data);
-    } catch (err: any) {
-      if (err?.message?.includes("404")) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message?.includes("404")) {
         setError(`Barcode ${code} not found in our database`);
         setErrorType("not-found");
       } else {

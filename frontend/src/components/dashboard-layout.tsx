@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { isLoggedIn } from "@/lib/auth";
 import { Sidebar } from "@/components/sidebar";
@@ -13,15 +13,15 @@ interface Props {
 
 export function DashboardLayout({ title, children }: Props) {
   const router = useRouter();
-  const [authed, setAuthed] = useState(false);
+  // Derive auth status during render — avoids calling setState synchronously
+  // inside an effect (react-hooks/set-state-in-effect).
+  const authed = isLoggedIn();
 
   useEffect(() => {
-    if (!isLoggedIn()) {
+    if (!authed) {
       router.replace("/login");
-    } else {
-      setAuthed(true);
     }
-  }, [router]);
+  }, [authed, router]);
 
   if (!authed) {
     return (

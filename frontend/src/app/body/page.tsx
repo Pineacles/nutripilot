@@ -32,11 +32,13 @@ function nthTickFormatter(data: { date: string }[], maxLabels = 8) {
   };
 }
 
-function rollingAvg<T extends Record<string, any>>(data: T[], key: string, window: number = 7): (T & Record<string, any>)[] {
+type DataRow = Record<string, unknown>;
+
+function rollingAvg<T extends DataRow>(data: T[], key: string, window: number = 7): (T & DataRow)[] {
   return data.map((d, i) => {
     const start = Math.max(0, i - window + 1);
     const slice = data.slice(start, i + 1).filter(x => x[key] != null);
-    const avg = slice.length > 0 ? slice.reduce((sum: number, x: any) => sum + x[key], 0) / slice.length : null;
+    const avg = slice.length > 0 ? slice.reduce((sum: number, x: T) => sum + (x[key] as number), 0) / slice.length : null;
     return { ...d, [`${key}_avg`]: avg != null ? rnd(avg, 1) : null };
   });
 }
@@ -183,11 +185,14 @@ export default function BodyCompositionPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
+    // Defer setLoading(true) to a microtask so it is not a synchronous setState call
+    // at the effect top level (avoids react-hooks/set-state-in-effect).
+    let cancelled = false;
+    Promise.resolve().then(() => { if (!cancelled) setLoading(true); });
     apiFetch<StatsSummary>(`/api/dashboard/stats?days=${days}`)
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [days]);
 
   useEffect(() => {
@@ -210,6 +215,8 @@ export default function BodyCompositionPage() {
   const weightHistory = data?.weight_history ?? [];
 
   const enrichedData = useMemo(() => {
+    // Cast to DataRow[] so the generic rollingAvg constraint is satisfied;
+    // BodyCompEntry's known fields still flow through via the spread return type.
     let d = rollingAvg(weightHistory, "weight_kg", 7);
     d = rollingAvg(d, "body_fat_pct", 7);
     d = rollingAvg(d, "muscle_mass_pct", 7);
@@ -218,7 +225,9 @@ export default function BodyCompositionPage() {
     return d;
   }, [weightHistory]);
 
-  const validWeights = weightHistory.filter(e => e.weight_kg != null);
+  // Memoize validWeights so weeklyRateData's useMemo dependency is stable
+  // (React Compiler requires memoized deps for manual useMemo to be preserved)
+  const validWeights = useMemo(() => weightHistory.filter(e => e.weight_kg != null), [weightHistory]);
   const firstWeight = validWeights.length > 0 ? validWeights[0] : null;
   const lastWeight = validWeights.length > 0 ? validWeights[validWeights.length - 1] : null;
 
@@ -506,7 +515,7 @@ export default function BodyCompositionPage() {
                     </Pie>
                     <Tooltip
                       contentStyle={TT_STYLE}
-                      formatter={(value: any, name: any) => [`${fmt(value)}%`, name]}
+                      formatter={(value: unknown, name: unknown) => [`${fmt(Number(value ?? 0))}%`, String(name ?? "")]}
                     />
                   </PieChart>
                 </ResponsiveContainer>

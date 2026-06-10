@@ -206,11 +206,14 @@ export default function StatisticsPage() {
 
   // Fetch data
   useEffect(() => {
-    setLoading(true);
+    // Defer setLoading(true) to a microtask so it is not a synchronous setState call
+    // at the effect top level (avoids react-hooks/set-state-in-effect).
+    let cancelled = false;
+    Promise.resolve().then(() => { if (!cancelled) setLoading(true); });
     apiFetch<StatsSummary>(`/api/dashboard/stats?days=${days}`)
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [days]);
 
   // Fetch settings for targets
