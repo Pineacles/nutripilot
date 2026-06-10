@@ -24,6 +24,19 @@ out/
 .DS_Store
 Thumbs.db
 
-# Docker
+# Docker / logs
 *.log
+logs/
+
+# SQLite
+*.db
+*.sqlite3
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+
+# Internal AI instructions
+AGENTS.md
+CLAUDE.md
+
 .claude/

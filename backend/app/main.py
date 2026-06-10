@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
@@ -9,6 +10,8 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 from app.demo_daily import seed_today
 from app.rate_limit import limiter
 from app.routers import agent, auth, dashboard, foods, settings as settings_router
@@ -133,11 +136,11 @@ async def _daily_tasks_loop():
     try:
         await seed_today()
     except Exception as e:
-        print(f"[daily] demo seed error: {e}")
+        logger.warning("[daily] demo seed error: %s", e)
     try:
         await run_all_syncs()
     except Exception as e:
-        print(f"[daily] integration sync error: {e}")
+        logger.warning("[daily] integration sync error: %s", e)
 
     while True:
         now = datetime.now()
@@ -151,11 +154,11 @@ async def _daily_tasks_loop():
         try:
             await seed_today()
         except Exception as e:
-            print(f"[daily] demo seed error: {e}")
+            logger.warning("[daily] demo seed error: %s", e)
         try:
             await run_all_syncs()
         except Exception as e:
-            print(f"[daily] integration sync error: {e}")
+            logger.warning("[daily] integration sync error: %s", e)
 
 
 @asynccontextmanager
@@ -185,7 +188,7 @@ app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins.split(","),
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-API-Key"],

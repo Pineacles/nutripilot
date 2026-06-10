@@ -34,7 +34,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-https://nutripilot.example.com}
       USDA_API_KEY: ${USDA_API_KEY:-}
       SEED_EMAIL: ${SEED_EMAIL:-admin@nutripilot.dev}
-      SEED_PASSWORD: ${SEED_PASSWORD:-nutripilot}
+      SEED_PASSWORD: ${SEED_PASSWORD:?Set SEED_PASSWORD in .env}
     depends_on:
       db:
         condition: service_healthy
