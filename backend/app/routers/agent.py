@@ -17,7 +17,12 @@ from app.models.user import User
 from app.models.water_log import WaterLog
 from app.models.weight_log import WeightLog
 from app.schemas.food_log import DailyLogResponse, FoodLogByBarcodeCreate, FoodLogByNameCreate, FoodLogCreate, FoodLogResponse, FoodLogUpdate
-from app.schemas.integration import IntegrationCreate, IntegrationResponse, IntegrationUpdate
+from app.schemas.integration import (
+    IntegrationCreate,
+    IntegrationResponse,
+    IntegrationUpdate,
+    REDACTED_SENTINEL,
+)
 from app.schemas.settings import (
     MicronutrientTargetItem,
     MicronutrientTargetsUpdate,
@@ -34,8 +39,23 @@ from app.schemas.caffeine_log import CaffeineLogCreate, CaffeineLogResponse, Caf
 from app.schemas.water_log import WaterLogCreate, WaterLogResponse, WaterLogUpdate
 from app.schemas.weight_log import WeightLogCreate, WeightLogResponse, WeightLogUpdate
 from app.services import barcode_service, food_service, logging_service, summary_service
+from app.services.nutrient_sources import get_nutrient_sources
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
+
+
+def _resolve_quantity(quantity_g, servings, serving_size_g) -> float:
+    """Resolve the quantity (in grams) from the provided log request fields.
+
+    Priority: quantity_g → servings × serving_size_g → servings × 100 → 100g fallback.
+    """
+    if quantity_g is not None:
+        return quantity_g
+    if servings is not None and serving_size_g:
+        return servings * serving_size_g
+    if servings is not None:
+        return servings * 100
+    return 100
 
 
 @router.post(
@@ -62,16 +82,7 @@ async def log_food(
             detail={"detail": "Food not found", "code": "FOOD_NOT_FOUND"},
         )
 
-    # Resolve quantity
-    if body.quantity_g is not None:
-        quantity_g = body.quantity_g
-    elif body.servings is not None and food.serving_size_g:
-        quantity_g = body.servings * food.serving_size_g
-    elif body.servings is not None:
-        quantity_g = body.servings * 100
-    else:
-        quantity_g = 100
-
+    quantity_g = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
     entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date)
 
     n = food.nutrients
@@ -115,16 +126,7 @@ async def log_food_by_barcode(
             detail={"detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": body.barcode},
         )
 
-    # Resolve quantity
-    if body.quantity_g is not None:
-        quantity_g = body.quantity_g
-    elif body.servings is not None and food.serving_size_g:
-        quantity_g = body.servings * food.serving_size_g
-    elif body.servings is not None:
-        quantity_g = body.servings * 100
-    else:
-        quantity_g = 100
-
+    quantity_g = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
     entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date)
 
     n = food.nutrients
@@ -181,16 +183,7 @@ async def log_food_by_name(
             detail={"code": "FOOD_NOT_FOUND"},
         )
 
-    # Resolve quantity
-    if body.quantity_g is not None:
-        quantity_g = body.quantity_g
-    elif body.servings is not None and food.serving_size_g:
-        quantity_g = body.servings * food.serving_size_g
-    elif body.servings is not None:
-        quantity_g = body.servings * 100
-    else:
-        quantity_g = 100
-
+    quantity_g = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
     entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date)
 
     n = food.nutrients
@@ -1057,7 +1050,20 @@ async def agent_update_integration(
     integration = result.scalar_one_or_none()
     if not integration:
         raise HTTPException(status_code=404, detail={"code": "INTEGRATION_NOT_FOUND"})
-    for field, value in body.model_dump(exclude_unset=True).items():
+    updates = body.model_dump(exclude_unset=True)
+    # If the caller sends a field_mapping that contains REDACTED_SENTINEL values,
+    # keep the existing (stored) secret values rather than overwriting them.
+    if "field_mapping" in updates and updates["field_mapping"] is not None:
+        existing_fm = integration.field_mapping or {}
+        merged = dict(existing_fm)
+        for k, v in updates["field_mapping"].items():
+            if v == REDACTED_SENTINEL:
+                # Caller is echoing back our redaction — preserve stored secret
+                pass
+            else:
+                merged[k] = v
+        updates["field_mapping"] = merged
+    for field, value in updates.items():
         setattr(integration, field, value)
     await db.commit()
     await db.refresh(integration)
@@ -1148,97 +1154,6 @@ async def agent_nutrient_sources(
     user: User = Depends(get_current_user_api_key),
 ):
     """Get foods that contributed to a specific nutrient, ranked by amount."""
-    from sqlalchemy.orm import joinedload
-    from app.models.food import Food
-    from app.models.nutrient import Nutrient
-
     target_from = from_date or date.today()
     target_to = to_date or date.today()
-
-    stmt = (
-        select(FoodLog)
-        .where(FoodLog.user_id == user.id, FoodLog.date >= target_from, FoodLog.date <= target_to)
-        .options(joinedload(FoodLog.food).joinedload(Food.nutrients))
-    )
-    result = await db.execute(stmt)
-    logs = result.unique().scalars().all()
-
-    is_sodium = nutrient == "sodium"
-
-    sources = []
-    for log in logs:
-        n = log.food.nutrients
-        if not n:
-            continue
-        ratio = log.quantity_g / 100.0
-
-        if is_sodium:
-            raw_val = (n.salt or 0) * 400
-        else:
-            raw_val = getattr(n, nutrient, None)
-            if raw_val is None:
-                continue
-
-        amount = round(raw_val * ratio, 2)
-        if amount <= 0:
-            continue
-
-        sources.append({
-            "food_name": log.food.name,
-            "quantity_g": log.quantity_g,
-            "amount": amount,
-            "date": str(log.date),
-            "meal_type": log.meal_type,
-        })
-
-    sources.sort(key=lambda x: x["amount"], reverse=True)
-
-    SUPP_MICRO_MAP = {
-        "vit_d": "vitamin_d", "zinc": "zinc", "omega3": "omega3",
-        "iron": "iron", "calcium": "calcium", "magnesium": "magnesium",
-        "b12": "b12", "vit_c": "vit_c", "potassium": "potassium",
-    }
-    supp_key = SUPP_MICRO_MAP.get(nutrient)
-    supp_key_aliases = {nutrient, supp_key} if supp_key else {nutrient}
-    reverse_map = {v: k for k, v in SUPP_MICRO_MAP.items()}
-    if nutrient in reverse_map:
-        supp_key_aliases.add(reverse_map[nutrient])
-    supp_key_aliases.discard(None)
-
-    supp_sources = []
-    if supp_key_aliases:
-        defs_result = await db.execute(select(SupplementDefinition).where(SupplementDefinition.user_id == user.id))
-        defs = {d.name.lower(): d for d in defs_result.scalars().all()}
-
-        supp_result = await db.execute(
-            select(Supplement).where(Supplement.user_id == user.id, Supplement.date >= target_from, Supplement.date <= target_to)
-        )
-        for s in supp_result.scalars().all():
-            defn = defs.get(s.name.lower())
-            if not defn or not defn.micronutrients:
-                continue
-            for alias in supp_key_aliases:
-                if alias in defn.micronutrients:
-                    val = defn.micronutrients[alias]
-                    if isinstance(val, (int, float)) and val > 0:
-                        supp_sources.append({
-                            "food_name": f"{s.name} (supplement)",
-                            "quantity_g": s.dose_amount,
-                            "amount": round(val, 2),
-                            "date": str(s.date),
-                            "meal_type": "supplement",
-                        })
-                    break
-
-    all_sources = sources + supp_sources
-    all_sources.sort(key=lambda x: x["amount"], reverse=True)
-
-    total = round(sum(s["amount"] for s in all_sources), 2)
-
-    return {
-        "nutrient": nutrient,
-        "from_date": str(target_from),
-        "to_date": str(target_to),
-        "total": total,
-        "sources": all_sources[:30],
-    }
+    return await get_nutrient_sources(db, user, nutrient, target_from, target_to)

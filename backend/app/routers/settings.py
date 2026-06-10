@@ -11,7 +11,7 @@ from app.models.integration import Integration
 from app.models.micronutrient_target import MicronutrientTarget
 from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
-from app.schemas.integration import IntegrationResponse
+from app.schemas.integration import IntegrationResponse, REDACTED_SENTINEL
 from app.schemas.settings import (
     ApiKeyResponse,
     MicronutrientTargetItem,

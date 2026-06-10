@@ -260,6 +260,42 @@ def _validate_field_mapping(fm: dict) -> list[str]:
     return errors
 
 
+# Keys in field_mapping that must never appear in API responses.
+_SECRET_FM_KEYS: frozenset[str] = frozenset({
+    "refresh_token",
+    "access_token",
+    "client_secret",
+    "consumer_secret",
+    "oauth_token_secret",
+    "password",
+    "api_key",
+    "apikey",
+    "api_secret",
+    "token",
+    "secret",
+})
+
+# Sentinel value sent back to clients in place of a real secret.
+REDACTED_SENTINEL = "•••"
+
+
+def _redact_field_mapping(fm: dict | None) -> dict | None:
+    """Return a copy of *fm* with secret-shaped keys replaced by REDACTED_SENTINEL.
+
+    Only top-level keys are examined; nested dicts (e.g. measure_map, conversions)
+    are left intact because they do not carry credentials.
+    """
+    if fm is None:
+        return None
+    result = {}
+    for k, v in fm.items():
+        if k.lower() in _SECRET_FM_KEYS:
+            result[k] = REDACTED_SENTINEL
+        else:
+            result[k] = v
+    return result
+
+
 class IntegrationResponse(BaseModel):
     id: UUID
     name: str
@@ -271,6 +307,11 @@ class IntegrationResponse(BaseModel):
     created_at: datetime.datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def _redact_secrets(self) -> "IntegrationResponse":
+        self.field_mapping = _redact_field_mapping(self.field_mapping)
+        return self
 
 
 class IntegrationCreate(BaseModel):
