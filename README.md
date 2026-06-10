@@ -12,18 +12,55 @@ An AI agent (Claude, GPT, etc.) parses natural language like *"ate 200g chicken 
 - **Barcode:** OpenFoodFacts + USDA FoodData Central fallback
 - **PWA:** Installable on iOS/Android/desktop
 
+## Architecture
+
+```
+┌──────────────────────────────────────────────┐
+│  AI Agent (NanoClaw/Claude)                  │
+│  X-API-Key → /api/agent/*                    │
+└──────────────┬───────────────────────────────┘
+               │ HTTPS via Cloudflare Tunnel
+┌──────────────▼───────────────────────────────┐
+│  Next.js (port 3099 / :3000 in tunnel mode)  │
+│  /api/* → rewrites → FastAPI :8000           │
+├──────────────────────────────────────────────┤
+│  FastAPI (port 8099 / internal :8000)        │
+│  • /api/agent/*  — API key auth              │
+│  • /api/dashboard/* — JWT auth (UI)          │
+│  • /api/v1/*     — JWT auth (settings)       │
+│  • /api/foods/*  — API key auth              │
+├──────────────────────────────────────────────┤
+│  PostgreSQL (port 127.0.0.1:5488 / :5432)    │
+│  • foods / nutrients (pg_trgm fuzzy search)  │
+│  • food_logs / weight_logs / supplement_logs  │
+│  • integrations (sync worker, OAuth tokens)  │
+└──────────────────────────────────────────────┘
+```
+
+### Withings / Smart Scale Connection
+
+The sync worker handles OAuth token lifecycle. The AI agent sets up an integration by calling:
+
+1. `POST /api/agent/integrations` with the Withings `field_mapping` (including OAuth tokens)
+2. The sync worker calls `WBSAPI /measure` every 6 hours and writes weight/body-comp to `weight_logs`
+3. To force a sync: `POST /api/agent/integrations/{id}/sync`
+
+Supported integrations: `withings_measure`, `fitbit_body`, `google_fit`, `garmin_body`, `generic_json`
+
 ## Quick Start (Development)
 
 ```bash
 git clone https://github.com/Pineacles/NutriPilot.git
 cd NutriPilot
+cp .env.example .env
+# Edit .env — at minimum set POSTGRES_PASSWORD, JWT_SECRET, API_KEY
 docker compose up --build -d
 docker compose exec api python -m seed
 ```
 
-- Dashboard: http://localhost:3001
-- API docs: http://localhost:8001/docs
-- Login: `admin@nutripilot.dev` / `nutripilot`
+- Dashboard: http://localhost:3099
+- API docs: http://localhost:8099/docs
+- Login with the credentials set in `SEED_EMAIL` / `SEED_PASSWORD` in your `.env`
 
 ## Production with Cloudflare Tunnel
 
@@ -36,19 +73,19 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-DB_PASSWORD=your-strong-db-password
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
 JWT_SECRET=$(openssl rand -hex 32)
 API_KEY=$(openssl rand -hex 32)
 CORS_ORIGINS=https://nutripilot.yourdomain.com
 SEED_EMAIL=you@example.com
-SEED_PASSWORD=your-password
+SEED_PASSWORD=$(openssl rand -base64 16)
 ```
 
 ### 2. Build and run
 
 ```bash
-docker compose -f docker-compose.tunnel.yml up -d --build
-docker compose -f docker-compose.tunnel.yml exec api python -m seed
+docker compose up -d --build
+docker compose exec api python -m seed
 ```
 
 ### 3. Point Cloudflare Tunnel
@@ -56,18 +93,14 @@ docker compose -f docker-compose.tunnel.yml exec api python -m seed
 In your Cloudflare Zero Trust dashboard, create a tunnel pointing to:
 
 ```
-http://localhost:3000
+http://localhost:3099
 ```
 
-That's it. Next.js proxies `/api/*` requests to the backend internally — only port 3000 is exposed.
+Next.js proxies `/api/*` requests to the backend internally — only port 3099 is exposed to the tunnel.
 
-### Alternative: Caddy (self-hosted HTTPS)
+## Screenshots
 
-```bash
-DOMAIN=nutripilot.yourdomain.com docker compose -f docker-compose.prod.yml up -d --build
-```
-
-Caddy auto-provisions Let's Encrypt certificates.
+> _Add screenshots of dashboard pages here_
 
 ## API Endpoints
 
@@ -77,14 +110,18 @@ Caddy auto-provisions Let's Encrypt certificates.
 |--------|------|-------------|
 | `POST` | `/api/agent/log/food` | Log food by food_id + quantity |
 | `POST` | `/api/agent/log/food-by-barcode` | Barcode lookup + log in one call |
+| `POST` | `/api/agent/log/food-by-name` | Fuzzy name match + log |
 | `POST` | `/api/agent/log/supplement` | Log supplement intake |
 | `POST` | `/api/agent/log/weight` | Log weight + body fat + muscle mass |
 | `GET` | `/api/agent/summary/today` | Today's macros vs targets |
 | `GET` | `/api/agent/summary/week` | Weekly averages + body composition |
+| `GET` | `/api/agent/summary/stats` | 1–365 day stats with streaks |
+| `GET` | `/api/agent/nutrient-sources` | Which foods contributed to a nutrient |
 | `GET` | `/api/agent/settings` | Read all user settings |
 | `PUT` | `/api/agent/settings/nutrition-targets` | Update macro targets |
-| `GET` | `/api/agent/supplements` | List supplement definitions |
-| `POST` | `/api/agent/supplements` | Create supplement definition |
+| `GET` | `/api/agent/integrations` | List connected scales/APIs |
+| `POST` | `/api/agent/integrations` | Connect a smart scale or JSON API |
+| `POST` | `/api/agent/integrations/{id}/sync` | Trigger manual sync |
 | `GET` | `/api/foods/search?q=` | Fuzzy food search |
 | `GET` | `/api/foods/barcode/{code}` | Barcode lookup (local + OFF + USDA) |
 | `POST` | `/api/foods` | Add food manually |
@@ -95,7 +132,7 @@ Caddy auto-provisions Let's Encrypt certificates.
 import httpx
 
 API = "https://nutripilot.yourdomain.com"
-HEADERS = {"X-API-Key": "your-api-key"}
+HEADERS = {"X-API-Key": "your-api-key"}  # from API_KEY in .env
 
 # Search for a food
 foods = httpx.get(f"{API}/api/foods/search?q=chicken", headers=HEADERS).json()
@@ -132,16 +169,17 @@ print(f"Calories: {summary['totals']['kcal']} / {summary['targets']['kcal']}")
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DB_PASSWORD` | Yes | PostgreSQL password |
-| `JWT_SECRET` | Yes | Secret for JWT signing |
+| `POSTGRES_PASSWORD` | Yes | PostgreSQL password |
+| `JWT_SECRET` | Yes | Secret for JWT signing (min 32 chars) |
 | `API_KEY` | Yes | Agent API key |
 | `CORS_ORIGINS` | Yes | Allowed origins (comma-separated) |
-| `SEED_EMAIL` | No | Initial user email |
-| `SEED_PASSWORD` | No | Initial user password |
+| `DATABASE_URL` | No | Full DSN (auto-derived if not set) |
+| `POSTGRES_USER` | No | PostgreSQL user (default: nutripilot) |
+| `POSTGRES_DB` | No | PostgreSQL database (default: nutripilot) |
+| `SEED_EMAIL` | No | Initial user email (for seed.py) |
+| `SEED_PASSWORD` | No | Initial user password (for seed.py) |
 | `USDA_API_KEY` | No | USDA FoodData Central API key |
-| `DB_USER` | No | PostgreSQL user (default: nutripilot) |
-| `DB_NAME` | No | PostgreSQL database (default: nutripilot) |
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)
