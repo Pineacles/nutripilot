@@ -10,13 +10,12 @@ from app.database import get_db
 from app.models.food import Food
 from app.models.food_log import FoodLog
 from app.models.nutrient import Nutrient
-from app.models.supplement import Supplement
-from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
 from app.models.weight_log import WeightLog
 from app.schemas.food import FoodResponse, FoodSearchResult, NutrientData
 from app.schemas.summary import StatsSummary, TodaySummary, WeekSummary
 from app.services import food_service, summary_service
+from app.services.nutrient_sources import get_nutrient_sources
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -168,101 +167,6 @@ async def nutrient_sources(
     user: User = Depends(get_current_user_jwt),
 ):
     """Get foods that contributed to a specific nutrient, ranked by amount."""
-    from sqlalchemy.orm import joinedload
-
     target_from = from_date or date.today()
     target_to = to_date or date.today()
-
-    stmt = (
-        select(FoodLog)
-        .where(FoodLog.user_id == user.id, FoodLog.date >= target_from, FoodLog.date <= target_to)
-        .options(joinedload(FoodLog.food).joinedload(Food.nutrients))
-    )
-    result = await db.execute(stmt)
-    logs = result.unique().scalars().all()
-
-    # Handle special cases: sodium comes from salt * 400
-    is_sodium = nutrient == "sodium"
-
-    sources = []
-    for log in logs:
-        n = log.food.nutrients
-        if not n:
-            continue
-        ratio = log.quantity_g / 100.0
-
-        if is_sodium:
-            raw_val = (n.salt or 0) * 400
-        else:
-            raw_val = getattr(n, nutrient, None)
-            if raw_val is None:
-                continue
-
-        amount = round(raw_val * ratio, 2)
-        if amount <= 0:
-            continue
-
-        sources.append({
-            "food_name": log.food.name,
-            "quantity_g": log.quantity_g,
-            "amount": amount,
-            "date": str(log.date),
-            "meal_type": log.meal_type,
-        })
-
-    # Sort by contribution descending
-    sources.sort(key=lambda x: x["amount"], reverse=True)
-
-    # Also add supplement contributions if it's a micro
-    SUPP_MICRO_MAP = {
-        "vit_d": "vitamin_d", "zinc": "zinc", "omega3": "omega3",
-        "iron": "iron", "calcium": "calcium", "magnesium": "magnesium",
-        "b12": "b12", "vit_c": "vit_c", "potassium": "potassium",
-    }
-    supp_key = SUPP_MICRO_MAP.get(nutrient)
-    # Also check reverse: definitions might store keys as "vit_d" or "vitamin_d"
-    supp_key_aliases = {nutrient, supp_key} if supp_key else {nutrient}
-    # Build reverse map too (vitamin_d → vit_d)
-    reverse_map = {v: k for k, v in SUPP_MICRO_MAP.items()}
-    if nutrient in reverse_map:
-        supp_key_aliases.add(reverse_map[nutrient])
-    supp_key_aliases.discard(None)
-
-    supp_sources = []
-    if supp_key_aliases:
-        defs_result = await db.execute(select(SupplementDefinition).where(SupplementDefinition.user_id == user.id))
-        defs = {d.name.lower(): d for d in defs_result.scalars().all()}
-
-        supp_result = await db.execute(
-            select(Supplement).where(Supplement.user_id == user.id, Supplement.date >= target_from, Supplement.date <= target_to)
-        )
-        for s in supp_result.scalars().all():
-            defn = defs.get(s.name.lower())
-            if not defn or not defn.micronutrients:
-                continue
-            # Check all possible key aliases
-            for alias in supp_key_aliases:
-                if alias in defn.micronutrients:
-                    val = defn.micronutrients[alias]
-                    if isinstance(val, (int, float)) and val > 0:
-                        supp_sources.append({
-                            "food_name": f"{s.name} (supplement)",
-                            "quantity_g": s.dose_amount,
-                            "amount": round(val, 2),
-                            "date": str(s.date),
-                            "meal_type": "supplement",
-                        })
-                    break  # found a match, don't double-count
-
-    all_sources = sources + supp_sources
-    all_sources.sort(key=lambda x: x["amount"], reverse=True)
-
-    total = round(sum(s["amount"] for s in all_sources), 2)
-
-    return {
-        "nutrient": nutrient,
-        "from_date": str(target_from),
-        "to_date": str(target_to),
-        "total": total,
-        "sources": all_sources[:30],
-    }
+    return await get_nutrient_sources(db, user, nutrient, target_from, target_to)

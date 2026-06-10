@@ -1,3 +1,5 @@
+import hmac
+
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from sqlalchemy import select
@@ -19,7 +21,8 @@ async def get_current_user_api_key(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
     result = await db.execute(select(User).where(User.api_key == api_key))
     user = result.scalar_one_or_none()
-    if user is None:
+    # Use constant-time comparison to prevent timing attacks
+    if user is None or not hmac.compare_digest(user.api_key, api_key):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
     return user
 
@@ -28,15 +31,21 @@ async def get_current_user_jwt(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    import uuid as _uuid
+
     if token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authorization token")
     payload = decode_token(token)
     if payload is None or payload.get("type") != "access":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
-    user_id = payload.get("sub")
-    if user_id is None:
+    user_id_str = payload.get("sub")
+    if user_id_str is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-    result = await db.execute(select(User).where(User.id == user_id))
+    try:
+        user_uuid = _uuid.UUID(user_id_str)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+    result = await db.execute(select(User).where(User.id == user_uuid))
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
@@ -59,14 +68,19 @@ async def get_current_user_jwt_or_api_key(
 
     # Try JWT token (browser / dashboard)
     if token is not None:
+        import uuid as _uuid
         payload = decode_token(token)
         if payload is not None and payload.get("type") == "access":
-            user_id = payload.get("sub")
-            if user_id is not None:
-                result = await db.execute(select(User).where(User.id == user_id))
-                user = result.scalar_one_or_none()
-                if user is not None:
-                    return user
+            user_id_str = payload.get("sub")
+            if user_id_str is not None:
+                try:
+                    user_uuid = _uuid.UUID(user_id_str)
+                    result = await db.execute(select(User).where(User.id == user_uuid))
+                    user = result.scalar_one_or_none()
+                    if user is not None:
+                        return user
+                except (TypeError, ValueError):
+                    pass
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
