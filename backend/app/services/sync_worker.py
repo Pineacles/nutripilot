@@ -306,9 +306,9 @@ async def _write_weight_records(
                 log_date=entry_date,
             )
             synced += 1
-        except Exception:
+        except Exception as exc:
             skipped += 1
-            log.warning("upsert_failed", detail=f"date={entry_date}")
+            log.warning("upsert_failed", detail=f"date={entry_date} error={type(exc).__name__}: {exc}")
 
     log.info("write_complete", upserted=synced, skipped=skipped)
     return synced
@@ -542,9 +542,10 @@ async def _refresh_withings_token(
         return RefreshResult(error="Withings token endpoint timed out", http_status=0)
     except httpx.ConnectError:
         return RefreshResult(error="Could not connect to Withings", http_status=0)
-    except (ValueError, KeyError):
+    except (ValueError, KeyError) as exc:
         # JSON decode failed or unexpected structure — likely transient
-        return RefreshResult(error="Withings returned invalid JSON response")
+        logger.warning("Withings returned invalid JSON: %s: %s", type(exc).__name__, exc)
+        return RefreshResult(error=f"Withings returned invalid JSON response: {type(exc).__name__}")
     except Exception as e:
         return RefreshResult(error=f"Withings token refresh error: {type(e).__name__}: {e}")
 
@@ -624,8 +625,8 @@ async def _refresh_oauth2_token(
             error_detail = f"HTTP {resp.status_code}: {oauth_error}"
             if error_desc:
                 error_detail += f" ({error_desc})"
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Could not parse OAuth2 error response body: %s: %s", type(exc).__name__, exc)
 
         # Check permanent conditions
         if oauth_error in _OAUTH2_PERMANENT_ERRORS:

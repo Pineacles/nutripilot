@@ -38,21 +38,46 @@ async def create_food_from_external(
 
 
 async def search_foods(db: AsyncSession, query: str, limit: int = 10) -> list[dict]:
-    stmt = (
-        select(
-            Food.id,
-            Food.name,
-            Food.barcode,
-            Nutrient.kcal,
-            Nutrient.protein,
-            Food.serving_size_g,
-            Food.serving_label,
+    # Use pg_trgm similarity on PostgreSQL; fall back to LIKE on other dialects (e.g. SQLite in tests)
+    dialect_name = db.bind.dialect.name if hasattr(db, "bind") and db.bind else ""
+    try:
+        raw = await db.get_bind()
+        dialect_name = raw.dialect.name
+    except Exception:
+        pass
+
+    if dialect_name == "sqlite":
+        stmt = (
+            select(
+                Food.id,
+                Food.name,
+                Food.barcode,
+                Nutrient.kcal,
+                Nutrient.protein,
+                Food.serving_size_g,
+                Food.serving_label,
+            )
+            .outerjoin(Nutrient, Food.id == Nutrient.food_id)
+            .where(Food.name.ilike(f"%{query}%"))
+            .order_by(Food.name.asc())
+            .limit(limit)
         )
-        .outerjoin(Nutrient, Food.id == Nutrient.food_id)
-        .where(func.similarity(Food.name, query) > 0.1)
-        .order_by(func.similarity(Food.name, query).desc())
-        .limit(limit)
-    )
+    else:
+        stmt = (
+            select(
+                Food.id,
+                Food.name,
+                Food.barcode,
+                Nutrient.kcal,
+                Nutrient.protein,
+                Food.serving_size_g,
+                Food.serving_label,
+            )
+            .outerjoin(Nutrient, Food.id == Nutrient.food_id)
+            .where(func.similarity(Food.name, query) > 0.1)
+            .order_by(func.similarity(Food.name, query).desc())
+            .limit(limit)
+        )
     result = await db.execute(stmt)
     rows = result.all()
     return [
