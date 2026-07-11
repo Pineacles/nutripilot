@@ -1,17 +1,15 @@
 import secrets
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import delete, select
+from fastapi import APIRouter, Depends, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_jwt
 from app.database import get_db
 from app.models.integration import Integration
-from app.models.micronutrient_target import MicronutrientTarget
-from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
-from app.schemas.integration import IntegrationResponse, REDACTED_SENTINEL
+from app.schemas.integration import IntegrationResponse
 from app.schemas.settings import (
     ApiKeyResponse,
     MicronutrientTargetItem,
@@ -23,6 +21,7 @@ from app.schemas.settings import (
     SupplementDefinitionUpdate,
     UserSettingsResponse,
 )
+from app.services import settings_service
 
 router = APIRouter(prefix="/api/v1", tags=["settings"])
 
@@ -34,41 +33,7 @@ async def get_settings(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    # Micronutrient targets
-    result = await db.execute(
-        select(MicronutrientTarget).where(MicronutrientTarget.user_id == user.id)
-    )
-    micro_targets = [
-        MicronutrientTargetItem(nutrient=t.nutrient, target_value=t.target_value, unit=t.unit)
-        for t in result.scalars().all()
-    ]
-
-    # Supplement definitions
-    result = await db.execute(
-        select(SupplementDefinition).where(SupplementDefinition.user_id == user.id)
-    )
-    supps = result.scalars().all()
-
-    return UserSettingsResponse(
-        nutrition_targets=NutritionTargetsResponse(
-            target_kcal=user.target_kcal,
-            target_protein_g=user.target_protein_g,
-            target_carbs_g=user.target_carbs_g,
-            target_fat_g=user.target_fat_g,
-            target_fiber_g=user.target_fiber_g,
-            target_sugar_g=user.target_sugar_g,
-            target_sodium_mg=user.target_sodium_mg,
-            target_alcohol_g=user.target_alcohol_g,
-            target_water_ml=user.target_water_ml,
-            target_caffeine_mg=user.target_caffeine_mg,
-            target_weight_kg=user.target_weight_kg,
-            target_body_fat_pct=user.target_body_fat_pct,
-            timezone=user.timezone,
-        ),
-        micronutrient_targets=micro_targets,
-        supplement_definitions=[SupplementDefinitionResponse.model_validate(s) for s in supps],
-        api_key_masked=f"...{user.api_key[-6:]}",
-    )
+    return await settings_service.get_settings(db, user)
 
 
 # --- Nutrition targets ---
@@ -79,36 +44,7 @@ async def update_nutrition_targets(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    user.target_kcal = body.target_kcal
-    user.target_protein_g = body.target_protein_g
-    user.target_carbs_g = body.target_carbs_g
-    user.target_fat_g = body.target_fat_g
-    user.target_fiber_g = body.target_fiber_g
-    user.target_sugar_g = body.target_sugar_g
-    user.target_sodium_mg = body.target_sodium_mg
-    user.target_alcohol_g = body.target_alcohol_g
-    user.target_water_ml = body.target_water_ml
-    user.target_caffeine_mg = body.target_caffeine_mg
-    user.target_weight_kg = body.target_weight_kg
-    user.target_body_fat_pct = body.target_body_fat_pct
-    if body.timezone is not None:
-        user.timezone = body.timezone
-    await db.commit()
-    return NutritionTargetsResponse(
-        target_kcal=user.target_kcal,
-        target_protein_g=user.target_protein_g,
-        target_carbs_g=user.target_carbs_g,
-        target_fat_g=user.target_fat_g,
-        target_fiber_g=user.target_fiber_g,
-        target_sugar_g=user.target_sugar_g,
-        target_sodium_mg=user.target_sodium_mg,
-        target_alcohol_g=user.target_alcohol_g,
-        target_water_ml=user.target_water_ml,
-        target_caffeine_mg=user.target_caffeine_mg,
-        target_weight_kg=user.target_weight_kg,
-        target_body_fat_pct=user.target_body_fat_pct,
-        timezone=user.timezone,
-    )
+    return await settings_service.update_nutrition_targets(db, user, body)
 
 
 # --- Micronutrient targets ---
@@ -119,22 +55,7 @@ async def update_micronutrient_targets(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    # Delete existing and re-insert
-    await db.execute(
-        delete(MicronutrientTarget).where(MicronutrientTarget.user_id == user.id)
-    )
-    new_targets = []
-    for t in body.targets:
-        mt = MicronutrientTarget(
-            user_id=user.id,
-            nutrient=t.nutrient,
-            target_value=t.target_value,
-            unit=t.unit,
-        )
-        db.add(mt)
-        new_targets.append(t)
-    await db.commit()
-    return new_targets
+    return await settings_service.update_micronutrient_targets(db, user, body)
 
 
 # --- Supplement definitions CRUD ---
@@ -144,10 +65,7 @@ async def list_supplements(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    result = await db.execute(
-        select(SupplementDefinition).where(SupplementDefinition.user_id == user.id)
-    )
-    return [SupplementDefinitionResponse.model_validate(s) for s in result.scalars().all()]
+    return await settings_service.list_supplement_definitions(db, user)
 
 
 @router.post("/supplements", response_model=SupplementDefinitionResponse, status_code=status.HTTP_201_CREATED)
@@ -156,18 +74,7 @@ async def create_supplement(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    supp = SupplementDefinition(
-        user_id=user.id,
-        name=body.name,
-        dose_amount=body.dose_amount,
-        dose_unit=body.dose_unit,
-        time_of_day=body.time_of_day,
-        micronutrients=body.micronutrients,
-    )
-    db.add(supp)
-    await db.commit()
-    await db.refresh(supp)
-    return SupplementDefinitionResponse.model_validate(supp)
+    return await settings_service.create_supplement_definition(db, user, body)
 
 
 @router.put("/supplements/{supp_id}", response_model=SupplementDefinitionResponse)
@@ -177,21 +84,7 @@ async def update_supplement(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    result = await db.execute(
-        select(SupplementDefinition).where(
-            SupplementDefinition.id == supp_id,
-            SupplementDefinition.user_id == user.id,
-        )
-    )
-    supp = result.scalar_one_or_none()
-    if supp is None:
-        raise HTTPException(status_code=404, detail="Supplement not found")
-
-    for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(supp, field, value)
-    await db.commit()
-    await db.refresh(supp)
-    return SupplementDefinitionResponse.model_validate(supp)
+    return await settings_service.update_supplement_definition(db, user, supp_id, body)
 
 
 @router.delete("/supplements/{supp_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -200,17 +93,7 @@ async def delete_supplement(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    result = await db.execute(
-        select(SupplementDefinition).where(
-            SupplementDefinition.id == supp_id,
-            SupplementDefinition.user_id == user.id,
-        )
-    )
-    supp = result.scalar_one_or_none()
-    if supp is None:
-        raise HTTPException(status_code=404, detail="Supplement not found")
-    await db.delete(supp)
-    await db.commit()
+    await settings_service.delete_supplement_definition(db, user, supp_id)
 
 
 # --- API key regeneration ---

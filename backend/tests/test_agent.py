@@ -29,6 +29,23 @@ async def test_log_water(async_client, api_key_headers):
     assert resp.json()["amount_ml"] == 500
 
 
+async def test_list_water_logs(async_client, api_key_headers):
+    create_resp = await async_client.post(
+        "/api/agent/log/water",
+        json={"amount_ml": 333, "date": "2026-07-03"},
+        headers=api_key_headers,
+    )
+    assert create_resp.status_code == 201
+
+    list_resp = await async_client.get(
+        "/api/agent/log/water?day=2026-07-03",
+        headers=api_key_headers,
+    )
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    assert any(w["amount_ml"] == 333 for w in data)
+
+
 async def test_deprecated_caffeine_endpoint_still_works(async_client, api_key_headers):
     """The /api/agent/log/caffeine endpoint must remain functional."""
     resp = await async_client.post(
@@ -38,6 +55,40 @@ async def test_deprecated_caffeine_endpoint_still_works(async_client, api_key_he
     )
     assert resp.status_code == 201
     assert resp.json()["amount_mg"] == 80
+
+
+async def test_list_caffeine_logs(async_client, api_key_headers):
+    create_resp = await async_client.post(
+        "/api/agent/log/caffeine",
+        json={"amount_mg": 95, "source_name": "cold brew", "date": "2026-07-03"},
+        headers=api_key_headers,
+    )
+    assert create_resp.status_code == 201
+
+    list_resp = await async_client.get(
+        "/api/agent/log/caffeine?day=2026-07-03",
+        headers=api_key_headers,
+    )
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    assert any(c["amount_mg"] == 95 and c["source_name"] == "cold brew" for c in data)
+
+
+async def test_list_supplement_logs(async_client, api_key_headers):
+    create_resp = await async_client.post(
+        "/api/agent/log/supplement",
+        json={"name": "Vitamin D3", "dose_amount": 4000, "dose_unit": "IU", "date": "2026-07-03"},
+        headers=api_key_headers,
+    )
+    assert create_resp.status_code == 201
+
+    list_resp = await async_client.get(
+        "/api/agent/log/supplement?day=2026-07-03",
+        headers=api_key_headers,
+    )
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    assert any(s["name"] == "Vitamin D3" and s["dose_amount"] == 4000 for s in data)
 
 
 async def test_get_settings(async_client, api_key_headers):

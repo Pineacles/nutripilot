@@ -221,7 +221,7 @@ _FIELD_MAPPING_EXAMPLES = {
 _VALID_MEASURE_TARGETS = {"weight_kg", "body_fat_pct", "muscle_mass_pct", "body_fat_kg", "muscle_mass_kg"}
 
 
-def _validate_field_mapping(fm: dict) -> list[str]:
+def validate_field_mapping(fm: dict) -> list[str]:
     """Validate field_mapping and return a list of error messages (empty = valid)."""
     errors: list[str] = []
 
@@ -333,8 +333,8 @@ class IntegrationCreate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_field_mapping(self) -> "IntegrationCreate":
-        errors = _validate_field_mapping(self.field_mapping)
+    def _check_field_mapping(self) -> "IntegrationCreate":
+        errors = validate_field_mapping(self.field_mapping)
         if self.field_mapping.get("type") in INTEGRATION_TYPES:
             spec = INTEGRATION_TYPES[self.field_mapping["type"]]
             if "auth_header" in spec.get("required_top_keys", set()) and not self.auth_header:
