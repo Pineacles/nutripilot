@@ -43,6 +43,10 @@ class FoodUpdate(BaseModel):
     nutrients: Optional[NutrientData] = None
 
 
+class FoodClone(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=500)
+
+
 class FoodResponse(BaseModel):
     id: UUID
     name: str
@@ -51,6 +55,10 @@ class FoodResponse(BaseModel):
     serving_size_g: float | None = None
     serving_label: str | None = None
     nutrients: NutrientData | None
+    # is_mine: the current user owns this food. editable: the current user may
+    # PUT/DELETE it (owner-only; official curated foods are read-only).
+    is_mine: bool = False
+    editable: bool = False
 
     model_config = {"from_attributes": True}
 

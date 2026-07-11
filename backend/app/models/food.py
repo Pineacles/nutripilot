@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,6 +17,11 @@ class Food(Base):
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
     serving_size_g: Mapped[float | None] = mapped_column(Float)
     serving_label: Mapped[str | None] = mapped_column(String(100))
+    # NULL = official / curated catalog food (globally read-only). A non-NULL
+    # value marks a user-owned food that only its owner may edit or delete.
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     nutrients: Mapped["Nutrient"] = relationship(back_populates="food", uselist=False, lazy="joined")

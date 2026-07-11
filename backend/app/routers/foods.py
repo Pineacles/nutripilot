@@ -9,16 +9,17 @@ from app.database import get_db
 from app.models.food import Food
 from app.models.food_log import FoodLog
 from app.models.user import User
-from app.schemas.food import FoodCreate, FoodResponse, FoodSearchResult, FoodUpdate, NutrientData
+from app.schemas.food import FoodClone, FoodCreate, FoodResponse, FoodSearchResult, FoodUpdate, NutrientData
 from app.services import barcode_service, food_service
 
 router = APIRouter(prefix="/api/foods", tags=["foods"])
 
 
-def _food_to_response(food) -> FoodResponse:
+def _food_to_response(food, user: User) -> FoodResponse:
     nutrients = None
     if food.nutrients:
         nutrients = NutrientData.model_validate(food.nutrients, from_attributes=True)
+    is_mine = food.created_by is not None and food.created_by == user.id
     return FoodResponse(
         id=food.id,
         name=food.name,
@@ -27,6 +28,8 @@ def _food_to_response(food) -> FoodResponse:
         serving_size_g=food.serving_size_g,
         serving_label=food.serving_label,
         nutrients=nutrients,
+        is_mine=is_mine,
+        editable=is_mine,
     )
 
 
@@ -74,7 +77,7 @@ async def get_by_barcode(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": code},
         )
-    return _food_to_response(food)
+    return _food_to_response(food, user)
 
 
 @router.post(
@@ -98,8 +101,53 @@ async def create_food(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    food = await food_service.create_food(db, body)
-    return _food_to_response(food)
+    food = await food_service.create_food(db, body, created_by=user.id)
+    return _food_to_response(food, user)
+
+
+def _assert_food_writable(food: Food, user: User) -> None:
+    """Enforce food ownership for mutating operations.
+
+    - Official/curated food (created_by IS NULL): 403 FOOD_READ_ONLY.
+    - Food owned by another user: 403 NOT_FOOD_OWNER.
+    - Food owned by the current user: allowed.
+    """
+    if food.created_by is None:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "FOOD_READ_ONLY", "detail": "Official foods can't be edited — clone it to customize"},
+        )
+    if food.created_by != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "NOT_FOOD_OWNER", "detail": "You can only edit foods you created"},
+        )
+
+
+@router.post(
+    "/{food_id}/clone",
+    response_model=FoodResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Clone a food into an editable personal copy",
+    description=(
+        "Create a personal, editable copy of any food (including official/curated foods). "
+        "The copy includes the full nutrient profile, is owned by you, and can be edited or deleted. "
+        "Provide an optional `name`; otherwise the original name is suffixed with ' (custom)'.\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND` if the source food doesn't exist."
+    ),
+)
+async def clone_food(
+    food_id: UUID,
+    body: FoodClone | None = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt_or_api_key),
+):
+    result = await db.execute(select(Food).where(Food.id == food_id))
+    food = result.scalar_one_or_none()
+    if food is None:
+        raise HTTPException(status_code=404, detail={"code": "FOOD_NOT_FOUND"})
+    clone = await food_service.clone_food(db, food, owner_id=user.id, name=body.name if body else None)
+    return _food_to_response(clone, user)
 
 
 @router.put(
@@ -107,8 +155,10 @@ async def create_food(
     response_model=FoodResponse,
     summary="Update a food",
     description=(
-        "Update any field on a food. Only send the fields you want to change.\n\n"
-        "Nutrients can be partially updated — only the nutrient fields you include will be changed."
+        "Update any field on a food you own. Only send the fields you want to change.\n\n"
+        "Nutrients can be partially updated — only the nutrient fields you include will be changed.\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND`; `403 FOOD_READ_ONLY` for official foods (clone it first); "
+        "`403 NOT_FOOD_OWNER` for foods owned by another user."
     ),
 )
 async def update_food(
@@ -124,6 +174,7 @@ async def update_food(
             status_code=404,
             detail={"code": "FOOD_NOT_FOUND"},
         )
+    _assert_food_writable(food, user)
     data = body.model_dump(exclude_unset=True)
     nutrients_data = data.pop("nutrients", None)
     for field, value in data.items():
@@ -133,7 +184,7 @@ async def update_food(
             setattr(food.nutrients, field, value)
     await db.commit()
     await db.refresh(food)
-    return _food_to_response(food)
+    return _food_to_response(food, user)
 
 
 @router.delete(
@@ -141,8 +192,10 @@ async def update_food(
     status_code=204,
     summary="Delete a food",
     description=(
-        "Permanently remove a food from the database.\n\n"
-        "**Errors:** `404 FOOD_NOT_FOUND`, `409 FOOD_IN_USE` if the food is referenced by any food logs "
+        "Permanently remove a food you own.\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND`; `403 FOOD_READ_ONLY` for official foods; "
+        "`403 NOT_FOOD_OWNER` for foods owned by another user; "
+        "`409 FOOD_IN_USE` if the food is referenced by any food logs "
         "(delete the logs first, or update them to point to a different food)."
     ),
 )
@@ -158,6 +211,7 @@ async def delete_food(
             status_code=404,
             detail={"code": "FOOD_NOT_FOUND"},
         )
+    _assert_food_writable(food, user)
     # Check if any food logs reference this food
     ref_result = await db.execute(select(FoodLog.id).where(FoodLog.food_id == food_id).limit(1))
     if ref_result.scalar_one_or_none() is not None:

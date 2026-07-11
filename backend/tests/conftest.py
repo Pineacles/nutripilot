@@ -20,6 +20,8 @@ import uuid
 # Set env vars BEFORE importing app modules
 os.environ.setdefault("JWT_SECRET", "test-secret-not-for-production-xx")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+# Fixed Fernet key so credential encryption is deterministic in tests.
+os.environ.setdefault("TOKEN_ENCRYPTION_KEY", "IRrBEixRKeDMt6CFRLeX5PYhYqO-m51ElyzSFq_TA9M=")
 
 # Sentinel API key value assigned directly to the test user (see test_user
 # fixture below) — previously this was pushed through settings.api_key, but
@@ -37,6 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.config import settings
 settings.database_url = "sqlite+aiosqlite:///:memory:"
 settings.jwt_secret = "test-secret-not-for-production-xx"
+settings.token_encryption_key = "IRrBEixRKeDMt6CFRLeX5PYhYqO-m51ElyzSFq_TA9M="
 
 from app.database import Base, get_db
 from app.main import app

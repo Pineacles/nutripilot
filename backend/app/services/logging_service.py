@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.clock import today_utc
 from app.models.caffeine_log import CaffeineLog
 from app.models.food_log import FoodLog
 from app.models.supplement import Supplement
@@ -24,7 +25,7 @@ async def log_food(
         food_id=food_id,
         quantity_g=quantity_g,
         meal_type=meal_type,
-        date=log_date or date.today(),
+        date=log_date or today_utc(),
     )
     db.add(entry)
     await db.commit()
@@ -47,7 +48,7 @@ async def log_supplement(
         dose_amount=dose_amount,
         dose_unit=dose_unit,
         time_of_day=time_of_day,
-        date=log_date or date.today(),
+        date=log_date or today_utc(),
     )
     db.add(entry)
     await db.commit()
@@ -126,7 +127,7 @@ async def log_weight(
         body_fat_kg=body_fat_kg,
         muscle_mass_kg=muscle_mass_kg,
         source=source,
-        date=log_date or date.today(),
+        date=log_date or today_utc(),
     )
     db.add(entry)
     await db.commit()
@@ -154,7 +155,7 @@ async def upsert_weight(
     mass in kg but the integration mapped it to _pct) by checking if the value
     makes physical sense relative to the weight.
     """
-    target_date = log_date or date.today()
+    target_date = log_date or today_utc()
 
     # Check for existing entry with same user + date + source
     result = await db.execute(
@@ -203,7 +204,7 @@ async def log_water(
     amount_ml: float,
     log_date: date | None = None,
 ) -> WaterLog:
-    entry = WaterLog(user_id=user_id, amount_ml=amount_ml, date=log_date or date.today())
+    entry = WaterLog(user_id=user_id, amount_ml=amount_ml, date=log_date or today_utc())
     db.add(entry)
     await db.commit()
     await db.refresh(entry)
@@ -221,7 +222,7 @@ async def log_caffeine(
         user_id=user_id,
         amount_mg=amount_mg,
         source_name=source_name,
-        date=log_date or date.today(),
+        date=log_date or today_utc(),
     )
     db.add(entry)
     await db.commit()

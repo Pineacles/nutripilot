@@ -14,6 +14,7 @@ from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
 from app.models.water_log import WaterLog
 from app.models.weight_log import WeightLog
+from app.services.clock import today_for
 from app.schemas.summary import (
     BodyCompEntry,
     CaffeineTotals,
@@ -153,7 +154,7 @@ def _aggregate_macros(food_logs):
 
 
 async def get_today_summary(db: AsyncSession, user: User, target_date: date | None = None) -> TodaySummary:
-    target_date = target_date or date.today()
+    target_date = target_date or today_for(user)
 
     stmt = (
         select(FoodLog)
@@ -244,7 +245,7 @@ async def get_today_summary(db: AsyncSession, user: User, target_date: date | No
 
 
 async def get_week_summary(db: AsyncSession, user: User, end_date: date | None = None, start_override: date | None = None) -> WeekSummary:
-    end_date = end_date or date.today()
+    end_date = end_date or today_for(user)
     start_date = start_override or (end_date - timedelta(days=6))
 
     stmt = (
@@ -354,7 +355,7 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
 
 
 async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> StatsSummary:
-    end = date.today()
+    end = today_for(user)
     start = end - timedelta(days=days - 1)
 
     # Weight history

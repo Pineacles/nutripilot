@@ -8,9 +8,12 @@ from app.models.nutrient import Nutrient
 from app.schemas.food import FoodCreate, NutrientData
 
 
-async def create_food(db: AsyncSession, data: FoodCreate, source: str = "manual") -> Food:
+async def create_food(
+    db: AsyncSession, data: FoodCreate, source: str = "manual", created_by: UUID | None = None
+) -> Food:
     food = Food(name=data.name, barcode=data.barcode, source=source,
-                serving_size_g=data.serving_size_g, serving_label=data.serving_label)
+                serving_size_g=data.serving_size_g, serving_label=data.serving_label,
+                created_by=created_by)
     db.add(food)
     await db.flush()
 
@@ -19,6 +22,39 @@ async def create_food(db: AsyncSession, data: FoodCreate, source: str = "manual"
     await db.commit()
     await db.refresh(food)
     return food
+
+
+# Nutrient columns copied when cloning a food (everything except the food_id PK).
+_NUTRIENT_FIELDS = [
+    "kcal", "protein", "carbs", "sugar", "fiber", "fat", "sat_fat", "salt",
+    "calcium", "potassium", "omega3", "zinc", "vit_d", "vit_k2", "vit_c",
+    "magnesium", "b12", "iron", "alcohol", "caffeine_mg",
+]
+
+
+async def clone_food(db: AsyncSession, source_food: Food, owner_id: UUID, name: str | None = None) -> Food:
+    """Copy a food (and its nutrient row) into a new user-owned manual food.
+
+    The clone drops the barcode (unique) and is owned by ``owner_id`` so the
+    user can edit it freely without touching the shared/official original.
+    """
+    clone = Food(
+        name=name or f"{source_food.name} (custom)",
+        barcode=None,
+        source="manual",
+        serving_size_g=source_food.serving_size_g,
+        serving_label=source_food.serving_label,
+        created_by=owner_id,
+    )
+    db.add(clone)
+    await db.flush()
+
+    src_n = source_food.nutrients
+    nutrient_values = {f: getattr(src_n, f, None) for f in _NUTRIENT_FIELDS} if src_n else {}
+    db.add(Nutrient(food_id=clone.id, **nutrient_values))
+    await db.commit()
+    await db.refresh(clone)
+    return clone
 
 
 async def create_food_from_external(

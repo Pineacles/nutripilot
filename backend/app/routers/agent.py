@@ -40,6 +40,7 @@ from app.schemas.caffeine_log import CaffeineLogCreate, CaffeineLogResponse, Caf
 from app.schemas.water_log import WaterLogCreate, WaterLogResponse, WaterLogUpdate
 from app.schemas.weight_log import WeightLogCreate, WeightLogResponse, WeightLogUpdate
 from app.services import barcode_service, food_service, logging_service, summary_service
+from app.services.clock import today_for
 from app.services.nutrient_sources import get_nutrient_sources
 from app.services.url_guard import UnsafeURLError, assert_public_http_url
 
@@ -104,7 +105,7 @@ async def log_food(
         )
 
     quantity_g = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
-    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date)
+    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user))
 
     n = food.nutrients
     ratio = quantity_g / 100.0
@@ -148,7 +149,7 @@ async def log_food_by_barcode(
         )
 
     quantity_g = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
-    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date)
+    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user))
 
     n = food.nutrients
     ratio = quantity_g / 100.0
@@ -205,7 +206,7 @@ async def log_food_by_name(
         )
 
     quantity_g = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
-    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date)
+    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user))
 
     n = food.nutrients
     ratio = quantity_g / 100.0
@@ -243,7 +244,7 @@ async def log_supplement(
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     entry = await logging_service.log_supplement(
-        db, user.id, body.name, body.dose_amount, body.dose_unit, body.time_of_day, body.date
+        db, user.id, body.name, body.dose_amount, body.dose_unit, body.time_of_day, body.date or today_for(user)
     )
     return SupplementResponse(
         id=entry.id,
@@ -307,7 +308,7 @@ async def list_food_logs(
     from app.models.nutrient import Nutrient
     from app.schemas.food_log import FoodLogDetail, NutrientsPer100g
 
-    target_date = day or date.today()
+    target_date = day or today_for(user)
     stmt = (
         select(FoodLog)
         .where(FoodLog.user_id == user.id, FoodLog.date == target_date)
@@ -395,7 +396,7 @@ async def log_weight(
 ):
     entry = await logging_service.log_weight(
         db, user.id, body.weight_kg, body.body_fat_pct, body.muscle_mass_pct,
-        body.body_fat_kg, body.muscle_mass_kg, body.source or "manual", body.date
+        body.body_fat_kg, body.muscle_mass_kg, body.source or "manual", body.date or today_for(user)
     )
     return WeightLogResponse(
         id=entry.id,
@@ -495,6 +496,9 @@ async def agent_get_settings(
             target_alcohol_g=user.target_alcohol_g,
             target_water_ml=user.target_water_ml,
             target_caffeine_mg=user.target_caffeine_mg,
+            target_weight_kg=user.target_weight_kg,
+            target_body_fat_pct=user.target_body_fat_pct,
+            timezone=user.timezone,
         ),
         micronutrient_targets=micro_targets,
         supplement_definitions=[SupplementDefinitionResponse.model_validate(s) for s in supps],
@@ -529,6 +533,10 @@ async def agent_update_nutrition_targets(
     user.target_alcohol_g = body.target_alcohol_g
     user.target_water_ml = body.target_water_ml
     user.target_caffeine_mg = body.target_caffeine_mg
+    user.target_weight_kg = body.target_weight_kg
+    user.target_body_fat_pct = body.target_body_fat_pct
+    if body.timezone is not None:
+        user.timezone = body.timezone
     await db.commit()
     return NutritionTargetsResponse(
         target_kcal=user.target_kcal,
@@ -541,6 +549,9 @@ async def agent_update_nutrition_targets(
         target_alcohol_g=user.target_alcohol_g,
         target_water_ml=user.target_water_ml,
         target_caffeine_mg=user.target_caffeine_mg,
+        target_weight_kg=user.target_weight_kg,
+        target_body_fat_pct=user.target_body_fat_pct,
+        timezone=user.timezone,
     )
 
 
@@ -857,7 +868,7 @@ async def log_water(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    entry = await logging_service.log_water(db, user.id, body.amount_ml, body.date)
+    entry = await logging_service.log_water(db, user.id, body.amount_ml, body.date or today_for(user))
     return WaterLogResponse.model_validate(entry)
 
 
@@ -925,7 +936,7 @@ async def log_caffeine(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    entry = await logging_service.log_caffeine(db, user.id, body.amount_mg, body.source_name, body.date)
+    entry = await logging_service.log_caffeine(db, user.id, body.amount_mg, body.source_name, body.date or today_for(user))
     return CaffeineLogResponse.model_validate(entry)
 
 
@@ -1203,6 +1214,6 @@ async def agent_nutrient_sources(
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     """Get foods that contributed to a specific nutrient, ranked by amount."""
-    target_from = from_date or date.today()
-    target_to = to_date or date.today()
+    target_from = from_date or today_for(user)
+    target_to = to_date or today_for(user)
     return await get_nutrient_sources(db, user, nutrient, target_from, target_to)

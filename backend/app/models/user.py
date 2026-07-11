@@ -27,4 +27,8 @@ class User(Base):
     target_water_ml: Mapped[float] = mapped_column(Float, nullable=False, server_default="2500")
     target_caffeine_mg: Mapped[float] = mapped_column(Float, nullable=False, server_default="400")
     target_weight_kg: Mapped[float | None] = mapped_column(Float)
+    target_body_fat_pct: Mapped[float | None] = mapped_column(Float)
+    timezone: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="Europe/Zurich", server_default="Europe/Zurich"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

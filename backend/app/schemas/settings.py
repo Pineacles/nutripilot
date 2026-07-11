@@ -1,8 +1,9 @@
 import datetime
 from typing import Optional
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class NutritionTargetsUpdate(BaseModel):
@@ -16,6 +17,24 @@ class NutritionTargetsUpdate(BaseModel):
     target_alcohol_g: float = Field(ge=0, le=500)
     target_water_ml: float = Field(ge=0, le=20000)
     target_caffeine_mg: float = Field(ge=0, le=5000)
+    target_weight_kg: float | None = Field(default=None, gt=0, le=500)
+    target_body_fat_pct: float | None = Field(default=None, ge=0, le=100)
+    timezone: str | None = Field(
+        default=None, description="IANA timezone name (e.g. 'Europe/Zurich') used for day boundaries."
+    )
+
+    @field_validator("timezone")
+    @classmethod
+    def _validate_timezone(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        try:
+            ZoneInfo(v)
+        except Exception:
+            raise ValueError(
+                f"Invalid timezone {v!r}. Use an IANA name like 'Europe/Zurich' or 'America/New_York'."
+            )
+        return v
 
 
 class NutritionTargetsResponse(BaseModel):
@@ -29,6 +48,9 @@ class NutritionTargetsResponse(BaseModel):
     target_alcohol_g: float
     target_water_ml: float
     target_caffeine_mg: float
+    target_weight_kg: float | None = None
+    target_body_fat_pct: float | None = None
+    timezone: str | None = None
 
 
 class MicronutrientTargetItem(BaseModel):

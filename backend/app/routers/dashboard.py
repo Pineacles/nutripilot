@@ -15,6 +15,7 @@ from app.models.weight_log import WeightLog
 from app.schemas.food import FoodResponse, FoodSearchResult, NutrientData
 from app.schemas.summary import StatsSummary, TodaySummary, WeekSummary
 from app.services import food_service, summary_service
+from app.services.clock import today_for
 from app.services.nutrient_sources import get_nutrient_sources
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -36,13 +37,13 @@ async def dashboard_weekly(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    from datetime import date, timedelta
+    from datetime import timedelta
     if mode == "week":
-        today = date.today() - timedelta(weeks=offset)
+        today = today_for(user) - timedelta(weeks=offset)
         monday = today - timedelta(days=today.weekday())
         sunday = monday + timedelta(days=6)
         return await summary_service.get_week_summary(db, user, end_date=sunday, start_override=monday)
-    end = date.today() - timedelta(weeks=offset)
+    end = today_for(user) - timedelta(weeks=offset)
     return await summary_service.get_week_summary(db, user, end_date=end)
 
 
@@ -61,9 +62,9 @@ async def dashboard_weight(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    from datetime import date, timedelta
+    from datetime import timedelta
 
-    start = date.today() - timedelta(days=days)
+    start = today_for(user) - timedelta(days=days)
     stmt = (
         select(WeightLog)
         .where(WeightLog.user_id == user.id, WeightLog.date >= start)
@@ -155,7 +156,18 @@ async def dashboard_food_detail(
     nutrients = None
     if food.nutrients:
         nutrients = NutrientData.model_validate(food.nutrients, from_attributes=True)
-    return FoodResponse(id=food.id, name=food.name, barcode=food.barcode, source=food.source, nutrients=nutrients)
+    is_mine = food.created_by is not None and food.created_by == user.id
+    return FoodResponse(
+        id=food.id,
+        name=food.name,
+        barcode=food.barcode,
+        source=food.source,
+        serving_size_g=food.serving_size_g,
+        serving_label=food.serving_label,
+        nutrients=nutrients,
+        is_mine=is_mine,
+        editable=is_mine,
+    )
 
 
 @router.get("/nutrient-sources")
@@ -167,6 +179,6 @@ async def nutrient_sources(
     user: User = Depends(get_current_user_jwt),
 ):
     """Get foods that contributed to a specific nutrient, ranked by amount."""
-    target_from = from_date or date.today()
-    target_to = to_date or date.today()
+    target_from = from_date or today_for(user)
+    target_to = to_date or today_for(user)
     return await get_nutrient_sources(db, user, nutrient, target_from, target_to)

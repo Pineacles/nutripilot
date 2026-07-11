@@ -4,12 +4,12 @@ Called on app startup and scheduled to run daily at 00:05.
 """
 import random
 import uuid
-from datetime import date, timedelta
 
 from sqlalchemy import select, func
 
 from app.database import async_session
 from app.models import Food, FoodLog, Supplement, User, WeightLog, WaterLog, CaffeineLog
+from app.services.clock import today_for
 
 
 # ---------------------------------------------------------------------------
@@ -67,14 +67,15 @@ def _rand(lo: float, hi: float) -> float:
 
 async def seed_today():
     """Generate demo data for today. Skips if today's food logs already exist."""
-    today = date.today()
-
     async with async_session() as db:
         # Find demo user
         result = await db.execute(select(User).where(User.email == DEMO_EMAIL))
         user = result.scalar_one_or_none()
         if not user:
             return
+
+        # "Today" resolved in the demo user's own timezone.
+        today = today_for(user)
 
         # Check if today already has food logs
         result = await db.execute(

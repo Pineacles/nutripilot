@@ -66,7 +66,7 @@ Get a JWT via `POST /api/auth/login` (email + password). Refresh via `POST /api/
 
 ## Key conventions
 
-- **Dates** default to today when omitted. Format: `YYYY-MM-DD`.
+- **Dates** default to today in the user's configured timezone when omitted. Format: `YYYY-MM-DD`.
 - **Quantity resolution** for food logging: `quantity_g` takes priority → then `servings * serving_size_g` → then `servings * 100` → fallback `100g`.
 - **Nutrients per 100g** are stored in the database. Consumed nutrients are calculated as `value * (quantity_g / 100)`.
 - **Sodium** is derived from salt: `salt_g * 400 = sodium_mg`.

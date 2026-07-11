@@ -61,6 +61,9 @@ async def get_settings(
             target_alcohol_g=user.target_alcohol_g,
             target_water_ml=user.target_water_ml,
             target_caffeine_mg=user.target_caffeine_mg,
+            target_weight_kg=user.target_weight_kg,
+            target_body_fat_pct=user.target_body_fat_pct,
+            timezone=user.timezone,
         ),
         micronutrient_targets=micro_targets,
         supplement_definitions=[SupplementDefinitionResponse.model_validate(s) for s in supps],
@@ -86,6 +89,10 @@ async def update_nutrition_targets(
     user.target_alcohol_g = body.target_alcohol_g
     user.target_water_ml = body.target_water_ml
     user.target_caffeine_mg = body.target_caffeine_mg
+    user.target_weight_kg = body.target_weight_kg
+    user.target_body_fat_pct = body.target_body_fat_pct
+    if body.timezone is not None:
+        user.timezone = body.timezone
     await db.commit()
     return NutritionTargetsResponse(
         target_kcal=user.target_kcal,
@@ -98,6 +105,9 @@ async def update_nutrition_targets(
         target_alcohol_g=user.target_alcohol_g,
         target_water_ml=user.target_water_ml,
         target_caffeine_mg=user.target_caffeine_mg,
+        target_weight_kg=user.target_weight_kg,
+        target_body_fat_pct=user.target_body_fat_pct,
+        timezone=user.timezone,
     )
 
 
