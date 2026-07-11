@@ -226,7 +226,8 @@ export default function StatisticsPage() {
   const targetAlcohol = settings?.nutrition_targets?.target_alcohol_g ?? 0;
   const targetWaterMl = settings?.nutrition_targets?.target_water_ml ?? 2500;
   const targetCaffeineMg = settings?.nutrition_targets?.target_caffeine_mg ?? 400;
-  const targetWeight = 78;
+  // Nullable — goal reference line is hidden entirely when no goal weight is set.
+  const targetWeight = settings?.nutrition_targets?.target_weight_kg ?? null;
 
   // Macro distribution pie data
   const macroPie = useMemo(() => {
@@ -380,7 +381,9 @@ export default function StatisticsPage() {
                 />
                 <YAxis tick={TICK_Y} axisLine={false} tickLine={false} width={40} domain={["auto", "auto"]} />
                 <Tooltip content={<ChartTooltip valueSuffix=" kg" />} />
-                <ReferenceLine y={targetWeight} stroke={COLORS.blue} strokeDasharray="6 3" strokeWidth={1.5} label={{ value: `Target ${targetWeight} kg`, fill: "#666", fontSize: 10, position: "right" }} />
+                {targetWeight != null && (
+                  <ReferenceLine y={targetWeight} stroke={COLORS.blue} strokeDasharray="6 3" strokeWidth={1.5} label={{ value: `Target ${targetWeight} kg`, fill: "#666", fontSize: 10, position: "right" }} />
+                )}
                 <Area
                   type="monotone"
                   dataKey="weight_kg"

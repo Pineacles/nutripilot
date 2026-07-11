@@ -160,7 +160,7 @@ export default function WeeklyPage() {
             />
 
             {/* Weight trend: 1 col */}
-            <WeightTrendCard weight={data.weight} bodyComp={data.body_comp} goalKg={78} />
+            <WeightTrendCard weight={data.weight} bodyComp={data.body_comp} goalKg={settings?.nutrition_targets.target_weight_kg} />
 
             {/* Body composition: 1 col */}
             {data.body_comp.length > 0 && (

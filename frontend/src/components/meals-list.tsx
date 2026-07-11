@@ -1,41 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import type { MealGroup, MealItem } from "@/lib/types";
+import { useMemo, useState } from "react";
+import type { FoodLogDetailEntry } from "@/lib/types";
 import { DashboardCard } from "./dashboard-card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { fmt } from "@/lib/utils";
-
-const mealOrder = ["breakfast", "lunch", "dinner", "snack"];
-const mealLabels: Record<string, string> = {
-  breakfast: "Breakfast",
-  lunch: "Lunch",
-  dinner: "Dinner",
-  snack: "Snacks",
-};
-
-const NUTRIENT_COLORS: { key: keyof MealItem; label: string; unit: string; color: string }[] = [
-  { key: "protein", label: "Protein", unit: "g", color: "#22c55e" },
-  { key: "carbs", label: "Carbs", unit: "g", color: "#3b82f6" },
-  { key: "fat", label: "Fat", unit: "g", color: "#f59e0b" },
-  { key: "fiber", label: "Fiber", unit: "g", color: "#84cc16" },
-  { key: "sugar", label: "Sugar", unit: "g", color: "#ec4899" },
-  { key: "sodium", label: "Sodium", unit: "mg", color: "#a78bfa" },
-  { key: "alcohol", label: "Alcohol", unit: "g", color: "#f97316" },
-  { key: "caffeine_mg", label: "Caffeine", unit: "mg", color: "#92400e" },
-];
+import { EditFoodLogDialog } from "./food-log/edit-food-log-dialog";
+import { useFoodLogDay } from "@/hooks/queries";
+import { getErrorMessage } from "@/lib/api";
+import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/meal-types";
 
 interface Props {
-  meals: MealGroup[];
+  /** The currently viewed day (drives its own fetch — decoupled from the today-summary
+   *  totals, since editing/deleting a log entry needs its id, which the aggregate
+   *  summary endpoint doesn't carry). */
+  date: string;
 }
 
-export function MealsLogCard({ meals }: Props) {
-  const sorted = [...meals].sort(
-    (a, b) => mealOrder.indexOf(a.meal_type) - mealOrder.indexOf(b.meal_type)
-  );
-
+export function MealsLogCard({ date }: Props) {
+  const { data, isLoading, isError, error, refetch } = useFoodLogDay(date);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [selectedItem, setSelectedItem] = useState<{ item: MealItem; mealType: string } | null>(null);
+  const [editingEntry, setEditingEntry] = useState<FoodLogDetailEntry | null>(null);
+
+  const groups = useMemo(() => {
+    const entries = data?.entries ?? [];
+    const byMeal = new Map<string, FoodLogDetailEntry[]>();
+    for (const entry of entries) {
+      const list = byMeal.get(entry.meal_type) ?? [];
+      list.push(entry);
+      byMeal.set(entry.meal_type, list);
+    }
+    return MEAL_TYPES.filter((mt) => byMeal.has(mt)).map((mt) => ({
+      meal_type: mt,
+      items: byMeal.get(mt)!,
+    }));
+  }, [data]);
 
   function toggle(mealType: string) {
     setCollapsed((prev) => ({ ...prev, [mealType]: !prev[mealType] }));
@@ -43,13 +40,21 @@ export function MealsLogCard({ meals }: Props) {
 
   return (
     <DashboardCard title="Meals" span="lg:col-span-2">
-      {sorted.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No meals logged today</p>
+      {isError ? (
+        <p className="text-sm text-destructive">{getErrorMessage(error, "Couldn't load meals.")}{" "}
+          <button onClick={() => refetch()} className="underline">Retry</button>
+        </p>
+      ) : isLoading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => <div key={i} className="h-10 rounded-xl bg-muted/40 animate-pulse" />)}
+        </div>
+      ) : groups.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No meals logged for this day yet</p>
       ) : (
         <div className="space-y-2">
-          {sorted.map((group) => {
+          {groups.map((group) => {
             const isCollapsed = collapsed[group.meal_type];
-            const groupKcal = group.items.reduce((sum, item) => sum + (item.kcal || 0), 0);
+            const groupKcal = group.items.reduce((sum, item) => sum + (item.nutrients_consumed.kcal || 0), 0);
             return (
               <div key={group.meal_type}>
                 <button
@@ -64,7 +69,7 @@ export function MealsLogCard({ meals }: Props) {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                     <span className="text-sm font-medium text-foreground/80">
-                      {mealLabels[group.meal_type] || group.meal_type}
+                      {MEAL_TYPE_LABELS[group.meal_type as keyof typeof MEAL_TYPE_LABELS] || group.meal_type}
                     </span>
                     <span className="text-xs text-muted-foreground">{group.items.length} items</span>
                   </div>
@@ -77,10 +82,10 @@ export function MealsLogCard({ meals }: Props) {
                     isCollapsed ? "max-h-0 opacity-0 pb-0" : "max-h-[1000px] opacity-100 pb-2 pt-1"
                   }`}
                 >
-                  {group.items.map((item, i) => (
+                  {group.items.map((item) => (
                     <button
-                      key={i}
-                      onClick={() => setSelectedItem({ item, mealType: group.meal_type })}
+                      key={item.id}
+                      onClick={() => setEditingEntry(item)}
                       className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-all duration-150 border-l-2 border-transparent hover:bg-muted/20 hover:border-primary/20"
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -88,7 +93,7 @@ export function MealsLogCard({ meals }: Props) {
                         <span className="text-xs text-muted-foreground/50 shrink-0">{item.quantity_g}g</span>
                       </div>
                       <span className="tabular-nums text-muted-foreground shrink-0 ml-2">
-                        {item.kcal != null ? `${Math.round(item.kcal)} kcal` : "\u2014"}
+                        {item.nutrients_consumed.kcal != null ? `${Math.round(item.nutrients_consumed.kcal)} kcal` : "—"}
                       </span>
                     </button>
                   ))}
@@ -99,53 +104,7 @@ export function MealsLogCard({ meals }: Props) {
         </div>
       )}
 
-      <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-lg">{selectedItem?.item.food_name}</DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              {selectedItem?.item.quantity_g}g · {mealLabels[selectedItem?.mealType || ""] || selectedItem?.mealType}
-            </p>
-          </DialogHeader>
-          {selectedItem && (
-            <div className="overflow-y-auto flex-1 -mx-1 px-1 thin-scrollbar">
-              <div className="space-y-1.5 py-2">
-                {/* Calories row */}
-                <div className="pill rounded-lg p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#ef4444" }} />
-                      <span className="text-sm text-foreground">Calories</span>
-                    </div>
-                    <span className="text-sm font-semibold tabular-nums text-foreground">
-                      {selectedItem.item.kcal != null ? `${fmt(selectedItem.item.kcal)} kcal` : "\u2014"}
-                    </span>
-                  </div>
-                </div>
-                {/* Nutrient rows */}
-                {NUTRIENT_COLORS.map((n) => {
-                  const val = selectedItem.item[n.key];
-                  if (val == null) return null;
-                  if (typeof val === "number" && val === 0 && (n.key === "alcohol" || n.key === "caffeine_mg")) return null;
-                  return (
-                    <div key={n.key} className="pill rounded-lg p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: n.color }} />
-                          <span className="text-sm text-foreground">{n.label}</span>
-                        </div>
-                        <span className="text-sm font-semibold tabular-nums text-foreground">
-                          {typeof val === "number" ? fmt(val) : val} {n.unit}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <EditFoodLogDialog entry={editingEntry} onClose={() => setEditingEntry(null)} />
     </DashboardCard>
   );
 }

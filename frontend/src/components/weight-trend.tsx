@@ -32,7 +32,8 @@ const COLOR_TICK = "rgba(255,255,255,0.3)";
 
 interface Props {
   weight: WeightDelta;
-  goalKg?: number;
+  /** Null/undefined hides the goal reference line entirely (no goal weight set). */
+  goalKg?: number | null;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -46,7 +47,7 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-export function WeightTrendCard({ weight, bodyComp, goalKg = 78 }: Props & { bodyComp?: { date: string; weight_kg: number }[] }) {
+export function WeightTrendCard({ weight, bodyComp, goalKg = null }: Props & { bodyComp?: { date: string; weight_kg: number }[] }) {
   // Use real body_comp data if available, otherwise try to derive from weight delta
   const realPoints = bodyComp?.filter(d => d.weight_kg != null) ?? [];
 
@@ -74,8 +75,9 @@ export function WeightTrendCard({ weight, bodyComp, goalKg = 78 }: Props & { bod
       })();
 
   const allW = points.map(p => p.weight);
-  const minW = Math.floor(Math.min(...allW, goalKg) - 1);
-  const maxW = Math.ceil(Math.max(...allW, goalKg) + 1);
+  const withGoal = goalKg != null ? [...allW, goalKg] : allW;
+  const minW = Math.floor(Math.min(...withGoal) - 1);
+  const maxW = Math.ceil(Math.max(...withGoal) + 1);
 
   return (
     <DashboardCard title="Weight Trend" span="lg:col-span-1">
@@ -116,13 +118,15 @@ export function WeightTrendCard({ weight, bodyComp, goalKg = 78 }: Props & { bod
             width={35}
           />
           <Tooltip content={<CustomTooltip />} />
-          <ReferenceLine
-            y={goalKg}
-            stroke={COLOR_PRIMARY}
-            strokeDasharray="6 3"
-            strokeWidth={1.5}
-            label={{ value: `${goalKg}kg goal`, fill: COLOR_PRIMARY, fontSize: 10, position: "insideTopRight" }}
-          />
+          {goalKg != null && (
+            <ReferenceLine
+              y={goalKg}
+              stroke={COLOR_PRIMARY}
+              strokeDasharray="6 3"
+              strokeWidth={1.5}
+              label={{ value: `${goalKg}kg goal`, fill: COLOR_PRIMARY, fontSize: 10, position: "insideTopRight" }}
+            />
+          )}
           <Area
             type="monotone"
             dataKey="weight"

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import type {
+  DailyFoodLogResponse,
   FoodDetail,
   FoodsSearchPage,
   Integration,
@@ -11,10 +12,14 @@ import type {
   NutrientSourcesResponse,
   StatsSummary,
   SupplementDefinition,
+  SupplementDefinitionUpdateInput,
+  SupplementIntakeLog,
   TodaySummary,
   UserSettings,
+  WaterLogRow,
   WeekSummary,
   WeightEntry,
+  WeightLogRow,
 } from "@/lib/types";
 
 /**
@@ -33,6 +38,22 @@ export const queryKeys = {
     ["nutrient-sources", nutrient, from, to] as const,
   settings: () => ["settings"] as const,
   integrations: () => ["integrations"] as const,
+
+  // --- CRUD-oriented, id-bearing lists (Phase 5) ---
+  // Prefix-only variants (e.g. foodLogDayAll) are for broad invalidation after
+  // a mutation that may move an entry to a different date.
+  foodLogDayAll: () => ["food-log-day"] as const,
+  foodLogDay: (date: string) => ["food-log-day", date] as const,
+  weightLogListAll: () => ["weight-log-list"] as const,
+  weightLogList: (from?: string, to?: string, source?: string) =>
+    ["weight-log-list", from ?? null, to ?? null, source ?? null] as const,
+  waterLogDayAll: () => ["water-log-day"] as const,
+  waterLogDay: (date: string) => ["water-log-day", date] as const,
+  supplementLogDayAll: () => ["supplement-log-day"] as const,
+  supplementLogDay: (date: string) => ["supplement-log-day", date] as const,
+  todayAll: () => ["summary", "today"] as const,
+  weeklyAll: () => ["summary", "weekly"] as const,
+  statsAll: () => ["stats"] as const,
 };
 
 /* ─────────────────────────── Dashboard summaries ─────────────────────────── */
@@ -65,6 +86,45 @@ export function useWeightLogs(days: number = 90) {
   return useQuery({
     queryKey: queryKeys.weightLogs(days),
     queryFn: () => apiFetch<WeightEntry[]>(`/api/dashboard/weight?days=${days}`),
+  });
+}
+
+/** Full food-log detail (with log ids) for a single day — powers edit/delete in the meals list. */
+export function useFoodLogDay(date: string) {
+  return useQuery({
+    queryKey: queryKeys.foodLogDay(date),
+    queryFn: () => apiFetch<DailyFoodLogResponse>(`/api/agent/log/food?day=${date}`),
+  });
+}
+
+/** Weight/body-comp rows with ids — powers the Body page "Measurements" list. */
+export function useWeightLogList(from?: string, to?: string, source?: string) {
+  return useQuery({
+    queryKey: queryKeys.weightLogList(from, to, source),
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      if (source) params.set("source", source);
+      const qs = params.toString();
+      return apiFetch<WeightLogRow[]>(`/api/agent/log/weight${qs ? `?${qs}` : ""}`);
+    },
+  });
+}
+
+/** Water log rows (with ids) for a single day — powers quick-add entries list on Today. */
+export function useWaterLogDay(date: string) {
+  return useQuery({
+    queryKey: queryKeys.waterLogDay(date),
+    queryFn: () => apiFetch<WaterLogRow[]>(`/api/agent/log/water?day=${date}`),
+  });
+}
+
+/** Supplement intake log rows (with ids) for a single day — powers the actionable checklist. */
+export function useSupplementLogDay(date: string) {
+  return useQuery({
+    queryKey: queryKeys.supplementLogDay(date),
+    queryFn: () => apiFetch<SupplementIntakeLog[]>(`/api/agent/log/supplement?day=${date}`),
   });
 }
 
@@ -172,13 +232,18 @@ export function useCreateSupplement() {
   });
 }
 
+/**
+ * Update a supplement definition. Accepts any subset of fields (name, dose,
+ * unit, timing, active, micronutrients) so it covers both the quick
+ * active/inactive toggle and the full edit form.
+ */
 export function useUpdateSupplement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+    mutationFn: ({ id, ...body }: { id: string } & SupplementDefinitionUpdateInput) =>
       apiFetch<SupplementDefinition>(`/api/v1/supplements/${id}`, {
         method: "PUT",
-        body: JSON.stringify({ active }),
+        body: JSON.stringify(body),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings() });

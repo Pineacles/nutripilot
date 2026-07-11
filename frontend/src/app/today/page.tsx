@@ -6,33 +6,18 @@ import { useTodaySummary, useSettings } from "@/hooks/queries";
 import { getErrorMessage } from "@/lib/api";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { ErrorState } from "@/components/ui/error-state";
+import { Button } from "@/components/ui/button";
 import { CalorieRingCard } from "@/components/macro-ring";
 import { MacroBreakdownCard } from "@/components/macro-breakdown";
 import { QuickStatsCard } from "@/components/quick-stats";
 import { MealsLogCard } from "@/components/meals-list";
 import { SupplementsCard } from "@/components/supplement-checklist";
-
-function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function addDays(dateStr: string, n: number): string {
-  const parts = dateStr.split("-").map(Number);
-  const d = new Date(parts[0], parts[1] - 1, parts[2]);
-  d.setDate(d.getDate() + n);
-  return toDateStr(d);
-}
-
-function parseLocal(dateStr: string): Date {
-  const parts = dateStr.split("-").map(Number);
-  return new Date(parts[0], parts[1] - 1, parts[2]);
-}
+import { HydrationCard } from "@/components/hydration-card";
+import { AddFoodDialog } from "@/components/food-log/add-food-dialog";
+import { todayStr, addDays, parseLocal } from "@/lib/dates";
 
 function formatDisplay(dateStr: string): string {
-  const today = toDateStr(new Date());
+  const today = todayStr();
   const yesterday = addDays(today, -1);
   if (dateStr === today) return "Today";
   if (dateStr === yesterday) return "Yesterday";
@@ -50,16 +35,15 @@ export default function TodayPage() {
 function TodayPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const todayStr = toDateStr(new Date());
-  const [selectedDate, setSelectedDate] = useState(searchParams.get("date") || todayStr);
+  const todayDateStr = todayStr();
+  const [selectedDate, setSelectedDate] = useState(searchParams.get("date") || todayDateStr);
 
   const { data, isLoading, isError, error, refetch } = useTodaySummary(selectedDate);
   const { data: settings } = useSettings();
+  const [addFoodOpen, setAddFoodOpen] = useState(false);
 
-  const hasMeals = data && data.meals.length > 0;
-  const hasSupplements = data && data.supplements.length > 0;
-  const isToday = selectedDate === todayStr;
-  const isFuture = selectedDate > todayStr;
+  const isToday = selectedDate === todayDateStr;
+  const isFuture = selectedDate > todayDateStr;
 
   function goToDate(dateStr: string) {
     setSelectedDate(dateStr);
@@ -69,7 +53,7 @@ function TodayPageInner() {
   return (
     <DashboardLayout title="Daily Overview">
       {/* Date navigation */}
-      <div className="flex items-center justify-between -mt-4 mb-4">
+      <div className="flex items-center justify-between -mt-4 mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <button
             onClick={() => goToDate(addDays(selectedDate, -1))}
@@ -107,20 +91,25 @@ function TodayPageInner() {
           <input
             type="date"
             value={selectedDate}
-            max={todayStr}
+            max={todayDateStr}
             onChange={(e) => e.target.value && goToDate(e.target.value)}
             className="bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           {!isToday && (
             <button
-              onClick={() => goToDate(todayStr)}
+              onClick={() => goToDate(todayDateStr)}
               className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
             >
               Today
             </button>
           )}
+          <Button onClick={() => setAddFoodOpen(true)} size="lg">
+            + Log food
+          </Button>
         </div>
       </div>
+
+      <AddFoodDialog open={addFoodOpen} onOpenChange={setAddFoodOpen} defaultDate={selectedDate} />
 
       {isError ? (
         <ErrorState message={getErrorMessage(error, "Couldn't load today's summary.")} onRetry={() => refetch()} />
@@ -143,22 +132,15 @@ function TodayPageInner() {
           <MacroBreakdownCard totals={data.totals} targets={data.targets} dateRange={{ from: data.date, to: data.date }} />
           <QuickStatsCard data={data} />
 
-          {hasMeals && <MealsLogCard meals={data.meals} />}
+          <MealsLogCard date={selectedDate} />
 
-          {hasSupplements && (
-            <SupplementsCard
-              supplements={data.supplements}
-              definitions={settings?.supplement_definitions}
-              microTargets={settings?.micronutrient_targets}
-            />
-          )}
+          <SupplementsCard
+            date={selectedDate}
+            definitions={settings?.supplement_definitions}
+            microTargets={settings?.micronutrient_targets}
+          />
 
-          {/* Empty state */}
-          {!hasMeals && !hasSupplements && (
-            <div className="clay-card p-8 text-center lg:col-span-3">
-              <p className="text-muted-foreground text-sm">Nothing logged yet today. Your agent will populate this.</p>
-            </div>
-          )}
+          <HydrationCard water={data.water} caffeine={data.caffeine} date={selectedDate} />
         </div>
       )}
     </DashboardLayout>

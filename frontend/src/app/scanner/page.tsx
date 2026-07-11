@@ -1,14 +1,20 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useBarcodeLookup } from "@/hooks/queries";
-import { ApiError } from "@/lib/api";
-import type { FoodDetail } from "@/lib/types";
+import { useLogFoodByBarcode } from "@/hooks/mutations/food-log";
+import { ApiError, getErrorMessage } from "@/lib/api";
+import { FOOD_LOG_BOUNDS, validateBounds } from "@/lib/validation";
+import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/meal-types";
+import { todayStr } from "@/lib/dates";
+import type { FoodDetail, MealType } from "@/lib/types";
 import Link from "next/link";
 
 type ErrorType = "not-found" | "network" | "camera" | null;
@@ -24,13 +30,26 @@ export default function ScannerPage() {
   const [flashGreen, setFlashGreen] = useState(false);
 
   const barcodeLookup = useBarcodeLookup();
+  const logByBarcode = useLogFoodByBarcode();
   const loading = barcodeLookup.isPending;
+
+  // "Log this" quantity step, shown once a result comes back.
+  const [logMode, setLogMode] = useState<"grams" | "servings">("grams");
+  const [logQuantity, setLogQuantity] = useState("100");
+  const [logMealType, setLogMealType] = useState<MealType>("snack");
+  const [logDate, setLogDate] = useState(todayStr());
+  const [justLogged, setJustLogged] = useState(false);
 
   function clearState() {
     setResult(null);
     setError("");
     setErrorType(null);
     setScannedCode("");
+    setJustLogged(false);
+    setLogQuantity("100");
+    setLogMode("grams");
+    setLogMealType("snack");
+    setLogDate(todayStr());
   }
 
   async function lookupBarcodeByCode(code: string) {
@@ -41,6 +60,8 @@ export default function ScannerPage() {
     try {
       const data = await barcodeLookup.mutateAsync(code);
       setResult(data);
+      setJustLogged(false);
+      setLogMode(data.serving_size_g ? "servings" : "grams");
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 404) {
         setError(`Barcode ${code} not found in our database`);
@@ -378,6 +399,88 @@ export default function ScannerPage() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No nutrient data available</p>
+              )}
+
+              {/* Log this */}
+              <Separator className="my-1" />
+              {justLogged ? (
+                <div className="pill pill-green p-3 flex items-center justify-between gap-3">
+                  <p className="text-sm text-foreground">Logged {result.name}</p>
+                  <Link href={`/today?date=${logDate}`}>
+                    <Button variant="secondary" size="sm" className="text-xs shrink-0">View Today</Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {result.serving_size_g && (
+                    <div className="flex gap-1.5">
+                      {(["grams", "servings"] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setLogMode(m)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            logMode === m ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {m === "grams" ? "Grams" : "Servings"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">{logMode === "grams" ? "Grams" : "Servings"}</Label>
+                      <Input
+                        type="number"
+                        value={logQuantity}
+                        onChange={(e) => setLogQuantity(e.target.value)}
+                        min={logMode === "grams" ? FOOD_LOG_BOUNDS.quantity_g.min : FOOD_LOG_BOUNDS.servings.min}
+                        className="tabular-nums h-8"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Meal</Label>
+                      <select
+                        value={logMealType}
+                        onChange={(e) => setLogMealType(e.target.value as MealType)}
+                        className="h-8 w-full rounded-lg border border-input bg-transparent px-2 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                      >
+                        {MEAL_TYPES.map((mt) => (
+                          <option key={mt} value={mt} className="bg-card">{MEAL_TYPE_LABELS[mt]}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Date</Label>
+                      <Input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} className="tabular-nums h-8" />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      const bounds = logMode === "grams" ? FOOD_LOG_BOUNDS.quantity_g : FOOD_LOG_BOUNDS.servings;
+                      const err = validateBounds(Number(logQuantity), bounds);
+                      if (err) { toast.error(err); return; }
+                      logByBarcode.mutate(
+                        {
+                          barcode: result.barcode || scannedCode,
+                          ...(logMode === "grams" ? { quantity_g: Number(logQuantity) } : { servings: Number(logQuantity) }),
+                          meal_type: logMealType,
+                          date: logDate,
+                        },
+                        {
+                          onSuccess: () => { toast.success(`Logged ${result.name}`); setJustLogged(true); },
+                          onError: (err2) => toast.error(getErrorMessage(err2, "Couldn't log this food.")),
+                        }
+                      );
+                    }}
+                    disabled={logByBarcode.isPending}
+                    size="lg"
+                    className="w-full"
+                  >
+                    {logByBarcode.isPending ? "Logging..." : "Log this"}
+                  </Button>
+                </div>
               )}
 
               {/* Action buttons */}

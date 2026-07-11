@@ -27,10 +27,14 @@ import {
   useRegenerateApiKey,
 } from "@/hooks/queries";
 import { getErrorMessage } from "@/lib/api";
-import { NUTRITION_TARGET_BOUNDS, validateBounds } from "@/lib/validation";
+import { NUTRITION_TARGET_BOUNDS, GOAL_BOUNDS, validateBounds } from "@/lib/validation";
+import { DOSE_UNITS, TIMINGS } from "@/lib/supplement-constants";
+import { EditSupplementDialog } from "@/components/settings/edit-supplement-dialog";
+import { IntegrationsPanel } from "@/components/settings/integrations-panel";
 import type {
   NutritionTargets,
   MicronutrientTargetItem,
+  SupplementDefinition,
 } from "@/lib/types";
 
 const DEFAULT_MICRO_TARGETS: MicronutrientTargetItem[] = [
@@ -53,7 +57,14 @@ const DEFAULT_NUTRITION_TARGETS: NutritionTargets = {
   target_alcohol_g: 0,
   target_water_ml: 2500,
   target_caffeine_mg: 400,
+  target_weight_kg: null,
+  target_body_fat_pct: null,
+  timezone: null,
 };
+
+const TIMEZONES: string[] = typeof Intl !== "undefined" && "supportedValuesOf" in Intl
+  ? (Intl as unknown as { supportedValuesOf: (key: string) => string[] }).supportedValuesOf("timeZone")
+  : [];
 
 const MICRO_LABELS: Record<string, string> = {
   vitamin_d: "Vitamin D",
@@ -69,34 +80,6 @@ const MICRO_LABELS: Record<string, string> = {
   potassium: "Potassium",
 };
 
-const DOSE_UNITS = ["mg", "µg", "g", "IU", "ml"];
-const TIMINGS = ["morning", "afternoon", "evening", "with meal"];
-
-function cronToHuman(cron: string): string {
-  const parts = cron.split(" ");
-  if (parts.length < 5) return cron;
-  const [min, hour, dom, mon, dow] = parts;
-  if (dom === "*" && mon === "*" && dow === "*") {
-    return `Daily at ${hour.padStart(2, "0")}:${min.padStart(2, "0")}`;
-  }
-  if (dom === "*" && mon === "*") {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return `${days[Number(dow)] || dow} at ${hour.padStart(2, "0")}:${min.padStart(2, "0")}`;
-  }
-  return cron;
-}
-
-function timeAgo(dateStr: string | null): string {
-  if (!dateStr) return "Never";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 export default function SettingsPage() {
   const { data: settings, isLoading: loading, isError, error, refetch } = useSettings();
@@ -131,6 +114,7 @@ export default function SettingsPage() {
   const apiKeyMasked = settings?.api_key_masked ?? "";
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingSupp, setEditingSupp] = useState<SupplementDefinition | null>(null);
 
   // Add supplement form
   const [newSupp, setNewSupp] = useState({
@@ -158,13 +142,16 @@ export default function SettingsPage() {
 
   const nutritionErrors = useMemo(() => {
     const errs: Partial<Record<keyof NutritionTargets, string>> = {};
-    for (const key of Object.keys(NUTRITION_TARGET_BOUNDS) as (keyof NutritionTargets)[]) {
+    for (const key of Object.keys(NUTRITION_TARGET_BOUNDS) as (keyof typeof NUTRITION_TARGET_BOUNDS)[]) {
       const msg = validateBounds(nutrition[key], NUTRITION_TARGET_BOUNDS[key]);
       if (msg) errs[key] = msg;
     }
     return errs;
   }, [nutrition]);
-  const hasNutritionErrors = Object.keys(nutritionErrors).length > 0;
+  const goalWeightError = nutrition.target_weight_kg == null ? null : validateBounds(nutrition.target_weight_kg, GOAL_BOUNDS.target_weight_kg);
+  const goalBfError = nutrition.target_body_fat_pct == null ? null : validateBounds(nutrition.target_body_fat_pct, GOAL_BOUNDS.target_body_fat_pct);
+  const tzError = nutrition.timezone && !TIMEZONES.includes(nutrition.timezone) ? "Not a recognized IANA timezone" : null;
+  const hasNutritionErrors = Object.keys(nutritionErrors).length > 0 || !!goalWeightError || !!goalBfError || !!tzError;
 
   // --- Handlers ---
 
@@ -301,6 +288,51 @@ export default function SettingsPage() {
                 </div>
               );
             })}
+
+            <Separator className="my-1" />
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Goals (optional)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Goal weight (kg)</Label>
+                <Input
+                  type="number"
+                  value={nutrition.target_weight_kg ?? ""}
+                  onChange={(e) => setNutrition((prev) => ({ ...prev, target_weight_kg: e.target.value === "" ? null : Number(e.target.value) }))}
+                  aria-invalid={!!goalWeightError}
+                  placeholder="no goal"
+                  className="tabular-nums"
+                />
+                {goalWeightError && <p className="text-[11px] text-destructive">{goalWeightError}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Goal body fat (%)</Label>
+                <Input
+                  type="number"
+                  value={nutrition.target_body_fat_pct ?? ""}
+                  onChange={(e) => setNutrition((prev) => ({ ...prev, target_body_fat_pct: e.target.value === "" ? null : Number(e.target.value) }))}
+                  aria-invalid={!!goalBfError}
+                  placeholder="no goal"
+                  className="tabular-nums"
+                />
+                {goalBfError && <p className="text-[11px] text-destructive">{goalBfError}</p>}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Timezone</Label>
+              <Input
+                list="tz-options"
+                value={nutrition.timezone ?? ""}
+                onChange={(e) => setNutrition((prev) => ({ ...prev, timezone: e.target.value || null }))}
+                aria-invalid={!!tzError}
+                placeholder="e.g. Europe/Zurich"
+              />
+              <datalist id="tz-options">
+                {TIMEZONES.map((tz) => <option key={tz} value={tz} />)}
+              </datalist>
+              {tzError && <p className="text-[11px] text-destructive">{tzError}</p>}
+              <p className="text-[10px] text-muted-foreground/60">Used for day boundaries (when &quot;today&quot; rolls over).</p>
+            </div>
+
             <Button
               onClick={saveNutritionTargets}
               disabled={updateNutritionTargets.isPending || hasNutritionErrors}
@@ -353,6 +385,12 @@ export default function SettingsPage() {
                     )}
                   </div>
                 </div>
+                <button
+                  onClick={() => setEditingSupp(s)}
+                  className="text-muted-foreground/40 hover:text-foreground transition-colors text-xs px-1"
+                >
+                  Edit
+                </button>
                 <button
                   onClick={() => deleteSupplement(s.id)}
                   className="text-muted-foreground/40 hover:text-destructive transition-colors"
@@ -455,6 +493,7 @@ export default function SettingsPage() {
               </div>
             </DialogContent>
           </Dialog>
+          <EditSupplementDialog supplement={editingSupp} onClose={() => setEditingSupp(null)} />
         </div>
 
         {/* Section 3: Micronutrient Targets */}
@@ -561,33 +600,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Section 5: Connected Integrations */}
-        <div className="clay-card p-5 md:col-span-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Connected Integrations</h3>
-          {integrations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No integrations connected. An AI agent can set these up for you.</p>
-          ) : (
-            <div className="space-y-2">
-              {integrations.map((integration) => (
-                <div key={integration.id} className="pill rounded-xl p-4 flex items-center justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">{integration.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{integration.source_url}</p>
-                  </div>
-                  <div className="text-right shrink-0 space-y-0.5">
-                    <div className="flex items-center gap-2 justify-end">
-                      <span className="text-[10px] text-muted-foreground">{cronToHuman(integration.schedule)}</span>
-                      <Badge variant={integration.status === "active" ? "default" : integration.status === "paused" ? "secondary" : "destructive"}
-                        className="text-[10px]">
-                        {integration.status}
-                      </Badge>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">Synced: {timeAgo(integration.last_synced_at)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <IntegrationsPanel integrations={integrations} />
       </div>
     </DashboardLayout>
   );

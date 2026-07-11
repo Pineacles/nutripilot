@@ -1,40 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ErrorState } from "@/components/ui/error-state";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useFoodsSearch, useFoodDetail } from "@/hooks/queries";
-import { getErrorMessage } from "@/lib/api";
-
-const NUTRIENT_LABELS: Record<string, { label: string; unit: string }> = {
-  kcal: { label: "Calories", unit: "kcal" },
-  protein: { label: "Protein", unit: "g" },
-  carbs: { label: "Carbs", unit: "g" },
-  fat: { label: "Fat", unit: "g" },
-  fiber: { label: "Fiber", unit: "g" },
-  sugar: { label: "Sugar", unit: "g" },
-  sat_fat: { label: "Sat. Fat", unit: "g" },
-  salt: { label: "Salt", unit: "g" },
-  calcium: { label: "Calcium", unit: "mg" },
-  potassium: { label: "Potassium", unit: "mg" },
-  iron: { label: "Iron", unit: "mg" },
-  zinc: { label: "Zinc", unit: "mg" },
-  magnesium: { label: "Magnesium", unit: "mg" },
-  vit_d: { label: "Vitamin D", unit: "µg" },
-  vit_c: { label: "Vitamin C", unit: "mg" },
-  vit_k2: { label: "Vitamin K2", unit: "µg" },
-  b12: { label: "Vitamin B12", unit: "µg" },
-  omega3: { label: "Omega-3", unit: "mg" },
-};
+import { useDeleteFood, useCloneFood } from "@/hooks/mutations/foods";
+import { FoodForm } from "@/components/foods/food-form";
+import { getErrorMessage, ApiError } from "@/lib/api";
+import { NUTRIENT_LABELS } from "@/lib/nutrient-labels";
+import type { FoodDetail } from "@/lib/types";
 
 export default function FoodsPage() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [formInitial, setFormInitial] = useState<FoodDetail | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // Debounce the search box so we don't hit the API on every keystroke.
   useEffect(() => {
@@ -51,10 +46,61 @@ export default function FoodsPage() {
   } = useFoodsSearch(debouncedQuery, page, 20);
 
   const { data: detail } = useFoodDetail(selectedId);
+  const deleteFood = useDeleteFood();
+  const cloneFood = useCloneFood();
 
   function selectFood(id: string | null) {
     if (!id) return;
+    setConfirmingDelete(false);
     setSelectedId((prev) => (prev === id ? null : id));
+  }
+
+  function openCreate() {
+    setFormMode("create");
+    setFormInitial(null);
+    setFormOpen(true);
+  }
+
+  function openEdit(food: FoodDetail) {
+    setFormMode("edit");
+    setFormInitial(food);
+    setFormOpen(true);
+  }
+
+  function handleFormSuccess(food: FoodDetail) {
+    setFormOpen(false);
+    setSelectedId(food.id);
+  }
+
+  function handleDelete(id: string) {
+    deleteFood.mutate(id, {
+      onSuccess: () => {
+        toast.success("Food deleted");
+        setSelectedId(null);
+        setConfirmingDelete(false);
+      },
+      onError: (err) => {
+        if (err instanceof ApiError && err.status === 409) {
+          toast.error("Can't delete — this food is used in logs");
+        } else {
+          toast.error(getErrorMessage(err, "Couldn't delete food."));
+        }
+        setConfirmingDelete(false);
+      },
+    });
+  }
+
+  function handleClone(food: FoodDetail) {
+    cloneFood.mutate(
+      { id: food.id },
+      {
+        onSuccess: (cloned) => {
+          toast.success("Cloned — now editable");
+          setSelectedId(cloned.id);
+          openEdit(cloned);
+        },
+      }
+    );
   }
 
   return (
@@ -62,7 +108,10 @@ export default function FoodsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Food list (2 cols) */}
         <div className="clay-card p-5 lg:col-span-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Foods</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Foods</h3>
+            <Button onClick={openCreate} size="sm">+ Add food</Button>
+          </div>
           <div className="mb-3">
             <Input
               type="text"
@@ -162,9 +211,17 @@ export default function FoodsPage() {
             </div>
           ) : (
             <div>
-              <h4 className="text-base font-semibold text-foreground mb-1">{detail.name}</h4>
+              <div className="flex items-center gap-2 mb-1">
+                <h4 className="text-base font-semibold text-foreground">{detail.name}</h4>
+                {detail.is_mine && <Badge className="text-[10px]">My food</Badge>}
+              </div>
               {detail.barcode && (
                 <p className="text-xs text-muted-foreground mb-3 font-mono">{detail.barcode}</p>
+              )}
+              {detail.serving_size_g && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  {detail.serving_label || "1 serving"} = {detail.serving_size_g}g
+                </p>
               )}
               {detail.nutrients ? (
                 <div className="space-y-2">
@@ -188,10 +245,49 @@ export default function FoodsPage() {
               ) : (
                 <p className="text-sm text-muted-foreground">No nutrient data available</p>
               )}
+
+              <Separator className="my-3" />
+              {detail.editable ? (
+                !confirmingDelete ? (
+                  <div className="flex gap-2">
+                    <Button onClick={() => openEdit(detail)} variant="outline" size="sm" className="flex-1">Edit</Button>
+                    <Button onClick={() => setConfirmingDelete(true)} variant="destructive" size="sm" className="flex-1">Delete</Button>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                    <p className="text-xs text-destructive/80">Delete this food permanently?</p>
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleDelete(detail.id)} disabled={deleteFood.isPending} variant="destructive" size="sm" className="flex-1">
+                        {deleteFood.isPending ? "Deleting..." : "Confirm"}
+                      </Button>
+                      <Button onClick={() => setConfirmingDelete(false)} variant="outline" size="sm" className="flex-1">Cancel</Button>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <Button onClick={() => handleClone(detail)} disabled={cloneFood.isPending} variant="outline" size="sm" className="w-full">
+                  {cloneFood.isPending ? "Cloning..." : "Clone & customize"}
+                </Button>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{formMode === "edit" ? "Edit food" : "Add food"}</DialogTitle>
+          </DialogHeader>
+          <FoodForm
+            key={formInitial?.id ?? "new"}
+            mode={formMode}
+            initial={formInitial}
+            onSuccess={handleFormSuccess}
+            onCancel={() => setFormOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
