@@ -70,6 +70,28 @@
   --sidebar: #111113;
   --success: #4ade80;
   --warning: #f9c74f;
+
+  /* Recharts theme tokens (statistics + body pages) — same hex values the
+     charts used to hardcode, now themeable from one place. See lib/chart-theme.ts. */
+  --chart-grid-subtle: rgba(255, 255, 255, 0.06);
+  --chart-grid-solid: #2a2a30;
+  --chart-tick-x: #888888;
+  --chart-tick-y: #aaaaaa;
+  --chart-tooltip-bg: #1e1e22;
+  --chart-tooltip-border: rgba(255, 255, 255, 0.1);
+  --chart-tooltip-fg: #e8e8e8;
+  --chart-green: #22c55e;
+  --chart-green-light: #4ade80;
+  --chart-blue: #4f9cf9;
+  --chart-amber: #f9c74f;
+  --chart-red: #f94f4f;
+  --chart-purple: #a78bfa;
+  --chart-pink: #ec4899;
+  --chart-cyan: #06b6d4;
+  --chart-orange: #f97316;
+  --chart-teal: #14b8a6;
+  --chart-caffeine: #92400e;
+  --chart-caffeine-dark: #b45309;
 }
 
 @layer base {

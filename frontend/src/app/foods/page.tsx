@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -131,7 +132,7 @@ export default function FoodsPage() {
               ))}
             </div>
           ) : !data || data.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">No foods found</p>
+            <EmptyState message="No foods found" actionLabel="+ Add food" onAction={openCreate} />
           ) : (
             <>
               <div className="space-y-1">

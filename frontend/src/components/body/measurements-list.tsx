@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useWeightLogList } from "@/hooks/queries";
 import { useDeleteWeightLog } from "@/hooks/mutations/weight";
 import { MeasurementDialog } from "./measurement-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getErrorMessage } from "@/lib/api";
 import { fmt } from "@/lib/utils";
 import type { WeightLogRow } from "@/lib/types";
@@ -44,7 +45,7 @@ export function MeasurementsList() {
           {[1, 2, 3].map((i) => <div key={i} className="h-10 rounded-lg bg-muted/40 animate-pulse" />)}
         </div>
       ) : recent.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4">No measurements logged yet</p>
+        <EmptyState message="No measurements logged yet" actionLabel="+ Add measurement" onAction={() => setAddOpen(true)} />
       ) : (
         <div className="space-y-1 max-h-[360px] overflow-y-auto thin-scrollbar">
           {recent.map((entry) => (

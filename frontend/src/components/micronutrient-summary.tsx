@@ -66,7 +66,7 @@ export function MicronutrientSummaryCard({ microAvg, microTargets = [], dateRang
           const target = userTarget?.target_value ?? n.defaultTarget;
           const unit = userTarget?.unit ?? n.defaultUnit;
           const displayVal = value != null ? Math.round(value * 10) / 10 : "\u2014";
-          const pct = value != null ? Math.min((value / target) * 100, 100) : 0;
+          const pct = value != null && target > 0 ? Math.min((value / target) * 100, 100) : 0;
           const pctRounded = Math.round(pct);
 
           return (

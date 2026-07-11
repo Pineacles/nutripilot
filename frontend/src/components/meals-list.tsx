@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { FoodLogDetailEntry } from "@/lib/types";
 import { DashboardCard } from "./dashboard-card";
 import { EditFoodLogDialog } from "./food-log/edit-food-log-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useFoodLogDay } from "@/hooks/queries";
 import { getErrorMessage } from "@/lib/api";
 import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/meal-types";
@@ -49,7 +50,7 @@ export function MealsLogCard({ date }: Props) {
           {[1, 2].map((i) => <div key={i} className="h-10 rounded-xl bg-muted/40 animate-pulse" />)}
         </div>
       ) : groups.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No meals logged for this day yet</p>
+        <EmptyState message="No meals logged for this day yet" className="py-2" />
       ) : (
         <div className="space-y-2">
           {groups.map((group) => {

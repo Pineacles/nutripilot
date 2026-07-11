@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSyncIntegration, useUpdateIntegration, useDeleteIntegration } from "@/hooks/mutations/integrations";
 import { AddIntegrationDialog } from "./add-integration-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cronToHuman, timeAgo } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api";
 import type { Integration } from "@/lib/types";
@@ -85,7 +86,7 @@ export function IntegrationsPanel({ integrations }: Props) {
         <Button onClick={() => setAddOpen(true)} size="sm">+ Add integration</Button>
       </div>
       {integrations.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No integrations connected yet.</p>
+        <EmptyState message="No integrations connected yet." actionLabel="+ Add integration" onAction={() => setAddOpen(true)} />
       ) : (
         <div className="space-y-2">
           {integrations.map((integration) => (

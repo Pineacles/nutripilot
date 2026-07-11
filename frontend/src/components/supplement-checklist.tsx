@@ -43,7 +43,7 @@ export function SupplementsCard({ date, definitions = [], microTargets = [] }: P
     return Object.entries(def.micronutrients).map(([key, value]) => {
       const target = microTargets.find((t) => t.nutrient === key);
       const label = MICRO_LABELS[key] || key;
-      const pct = target ? Math.round((value / target.target_value) * 100) : null;
+      const pct = target && target.target_value > 0 ? Math.round((value / target.target_value) * 100) : null;
       const unit = target?.unit || "";
       return { label, value, unit, pct };
     });

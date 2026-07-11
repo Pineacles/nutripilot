@@ -28,7 +28,7 @@ export function MacroAveragesCard({ dailyAvg, targets }: Props) {
     <DashboardCard title="Weekly Macro Averages">
       <div className="space-y-3">
         {macros.map((m) => {
-          const pct = Math.min((m.value / m.target) * 100, 100);
+          const pct = m.target > 0 ? Math.min((m.value / m.target) * 100, 100) : 0;
           return (
             <div key={m.label} className={`${m.pill} py-3 px-4 rounded-xl`}>
               <div className="flex items-baseline justify-between mb-1.5">

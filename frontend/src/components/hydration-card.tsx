@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { fmt } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useWaterLogDay } from "@/hooks/queries";
 import { useLogWater, useUpdateWaterLog, useDeleteWaterLog } from "@/hooks/mutations/water";
 import { WATER_LOG_BOUNDS, validateBounds } from "@/lib/validation";
@@ -186,7 +187,7 @@ export function HydrationCard({ water, caffeine, date }: Props) {
               <button onClick={() => refetch()} className="underline">Retry</button>
             </p>
           ) : entries.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">No water logged for this day yet</p>
+            <EmptyState message="No water logged for this day yet" className="py-2" />
           ) : (
             <div className="max-h-[50vh] overflow-y-auto thin-scrollbar divide-y divide-border">
               {entries.map((entry) => <WaterEntryRow key={entry.id} entry={entry} />)}
