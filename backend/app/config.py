@@ -2,6 +2,7 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 _DEV_JWT_SECRET = "dev-secret-change-in-production"
+_DEV_CORS_ORIGINS = "http://localhost:3000"
 
 
 class Settings(BaseSettings):
@@ -13,8 +14,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
-    api_key: str = "dev-api-key-change-in-production"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = _DEV_CORS_ORIGINS
     usda_api_key: str = ""
     # withings_client_id and withings_client_secret were removed:
     # credentials are stored per-integration in the Integration.field_mapping column.
@@ -28,6 +28,11 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "JWT_SECRET must not be the development default in production. "
                     "Generate one with: openssl rand -hex 32"
+                )
+            if self.cors_origins == _DEV_CORS_ORIGINS:
+                raise ValueError(
+                    "CORS_ORIGINS must not be the development default (http://localhost:3000) "
+                    "in production. Set it to your real frontend origin(s)."
                 )
         return self
 

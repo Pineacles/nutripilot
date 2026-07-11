@@ -57,7 +57,7 @@ The dashboard (`/api/dashboard/*`) is read-only analytics consumed by the fronte
 
 | Endpoint prefix | Method | Header |
 |---|---|---|
-| `/api/agent/*`, `/api/foods/*` | API Key | `X-API-Key: <key>` |
+| `/api/agent/*`, `/api/foods/*` | JWT Bearer OR X-API-Key | `Authorization: Bearer <token>` or `X-API-Key: <key>` |
 | `/api/dashboard/*`, `/api/v1/*` | JWT Bearer | `Authorization: Bearer <token>` |
 
 Get a JWT via `POST /api/auth/login` (email + password). Refresh via `POST /api/auth/refresh`.

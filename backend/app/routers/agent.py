@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user_api_key
+from app.auth.dependencies import get_current_user_jwt_or_api_key
 from app.database import get_db
 from app.models.caffeine_log import CaffeineLog
 from app.models.food_log import FoodLog
@@ -22,6 +22,7 @@ from app.schemas.integration import (
     IntegrationResponse,
     IntegrationUpdate,
     REDACTED_SENTINEL,
+    _validate_field_mapping,
 )
 from app.schemas.settings import (
     MicronutrientTargetItem,
@@ -40,8 +41,28 @@ from app.schemas.water_log import WaterLogCreate, WaterLogResponse, WaterLogUpda
 from app.schemas.weight_log import WeightLogCreate, WeightLogResponse, WeightLogUpdate
 from app.services import barcode_service, food_service, logging_service, summary_service
 from app.services.nutrient_sources import get_nutrient_sources
+from app.services.url_guard import UnsafeURLError, assert_public_http_url
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
+
+
+async def _validate_integration_urls(source_url: str | None, field_mapping: dict | None) -> None:
+    """SSRF guard for integration source_url and field_mapping.token_url.
+
+    Raises HTTPException(422) with a clear detail if either URL resolves to
+    a non-public address.
+    """
+    if source_url:
+        try:
+            await assert_public_http_url(source_url, field="source_url")
+        except UnsafeURLError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+    token_url = (field_mapping or {}).get("token_url")
+    if token_url:
+        try:
+            await assert_public_http_url(token_url, field="field_mapping.token_url")
+        except UnsafeURLError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
 
 
 def _resolve_quantity(quantity_g, servings, serving_size_g) -> float:
@@ -73,7 +94,7 @@ def _resolve_quantity(quantity_g, servings, serving_size_g) -> float:
 async def log_food(
     body: FoodLogCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     food = await food_service.get_food_by_id(db, body.food_id)
     if food is None:
@@ -117,7 +138,7 @@ async def log_food(
 async def log_food_by_barcode(
     body: FoodLogByBarcodeCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     food = await barcode_service.lookup_barcode(db, body.barcode)
     if food is None:
@@ -163,7 +184,7 @@ async def log_food_by_barcode(
 async def log_food_by_name(
     body: FoodLogByNameCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     results = await food_service.search_foods(db, body.food_name, limit=1)
     if not results:
@@ -219,7 +240,7 @@ async def log_food_by_name(
 async def log_supplement(
     body: SupplementCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     entry = await logging_service.log_supplement(
         db, user.id, body.name, body.dose_amount, body.dose_unit, body.time_of_day, body.date
@@ -249,7 +270,7 @@ async def list_weight_logs(
     from_date: date | None = Query(None, alias="from"),
     to_date: date | None = Query(None, alias="to"),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     stmt = select(WeightLog).where(WeightLog.user_id == user.id)
     if source:
@@ -279,7 +300,7 @@ async def list_weight_logs(
 async def list_food_logs(
     day: date | None = Query(None, description="Date to get logs for (default: today)"),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     from sqlalchemy.orm import joinedload as jl
     from app.models.food import Food
@@ -370,7 +391,7 @@ async def list_food_logs(
 async def log_weight(
     body: WeightLogCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     entry = await logging_service.log_weight(
         db, user.id, body.weight_kg, body.body_fat_pct, body.muscle_mass_pct,
@@ -406,7 +427,7 @@ async def log_weight(
 )
 async def summary_today(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     return await summary_service.get_today_summary(db, user)
 
@@ -427,7 +448,7 @@ async def summary_today(
 )
 async def summary_week(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     return await summary_service.get_week_summary(db, user)
 
@@ -449,7 +470,7 @@ async def summary_week(
 )
 async def agent_get_settings(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(
         select(MicronutrientTarget).where(MicronutrientTarget.user_id == user.id)
@@ -496,7 +517,7 @@ async def agent_get_settings(
 async def agent_update_nutrition_targets(
     body: NutritionTargetsUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     user.target_kcal = body.target_kcal
     user.target_protein_g = body.target_protein_g
@@ -538,7 +559,7 @@ async def agent_update_nutrition_targets(
 async def agent_update_micronutrient_targets(
     body: MicronutrientTargetsUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     await db.execute(
         delete(MicronutrientTarget).where(MicronutrientTarget.user_id == user.id)
@@ -567,7 +588,7 @@ async def agent_update_micronutrient_targets(
 )
 async def agent_list_supplements(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(
         select(SupplementDefinition).where(SupplementDefinition.user_id == user.id)
@@ -591,7 +612,7 @@ async def agent_list_supplements(
 async def agent_create_supplement(
     body: SupplementDefinitionCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     supp = SupplementDefinition(
         user_id=user.id, name=body.name, dose_amount=body.dose_amount,
@@ -613,7 +634,7 @@ async def agent_update_supplement(
     supp_id: UUID,
     body: SupplementDefinitionUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(
         select(SupplementDefinition).where(
@@ -639,7 +660,7 @@ async def agent_update_supplement(
 async def agent_delete_supplement(
     supp_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(
         select(SupplementDefinition).where(
@@ -665,7 +686,7 @@ async def update_food_log(
     log_id: UUID,
     body: FoodLogUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(FoodLog).where(FoodLog.id == log_id, FoodLog.user_id == user.id))
     log = result.scalar_one_or_none()
@@ -699,7 +720,7 @@ async def update_food_log(
 async def delete_food_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(FoodLog).where(FoodLog.id == log_id, FoodLog.user_id == user.id))
     log = result.scalar_one_or_none()
@@ -721,13 +742,22 @@ async def update_weight_log(
     log_id: UUID,
     body: WeightLogUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(WeightLog).where(WeightLog.id == log_id, WeightLog.user_id == user.id))
     log = result.scalar_one_or_none()
     if not log:
         raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
-    for field, value in body.model_dump(exclude_unset=True).items():
+    updates = body.model_dump(exclude_unset=True)
+    new_date = updates.pop("log_date", None)
+    if new_date is not None:
+        if log.source != "manual":
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "SYNCED_LOG_DATE_IMMUTABLE", "detail": "date of synced entries cannot be changed"},
+            )
+        log.date = new_date
+    for field, value in updates.items():
         setattr(log, field, value)
     await db.commit()
     await db.refresh(log)
@@ -752,7 +782,7 @@ async def update_weight_log(
 async def delete_weight_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(WeightLog).where(WeightLog.id == log_id, WeightLog.user_id == user.id))
     log = result.scalar_one_or_none()
@@ -774,7 +804,7 @@ async def update_supplement_log(
     log_id: UUID,
     body: SupplementLogUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(Supplement).where(Supplement.id == log_id, Supplement.user_id == user.id))
     log = result.scalar_one_or_none()
@@ -803,7 +833,7 @@ async def update_supplement_log(
 async def delete_supplement_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(Supplement).where(Supplement.id == log_id, Supplement.user_id == user.id))
     log = result.scalar_one_or_none()
@@ -825,7 +855,7 @@ async def delete_supplement_log(
 async def log_water(
     body: WaterLogCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     entry = await logging_service.log_water(db, user.id, body.amount_ml, body.date)
     return WaterLogResponse.model_validate(entry)
@@ -841,7 +871,7 @@ async def update_water_log(
     log_id: UUID,
     body: WaterLogUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(WaterLog).where(WaterLog.id == log_id, WaterLog.user_id == user.id))
     log = result.scalar_one_or_none()
@@ -863,7 +893,7 @@ async def update_water_log(
 async def delete_water_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(WaterLog).where(WaterLog.id == log_id, WaterLog.user_id == user.id))
     log = result.scalar_one_or_none()
@@ -893,7 +923,7 @@ async def delete_water_log(
 async def log_caffeine(
     body: CaffeineLogCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     entry = await logging_service.log_caffeine(db, user.id, body.amount_mg, body.source_name, body.date)
     return CaffeineLogResponse.model_validate(entry)
@@ -910,7 +940,7 @@ async def update_caffeine_log(
     log_id: UUID,
     body: CaffeineLogUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(CaffeineLog).where(CaffeineLog.id == log_id, CaffeineLog.user_id == user.id))
     log = result.scalar_one_or_none()
@@ -933,7 +963,7 @@ async def update_caffeine_log(
 async def delete_caffeine_log(
     log_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(CaffeineLog).where(CaffeineLog.id == log_id, CaffeineLog.user_id == user.id))
     log = result.scalar_one_or_none()
@@ -966,7 +996,7 @@ async def delete_caffeine_log(
 async def agent_stats(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     return await summary_service.get_stats_summary(db, user, days)
 
@@ -986,7 +1016,7 @@ async def agent_stats(
 )
 async def agent_list_integrations(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(
         select(Integration).where(Integration.user_id == user.id).order_by(Integration.created_at.desc())
@@ -1012,8 +1042,9 @@ async def agent_list_integrations(
 async def agent_create_integration(
     body: IntegrationCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
+    await _validate_integration_urls(body.source_url, body.field_mapping)
     integration = Integration(
         user_id=user.id,
         name=body.name,
@@ -1042,7 +1073,7 @@ async def agent_update_integration(
     integration_id: UUID,
     body: IntegrationUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(
         select(Integration).where(Integration.id == integration_id, Integration.user_id == user.id)
@@ -1063,6 +1094,24 @@ async def agent_update_integration(
             else:
                 merged[k] = v
         updates["field_mapping"] = merged
+
+        # Validate the MERGED mapping (same rules as IntegrationCreate).
+        # Must run on the merged result, not the raw PATCH body — a partial
+        # update may only send one changed key while relying on stored
+        # values (including sentinel-preserved secrets) for the rest.
+        errors = _validate_field_mapping(merged)
+        if errors:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "INVALID_FIELD_MAPPING", "errors": errors},
+            )
+
+    # SSRF guard on the merged result (source_url may come from this PATCH
+    # or, if unset, from the already-stored integration).
+    merged_source_url = updates.get("source_url", integration.source_url)
+    merged_field_mapping = updates.get("field_mapping", integration.field_mapping)
+    await _validate_integration_urls(merged_source_url, merged_field_mapping)
+
     for field, value in updates.items():
         setattr(integration, field, value)
     await db.commit()
@@ -1079,7 +1128,7 @@ async def agent_update_integration(
 async def agent_delete_integration(
     integration_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(
         select(Integration).where(Integration.id == integration_id, Integration.user_id == user.id)
@@ -1115,7 +1164,7 @@ async def agent_delete_integration(
 async def agent_sync_integration(
     integration_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     from app.services.sync_worker import sync_integration
 
@@ -1151,7 +1200,7 @@ async def agent_nutrient_sources(
     from_date: date | None = Query(None, alias="from"),
     to_date: date | None = Query(None, alias="to"),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     """Get foods that contributed to a specific nutrient, ranked by amount."""
     target_from = from_date or date.today()

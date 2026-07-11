@@ -21,6 +21,14 @@ class WeightLogUpdate(BaseModel):
     muscle_mass_pct: Optional[float] = Field(None, ge=0, le=100)
     body_fat_kg: Optional[float] = Field(None, ge=0, le=300)
     muscle_mass_kg: Optional[float] = Field(None, ge=0, le=300)
+    log_date: Optional[datetime.date] = Field(
+        None,
+        description=(
+            "Change the entry's date. Only allowed when the row's source is 'manual' — "
+            "synced rows use (user_id, date, source) as their upsert key, so moving the "
+            "date on a synced row would corrupt future syncs."
+        ),
+    )
 
 
 class WeightLogResponse(BaseModel):

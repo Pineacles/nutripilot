@@ -81,3 +81,33 @@ async def test_api_key_wrong_key_rejected(async_client, test_user):
         headers={"X-API-Key": "completely-wrong-key"},
     )
     assert resp.status_code == 401
+
+
+async def test_agent_endpoint_accepts_jwt(async_client, auth_headers):
+    """/api/agent/* must also accept a JWT Bearer token, not just X-API-Key."""
+    resp = await async_client.get("/api/agent/summary/today", headers=auth_headers)
+    assert resp.status_code == 200
+
+
+async def test_foods_create_accepts_jwt(async_client, auth_headers):
+    """/api/foods/* must also accept a JWT Bearer token, not just X-API-Key."""
+    resp = await async_client.post(
+        "/api/foods",
+        json={
+            "name": "JWT Auth Test Food",
+            "source": "manual",
+            "nutrients": {"kcal": 100, "protein": 10.0},
+        },
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+
+
+async def test_jwt_or_api_key_wrong_api_key_still_401(async_client, test_user):
+    """Wrong X-API-Key on the combined dependency must still be rejected."""
+    resp = await async_client.post(
+        "/api/foods",
+        json={"name": "Should Not Be Created", "source": "manual", "nutrients": {"kcal": 100}},
+        headers={"X-API-Key": "completely-wrong-key"},
+    )
+    assert resp.status_code == 401

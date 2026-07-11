@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user_api_key, get_current_user_jwt_or_api_key
+from app.auth.dependencies import get_current_user_jwt_or_api_key
 from app.database import get_db
 from app.models.food import Food
 from app.models.food_log import FoodLog
@@ -45,7 +45,7 @@ async def search_foods(
     q: str = Query(..., min_length=1),
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     if len(q) >= 2:
         results = await food_service.search_foods_with_fallback(db, q, limit)
@@ -96,7 +96,7 @@ async def get_by_barcode(
 async def create_food(
     body: FoodCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     food = await food_service.create_food(db, body)
     return _food_to_response(food)
@@ -115,7 +115,7 @@ async def update_food(
     food_id: UUID,
     body: FoodUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(Food).where(Food.id == food_id))
     food = result.scalar_one_or_none()
@@ -149,7 +149,7 @@ async def update_food(
 async def delete_food(
     food_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_api_key),
+    user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     result = await db.execute(select(Food).where(Food.id == food_id))
     food = result.scalar_one_or_none()

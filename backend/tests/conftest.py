@@ -15,13 +15,16 @@ correctly roundtripped.
 from __future__ import annotations
 
 import os
-import secrets
 import uuid
 
 # Set env vars BEFORE importing app modules
 os.environ.setdefault("JWT_SECRET", "test-secret-not-for-production-xx")
-os.environ.setdefault("API_KEY", "test-api-key-not-for-production-xxx")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+
+# Sentinel API key value assigned directly to the test user (see test_user
+# fixture below) — previously this was pushed through settings.api_key, but
+# that field was removed from Settings (API keys are per-user, DB-backed only).
+_TEST_API_KEY_SENTINEL = "test-api-key-not-for-production-xxx"
 
 import pytest
 import pytest_asyncio
@@ -34,7 +37,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.config import settings
 settings.database_url = "sqlite+aiosqlite:///:memory:"
 settings.jwt_secret = "test-secret-not-for-production-xx"
-settings.api_key = "test-api-key-not-for-production-xxx"
 
 from app.database import Base, get_db
 from app.main import app
@@ -121,11 +123,16 @@ async def test_user(db_session):
     from app.models.user import User
 
     unique_email = f"test-{uuid.uuid4().hex[:10]}@nutripilot.dev"
+    # Derived from _TEST_API_KEY_SENTINEL rather than the literal constant:
+    # the users table persists for the whole test session (shared in-memory
+    # DB) and api_key has a UNIQUE constraint, so every test_user needs a
+    # distinct key. Suffixing keeps the sentinel recognizable while avoiding
+    # collisions across the ~25 tests that use this fixture.
     user = User(
         id=uuid.uuid4(),
         email=unique_email,
         password_hash=_pwd_context.hash(TEST_PASSWORD),
-        api_key=secrets.token_hex(32),
+        api_key=f"{_TEST_API_KEY_SENTINEL}-{uuid.uuid4().hex[:8]}",
         target_kcal=2000,
         target_protein_g=150,
         target_carbs_g=250,

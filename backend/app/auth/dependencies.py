@@ -13,16 +13,29 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
+async def _lookup_user_by_api_key(db: AsyncSession, api_key: str) -> User | None:
+    """Look up a user by API key using a constant-time comparison.
+
+    The DB query itself still does an equality WHERE (needed to narrow to a
+    row at all), but the final accept/reject decision is made with
+    hmac.compare_digest to avoid leaking timing information about how much
+    of the key matched.
+    """
+    result = await db.execute(select(User).where(User.api_key == api_key))
+    user = result.scalar_one_or_none()
+    if user is None or not hmac.compare_digest(user.api_key, api_key):
+        return None
+    return user
+
+
 async def get_current_user_api_key(
     api_key: str = Depends(api_key_header),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     if api_key is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
-    result = await db.execute(select(User).where(User.api_key == api_key))
-    user = result.scalar_one_or_none()
-    # Use constant-time comparison to prevent timing attacks
-    if user is None or not hmac.compare_digest(user.api_key, api_key):
+    user = await _lookup_user_by_api_key(db, api_key)
+    if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
     return user
 
@@ -61,8 +74,7 @@ async def get_current_user_jwt_or_api_key(
     """Accept either JWT Bearer token or X-API-Key header for authentication."""
     # Try API key first (agents / barcode scanner)
     if api_key is not None:
-        result = await db.execute(select(User).where(User.api_key == api_key))
-        user = result.scalar_one_or_none()
+        user = await _lookup_user_by_api_key(db, api_key)
         if user is not None:
             return user
 

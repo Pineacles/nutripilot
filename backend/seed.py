@@ -1,15 +1,16 @@
 """Seed script — creates an initial user.
 
 Usage: docker compose exec api python -m seed
-Reads SEED_EMAIL and SEED_PASSWORD from env (falls back to defaults for dev).
+Reads SEED_EMAIL / SEED_PASSWORD / SEED_API_KEY from env (falls back to
+randomly generated secrets for password and API key when unset).
 """
 import asyncio
 import os
+import secrets
 
 from passlib.context import CryptContext
 from sqlalchemy import select
 
-from app.config import settings
 from app.database import async_session
 from app.models.user import User
 
@@ -18,7 +19,16 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 async def seed():
     email = os.environ.get("SEED_EMAIL", "admin@nutripilot.dev")
-    password = os.environ.get("SEED_PASSWORD", "nutripilot")
+
+    password = os.environ.get("SEED_PASSWORD")
+    password_generated = password is None
+    if password_generated:
+        password = secrets.token_urlsafe(16)
+
+    api_key = os.environ.get("SEED_API_KEY")
+    api_key_generated = api_key is None
+    if api_key_generated:
+        api_key = secrets.token_urlsafe(32)
 
     async with async_session() as db:
         result = await db.execute(select(User).where(User.email == email))
@@ -29,7 +39,7 @@ async def seed():
         user = User(
             email=email,
             password_hash=pwd_context.hash(password),
-            api_key=settings.api_key,
+            api_key=api_key,
             display_name=email.split("@")[0].title(),
             target_kcal=2000,
             target_protein_g=150.0,
@@ -39,9 +49,16 @@ async def seed():
         )
         db.add(user)
         await db.commit()
-        print(f"Seed user created:")
+        print("Seed user created:")
         print(f"  Email:    {email}")
-        print(f"  API Key:  {settings.api_key}")
+        if password_generated:
+            print(f"  Password: {password}")
+        else:
+            print("  Password: set via env, not shown")
+        if api_key_generated:
+            print(f"  API Key:  {api_key}")
+        else:
+            print("  API Key:  set via env, not shown")
 
 
 if __name__ == "__main__":
