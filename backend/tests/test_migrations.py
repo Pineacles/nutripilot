@@ -102,21 +102,14 @@ def test_migrations_apply_cleanly_and_match_models():
             [sys.executable, "-m", "alembic", "check"],
             cwd=_BACKEND_DIR, env=env, capture_output=True, text=True, timeout=60,
         )
-        if check.returncode != 0:
-            # Known pre-existing drift as of this test's authoring (NOT introduced
-            # by this test suite, and out of scope to fix here — it would require
-            # new migration files / model nullability changes, which touches
-            # app code and migrations beyond this task's remit):
-            #   - several columns are NOT NULL in the ORM model but only have a
-            #     server_default (no NOT NULL constraint) in the migrated schema
-            #     (food_logs.logged_at, foods.created_at, users.target_kcal, etc.)
-            #   - the pg_trgm GIN index on foods.name (migration 002) has no
-            #     corresponding SQLAlchemy Index() in the Food model.
-            # If this starts failing for a *different* reason, that's new
-            # drift worth investigating -- read the diff in the failure message.
-            pytest.xfail(
-                "alembic check found model/migration drift that pre-dates this "
-                f"test (see docstring above for the known categories):\n{check.stdout}\n{check.stderr}"
-            )
+        # Historical drift (nullability + the pg_trgm index) was fixed by
+        # migration e5f6a7b8c9d0 and the Index() declaration on the Food
+        # model, so any drift reported here is NEW: a model change without a
+        # matching migration (or vice versa). Read the diff in the failure
+        # message and write the missing migration.
+        assert check.returncode == 0, (
+            "alembic check found model/migration drift:\n"
+            f"{check.stdout}\n{check.stderr}"
+        )
     finally:
         subprocess.run(["docker", "stop", container], capture_output=True, timeout=30)

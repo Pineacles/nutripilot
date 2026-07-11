@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -10,6 +10,17 @@ from app.database import Base
 
 class Food(Base):
     __tablename__ = "foods"
+    __table_args__ = (
+        # Trigram GIN index for fuzzy name search (extension + index created in
+        # migration 002); declared here so alembic autogenerate knows it is
+        # intentional. On SQLite (tests) it degrades to a plain index on name.
+        Index(
+            "idx_foods_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
