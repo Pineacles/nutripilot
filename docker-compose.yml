@@ -23,6 +23,9 @@ services:
     ports:
       - "127.0.0.1:8099:8000"
     environment:
+      # "dev" by default; set ENVIRONMENT=production in .env when this compose
+      # file backs a real deployment (enforces secret validation, hides /docs).
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://nutripilot:nutripilot@db:5432/nutripilot}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       # Falls back to the same dev-only key hardcoded in app/config.py so local
