@@ -10,13 +10,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:-nutripilot}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
-      POSTGRES_DB: ${DB_NAME:-nutripilot}
+      POSTGRES_USER: ${POSTGRES_USER:-nutripilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-nutripilot}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nutripilot}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nutripilot}"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -28,16 +28,23 @@ services:
     expose:
       - "8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-nutripilot}:${DB_PASSWORD}@db:5432/${DB_NAME:-nutripilot}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nutripilot}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nutripilot}
+      ENVIRONMENT: production
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
-      API_KEY: ${API_KEY:?Set API_KEY in .env}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://nutripilot.example.com}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?Set TOKEN_ENCRYPTION_KEY in .env (see .env.example for the generation command)}
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS in .env to your real frontend origin(s)}
       USDA_API_KEY: ${USDA_API_KEY:-}
       SEED_EMAIL: ${SEED_EMAIL:-admin@nutripilot.dev}
       SEED_PASSWORD: ${SEED_PASSWORD:?Set SEED_PASSWORD in .env}
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   web:
     build:
@@ -47,11 +54,12 @@ services:
         NEXT_PUBLIC_API_URL: ""
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       INTERNAL_API_URL: http://api:8000
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   pgdata:

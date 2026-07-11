@@ -21,11 +21,13 @@ services:
     restart: unless-stopped
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     ports:
-      - "8099:8000"
+      - "127.0.0.1:8099:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://nutripilot:nutripilot@db:5432/nutripilot}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
-      API_KEY: ${API_KEY:?Set API_KEY in .env}
+      # Falls back to the same dev-only key hardcoded in app/config.py so local
+      # dev works out of the box; override in .env to test rotation locally.
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-sx9C_xR4WKwZa-JGiJ8xy4eZW5OxMkauVGVWpPuDb1A=}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       USDA_API_KEY: ${USDA_API_KEY:-}
     depends_on:
@@ -33,6 +35,12 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app:z
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   web:
     build:
@@ -40,10 +48,11 @@ services:
       dockerfile: Dockerfile.prod
     restart: unless-stopped
     ports:
-      - "3099:3000"
+      - "127.0.0.1:3099:3000"
     # API calls use relative URLs proxied via Next.js rewrites — no NEXT_PUBLIC_API_URL needed
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   pgdata:

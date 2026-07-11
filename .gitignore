@@ -5,6 +5,8 @@ __pycache__/
 dist/
 .venv/
 venv/
+.pytest_cache/
+.ruff_cache/
 
 # Node
 node_modules/
@@ -15,6 +17,7 @@ out/
 .env
 .env.local
 .env.production
+frontend/.env.local
 
 # IDE
 .vscode/
@@ -30,7 +33,7 @@ logs/
 
 # SQLite
 *.db
-*.sqlite3
+*.sqlite*
 
 # TypeScript build info
 tsconfig.tsbuildinfo

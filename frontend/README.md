@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NutriPilot — frontend
 
-## Getting Started
+Next.js 15 dashboard for NutriPilot. Read-only-by-default analytics plus full
+CRUD for food logs, custom foods, body comp, supplements, water, and settings.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16**, App Router, TypeScript in strict mode
+- **Tailwind CSS** + **shadcn/ui** components
+- **TanStack Query** for all server state (queries in `src/hooks/queries.ts`,
+  mutations in `src/hooks/mutations/*`) — no manual fetch-and-setState
+- **sonner** for toasts
+- **Recharts** for charts, **@zxing** for the camera barcode scanner
+
+## Dev commands
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+npm run dev     # dev server on :3000
+npm run lint    # eslint
+npm run build   # production build (also run in CI)
+npm run start   # run a production build locally
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## How API calls work
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The frontend never calls the backend cross-origin. `next.config.ts` rewrites
+`/api/*` (plus `/health`, `/docs`, `/openapi.json`) to the FastAPI service:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```ts
+destination: `${process.env.INTERNAL_API_URL || "http://api:8000"}/api/:path*`
+```
 
-## Learn More
+`INTERNAL_API_URL` is a server-side-only env var (never exposed to the
+browser) pointing at the API container — inside Docker Compose it defaults to
+`http://api:8000`; in the Cloudflare Tunnel profile it's set explicitly. The
+browser only ever fetches same-origin `/api/...` paths, so there's no CORS
+configuration needed between the dashboard and the API, and no API base URL
+to leak client-side. `src/lib/api.ts` is the single fetch wrapper all
+queries/mutations go through (auth header injection, error unwrapping).
 
-To learn more about Next.js, take a look at the following resources:
+## Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/            # App Router pages: today, weekly, foods, scanner,
+│                   # statistics, settings, body, login
+├── components/
+│   ├── ui/         # shadcn/ui primitives
+│   └── <domain>/   # food-log, foods, body, settings, statistics, charts
+├── hooks/
+│   ├── queries.ts        # TanStack Query read hooks
+│   └── mutations/        # one file per domain (food-log, foods,
+│                          # integrations, supplement-log, water, weight)
+└── lib/
+    ├── api.ts            # fetch wrapper (auth, error handling)
+    ├── auth.ts            # JWT storage/refresh
+    ├── types.ts            # shared API response/request types
+    └── *.ts                 # formatting, dates, chart utils, validation
+```

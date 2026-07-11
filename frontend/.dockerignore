@@ -1,0 +1,24 @@
+# Build metadata / VCS
+.git
+.dockerignore
+Dockerfile
+Dockerfile.prod
+
+# Dependencies / build output — always produced fresh inside the image
+node_modules
+.next
+out
+
+# TypeScript build info (host-machine incremental cache, meaningless in a
+# fresh container and would poison a clean build if copied in)
+tsconfig.tsbuildinfo
+
+# Env files (secrets — never bake into an image; runtime config comes from
+# docker-compose environment/build args instead)
+.env
+.env.*
+
+# Editor/OS cruft
+.vscode
+.idea
+.DS_Store

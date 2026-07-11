@@ -1,0 +1,27 @@
+# Build metadata / VCS
+.git
+.dockerignore
+Dockerfile
+
+# Python bytecode / caches
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+*.egg-info
+
+# Virtualenvs
+.venv
+venv
+
+# Logs
+logs
+*.log
+
+# Env files (secrets — never bake into an image)
+.env
+.env.*
+
+# Tests — not needed at runtime; CI runs pytest directly on the host, it
+# does not build this image, so leaving them out is safe.
+tests
