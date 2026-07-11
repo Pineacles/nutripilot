@@ -1,7 +1,9 @@
 import datetime
 from typing import Optional
 from uuid import UUID
+
 from pydantic import BaseModel, Field
+
 
 class CaffeineLogCreate(BaseModel):
     amount_mg: float = Field(gt=0, le=5000)

@@ -2,7 +2,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.external import openfoodfacts, usda
 from app.models.food import Food
-from app.schemas.food import FoodCreate, NutrientData
 from app.services.food_service import create_food_from_external, get_food_by_barcode
 
 

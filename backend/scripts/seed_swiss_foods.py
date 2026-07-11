@@ -2,10 +2,12 @@
 Usage: docker compose exec api python -m seed_swiss_foods
 """
 import asyncio
+from pathlib import Path
+
 import httpx
 import openpyxl
-from pathlib import Path
 from sqlalchemy import select
+
 from app.database import async_session
 from app.models import Food, Nutrient
 

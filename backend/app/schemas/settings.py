@@ -1,4 +1,3 @@
-import datetime
 from typing import Optional
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -30,10 +29,10 @@ class NutritionTargetsUpdate(BaseModel):
             return v
         try:
             ZoneInfo(v)
-        except Exception:
+        except Exception as exc:
             raise ValueError(
                 f"Invalid timezone {v!r}. Use an IANA name like 'Europe/Zurich' or 'America/New_York'."
-            )
+            ) from exc
         return v
 
 

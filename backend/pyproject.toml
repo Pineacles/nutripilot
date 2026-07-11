@@ -26,6 +26,8 @@ dev = [
     "pytest-asyncio>=0.24",
     "aiosqlite>=0.20",
     "httpx>=0.28",
+    "respx>=0.21",
+    "ruff>=0.8",
 ]
 
 [tool.setuptools.packages.find]
@@ -35,3 +37,40 @@ include = ["app*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "B008",  # FastAPI's Depends(...)-as-default-argument pattern is intentional
+    # Optional[X] -> X | None is a purely stylistic modernization that ruff
+    # would otherwise force across ~140 call sites throughout app/schemas and
+    # app/routers (this codebase predates any ruff config and consistently
+    # uses typing.Optional). Rewriting all of them is out of scope for a
+    # test/CI hardening pass — pragmatic call per the redesign brief.
+    "UP045",
+    # This is a FastAPI app with rich OpenAPI `description=` prose and seed
+    # data literals; long single-line strings there aren't a readability
+    # problem the way long *code* lines would be, and ruff has no autofix
+    # for E501. Enforcing it would mean manually rewrapping prose across a
+    # dozen router/schema files for zero behavior change — not a good trade
+    # for a test/CI hardening pass. (line-length is still set above for
+    # tooling that reads it, e.g. editor integrations.)
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# conftest.py sets env vars / patches settings before importing app modules,
+# so those imports can't be hoisted to the top of the file.
+"tests/conftest.py" = ["E402"]
+# SQLAlchemy relationship() forward refs: Mapped["Nutrient"] / Mapped["Food"]
+# are resolved by SQLAlchemy at mapper-configuration time via the class
+# registry, not by Python's own name resolution — ruff can't see that and
+# flags the quoted name as undefined.
+"app/models/food.py" = ["F821"]
+"app/models/food_log.py" = ["F821"]
+"app/models/nutrient.py" = ["F821"]

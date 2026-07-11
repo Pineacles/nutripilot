@@ -4,12 +4,12 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.clock import today_utc
 from app.models.caffeine_log import CaffeineLog
 from app.models.food_log import FoodLog
 from app.models.supplement import Supplement
 from app.models.water_log import WaterLog
 from app.models.weight_log import WeightLog
+from app.services.clock import today_utc
 
 
 async def log_food(

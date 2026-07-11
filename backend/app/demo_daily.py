@@ -5,12 +5,11 @@ Called on app startup and scheduled to run daily at 00:05.
 import random
 import uuid
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from app.database import async_session
-from app.models import Food, FoodLog, Supplement, User, WeightLog, WaterLog, CaffeineLog
+from app.models import CaffeineLog, Food, FoodLog, Supplement, User, WaterLog, WeightLog
 from app.services.clock import today_for
-
 
 # ---------------------------------------------------------------------------
 # Meal templates — (food_name, qty_lo, qty_hi)

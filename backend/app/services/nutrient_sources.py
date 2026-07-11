@@ -11,7 +11,6 @@ from sqlalchemy.orm import joinedload
 
 from app.models.food import Food
 from app.models.food_log import FoodLog
-from app.models.nutrient import Nutrient
 from app.models.supplement import Supplement
 from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User

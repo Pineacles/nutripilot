@@ -38,8 +38,8 @@ import logging
 import random
 import typing
 from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 import httpx
@@ -123,7 +123,7 @@ async def _ensure_valid_token(
     # Check if current token is still valid
     expires_at = fm.get("token_expires_at")
     if expires_at and integration.auth_header:
-        now_epoch = datetime.now(timezone.utc).timestamp()
+        now_epoch = datetime.now(UTC).timestamp()
         remaining = expires_at - now_epoch
         if remaining > TOKEN_EXPIRY_BUFFER_SECS:
             log.debug("token_still_valid", expires_in=int(remaining))
@@ -148,7 +148,7 @@ async def _ensure_valid_token(
             # Track expiry so we can skip unnecessary refreshes
             # Default to 3 hours (10800s) for Withings if not provided
             expires_in = result.tokens.get("expires_in") or 10800
-            fm["token_expires_at"] = datetime.now(timezone.utc).timestamp() + int(expires_in)
+            fm["token_expires_at"] = datetime.now(UTC).timestamp() + int(expires_in)
 
             fm.pop("last_error", None)
             integration.field_mapping = fm
@@ -331,7 +331,7 @@ async def _update_status(
     old_status = integration.status
     integration.status = status
     if status == "active":
-        integration.last_synced_at = datetime.now(timezone.utc)
+        integration.last_synced_at = datetime.now(UTC)
     fm = integration.field_mapping or {}
     if error_msg:
         fm["last_error"] = error_msg
@@ -429,7 +429,7 @@ def _parse_withings_groups(groups: list[dict], accepted_types: set[int]) -> list
 
     for grp in groups:
         ts = grp.get("date", 0)
-        d = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+        d = datetime.fromtimestamp(ts, tz=UTC).date()
         for m in grp.get("measures", []):
             mtype = m.get("type")
             if mtype not in accepted_types:

@@ -1,7 +1,9 @@
 import datetime
 from typing import Optional
 from uuid import UUID
+
 from pydantic import BaseModel, Field
+
 
 class WaterLogCreate(BaseModel):
     amount_ml: float = Field(gt=0, le=10000)

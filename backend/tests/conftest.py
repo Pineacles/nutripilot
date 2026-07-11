@@ -28,7 +28,6 @@ os.environ.setdefault("TOKEN_ENCRYPTION_KEY", "IRrBEixRKeDMt6CFRLeX5PYhYqO-m51El
 # that field was removed from Settings (API keys are per-user, DB-backed only).
 _TEST_API_KEY_SENTINEL = "test-api-key-not-for-production-xxx"
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from passlib.context import CryptContext
@@ -37,6 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 # Patch settings before app modules load them
 from app.config import settings
+
 settings.database_url = "sqlite+aiosqlite:///:memory:"
 settings.jwt_secret = "test-secret-not-for-production-xx"
 settings.token_encryption_key = "IRrBEixRKeDMt6CFRLeX5PYhYqO-m51ElyzSFq_TA9M="
@@ -47,6 +47,7 @@ from app.models import *  # noqa: F401,F403
 
 # Disable rate limiting for tests so login calls don't get throttled
 from app.rate_limit import limiter
+
 limiter.enabled = False
 
 TEST_PASSWORD = "test-password-123"
@@ -169,3 +170,21 @@ async def auth_headers(test_user, async_client):
 async def api_key_headers(test_user):
     """Return X-API-Key headers for the test user."""
     return {"X-API-Key": test_user.api_key}
+
+
+@pytest_asyncio.fixture()
+async def patch_sync_worker_db(monkeypatch):
+    """Point ``app.services.sync_worker``'s DB session factory at the test engine.
+
+    ``sync_integration`` / ``run_all_syncs`` open their own session via
+    ``app.database.async_session``, which is bound to ``app.database.engine`` —
+    a SEPARATE SQLAlchemy engine instance from this file's ``_test_engine``,
+    even though both point at the literal URL ``sqlite+aiosqlite:///:memory:``.
+    Each in-memory SQLite engine is its own isolated database, so without this
+    patch the sync worker would see an empty, tableless DB instead of the rows
+    test fixtures create. Monkeypatching the module-level name the worker
+    imported keeps the fix test-only — no production code changes.
+    """
+    import app.services.sync_worker as sync_worker
+
+    monkeypatch.setattr(sync_worker, "async_session", _test_session_factory)

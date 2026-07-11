@@ -179,6 +179,7 @@ async def list_food_logs(
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     from sqlalchemy.orm import joinedload as jl
+
     from app.models.food import Food
     from app.schemas.food_log import FoodLogDetail, NutrientsPer100g
 

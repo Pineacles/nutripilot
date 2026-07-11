@@ -9,10 +9,10 @@ from app.database import get_db
 from app.models.integration import Integration
 from app.models.user import User
 from app.schemas.integration import (
+    REDACTED_SENTINEL,
     IntegrationCreate,
     IntegrationResponse,
     IntegrationUpdate,
-    REDACTED_SENTINEL,
     validate_field_mapping,
 )
 from app.services.url_guard import UnsafeURLError, assert_public_http_url
@@ -30,13 +30,13 @@ async def _validate_integration_urls(source_url: str | None, field_mapping: dict
         try:
             await assert_public_http_url(source_url, field="source_url")
         except UnsafeURLError as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     token_url = (field_mapping or {}).get("token_url")
     if token_url:
         try:
             await assert_public_http_url(token_url, field="field_mapping.token_url")
         except UnsafeURLError as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get(

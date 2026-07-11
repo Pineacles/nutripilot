@@ -6,9 +6,9 @@ from pathlib import Path
 # Ensure the backend root is on sys.path so "app" is importable
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from alembic import context
 from app.config import settings
 from app.database import Base
 from app.models import *  # noqa: F401, F403 — registers all models with Base.metadata

@@ -5,16 +5,23 @@ Usage: docker compose exec api python -m seed_demo
 import asyncio
 import random
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 from passlib.context import CryptContext
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 
 from app.database import async_session
 from app.models import (
-    Food, FoodLog, MicronutrientTarget, Nutrient,
-    Supplement, SupplementDefinition, User, WaterLog,
-    CaffeineLog, WeightLog,
+    CaffeineLog,
+    Food,
+    FoodLog,
+    MicronutrientTarget,
+    Nutrient,
+    Supplement,
+    SupplementDefinition,
+    User,
+    WaterLog,
+    WeightLog,
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -124,7 +131,7 @@ async def seed_demo():
         result = await db.execute(select(User).where(User.email == DEMO_EMAIL))
         existing = result.scalar_one_or_none()
         if existing:
-            print(f"Wiping existing demo user data...")
+            print("Wiping existing demo user data...")
             await db.execute(delete(FoodLog).where(FoodLog.user_id == existing.id))
             await db.execute(delete(WeightLog).where(WeightLog.user_id == existing.id))
             await db.execute(delete(WaterLog).where(WaterLog.user_id == existing.id))
@@ -368,7 +375,7 @@ async def seed_demo():
 
         await db.commit()
 
-        print(f"\nSeeded 90 days of data:")
+        print("\nSeeded 90 days of data:")
         print(f"  Food logs:       {total_food_logs}")
         print(f"  Weight logs:     {total_weight_logs}")
         print(f"  Supplement logs: {total_supplement_logs}")

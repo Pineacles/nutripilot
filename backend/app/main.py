@@ -10,14 +10,15 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 from app.demo_daily import seed_today
 from app.docs import DESCRIPTION
 from app.rate_limit import limiter
-from app.routers import agent, auth, dashboard, foods, settings as settings_router
+from app.routers import agent, auth, dashboard, foods
+from app.routers import settings as settings_router
 from app.services.integration_logger import setup_integration_logging
 from app.services.sync_worker import run_all_syncs
+
+logger = logging.getLogger(__name__)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

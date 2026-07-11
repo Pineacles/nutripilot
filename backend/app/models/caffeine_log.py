@@ -1,9 +1,12 @@
 import uuid
 from datetime import date, datetime
+
 from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database import Base
+
 
 class CaffeineLog(Base):
     __tablename__ = "caffeine_logs"

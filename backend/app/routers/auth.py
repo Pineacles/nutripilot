@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import create_access_token, create_refresh_token, decode_token
 from app.database import get_db
-from app.rate_limit import limiter
 from app.models.user import User
+from app.rate_limit import limiter
 from app.schemas.auth import AccessTokenResponse, LoginRequest, RefreshRequest, TokenResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -43,8 +43,8 @@ async def refresh(request: Request, body: RefreshRequest, db: AsyncSession = Dep
     try:
         import uuid as _uuid
         user_uuid = _uuid.UUID(user_id)
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload") from exc
     result = await db.execute(select(User).where(User.id == user_uuid))
     user = result.scalar_one_or_none()
     if user is None:

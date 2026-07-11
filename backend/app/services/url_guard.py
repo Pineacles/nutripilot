@@ -88,7 +88,7 @@ async def assert_public_http_url(url: str, *, field: str) -> None:
         ip_str = sockaddr[0]
         try:
             ip = ipaddress.ip_address(ip_str)
-        except ValueError:
-            raise UnsafeURLError(f"{field}: host '{host}' resolved to an unparseable address ({ip_str!r})")
+        except ValueError as exc:
+            raise UnsafeURLError(f"{field}: host '{host}' resolved to an unparseable address ({ip_str!r})") from exc
         if _is_unsafe_ip(ip):
             raise UnsafeURLError(f"{field}: host '{host}' resolves to a non-public address ({ip})")

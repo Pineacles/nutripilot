@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import pytest
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import select, text
 
+from app.config import settings
 from app.models.integration import Integration
-from app.services.crypto import EncryptedJSON, EncryptedStr
+from app.services.crypto import EncryptedJSON, EncryptedStr, encrypt_str, fernet, try_decrypt_str
 
 _SECRET_REFRESH = "super-secret-refresh-token-xyz"
 _SECRET_CLIENT = "super-secret-client-secret-xyz"
@@ -54,6 +57,41 @@ def test_encrypted_json_plaintext_fallback():
     """A legacy plaintext JSON value is parsed as-is on read."""
     t = EncryptedJSON()
     assert t.process_result_value('{"refresh_token": "old"}', None) == {"refresh_token": "old"}
+
+
+def test_key_rotation_old_key_still_decrypts_new_writes_use_new_key(monkeypatch):
+    """Zero-downtime key rotation: FIRST key encrypts, ALL keys can decrypt.
+
+    ``fernet()`` is ``@lru_cache(maxsize=1)``, so rotating ``settings.token_encryption_key``
+    mid-test requires clearing that cache for the change to take effect.
+    """
+    key1 = Fernet.generate_key().decode()
+    key2 = Fernet.generate_key().decode()
+
+    monkeypatch.setattr(settings, "token_encryption_key", key1)
+    fernet.cache_clear()
+    ciphertext_v1 = encrypt_str("secret-under-key1")
+
+    # Rotate: key2 is prepended (becomes the encrypting key); key1 is kept
+    # decrypt-only so already-stored rows keep working until re-written.
+    monkeypatch.setattr(settings, "token_encryption_key", f"{key2},{key1}")
+    fernet.cache_clear()
+
+    try:
+        # Old ciphertext (encrypted under key1 alone) still decrypts post-rotation.
+        plaintext, was_encrypted = try_decrypt_str(ciphertext_v1)
+        assert was_encrypted is True
+        assert plaintext == "secret-under-key1"
+
+        # New writes are encrypted with the NEW first key (key2), not key1.
+        ciphertext_v2 = encrypt_str("secret-under-key2")
+        assert Fernet(key2.encode()).decrypt(ciphertext_v2.encode()).decode() == "secret-under-key2"
+        with pytest.raises(InvalidToken):
+            Fernet(key1.encode()).decrypt(ciphertext_v2.encode())
+    finally:
+        # Leave the lru_cache empty so monkeypatch's teardown (restoring the
+        # real test key) is picked up cleanly by the next test to call fernet().
+        fernet.cache_clear()
 
 
 # --- End-to-end via the API ---

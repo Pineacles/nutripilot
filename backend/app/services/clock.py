@@ -9,7 +9,7 @@ configured timezone instead.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 def today_utc() -> date:
     """Today's date in UTC (server-neutral fallback when no user tz applies)."""
-    return datetime.now(timezone.utc).date()
+    return datetime.now(UTC).date()
 
 
 def today_for(user) -> date:

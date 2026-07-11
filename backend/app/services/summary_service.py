@@ -1,20 +1,17 @@
 from collections import defaultdict
 from datetime import date, timedelta
-from uuid import UUID
 
-from sqlalchemy import func as sa_func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.models.food import Food
 from app.models.food_log import FoodLog
-from app.models.nutrient import Nutrient
 from app.models.supplement import Supplement
 from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
 from app.models.water_log import WaterLog
 from app.models.weight_log import WeightLog
-from app.services.clock import today_for
 from app.schemas.summary import (
     BodyCompEntry,
     CaffeineTotals,
@@ -35,7 +32,7 @@ from app.schemas.summary import (
     WeekSummary,
     WeightDelta,
 )
-
+from app.services.clock import today_for
 
 # Map from supplement definition keys to MicronutrientAverages field names
 SUPP_MICRO_KEY_MAP = {

@@ -8,13 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user_jwt
 from app.database import get_db
 from app.models.food import Food
-from app.models.food_log import FoodLog
 from app.models.nutrient import Nutrient
 from app.models.user import User
 from app.models.weight_log import WeightLog
-from app.schemas.food import FoodResponse, FoodSearchResult, NutrientData
+from app.schemas.food import FoodResponse, NutrientData
 from app.schemas.summary import StatsSummary, TodaySummary, WeekSummary
-from app.services import food_service, summary_service
+from app.services import summary_service
 from app.services.clock import today_for
 from app.services.nutrient_sources import get_nutrient_sources
 
@@ -73,8 +72,11 @@ async def dashboard_weight(
     result = await db.execute(stmt)
     logs = result.scalars().all()
     return [
-        {"date": str(l.date), "weight_kg": l.weight_kg, "body_fat_pct": l.body_fat_pct, "muscle_mass_pct": l.muscle_mass_pct}
-        for l in logs
+        {
+            "date": str(log.date), "weight_kg": log.weight_kg,
+            "body_fat_pct": log.body_fat_pct, "muscle_mass_pct": log.muscle_mass_pct,
+        }
+        for log in logs
     ]
 
 
