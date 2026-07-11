@@ -1,35 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { apiFetch } from "@/lib/api";
-
-interface FoodItem {
-  id: string;
-  name: string;
-  barcode: string | null;
-  source: string;
-  kcal: number | null;
-  protein: number | null;
-}
-
-interface FoodDetail {
-  id: string;
-  name: string;
-  barcode: string | null;
-  source: string;
-  nutrients: Record<string, number | null> | null;
-}
-
-interface FoodsPage {
-  items: FoodItem[];
-  total: number;
-  page: number;
-  pages: number;
-}
+import { ErrorState } from "@/components/ui/error-state";
+import { useFoodsSearch, useFoodDetail } from "@/hooks/queries";
+import { getErrorMessage } from "@/lib/api";
 
 const NUTRIENT_LABELS: Record<string, { label: string; unit: string }> = {
   kcal: { label: "Calories", unit: "kcal" },
@@ -54,39 +32,29 @@ const NUTRIENT_LABELS: Record<string, { label: string; unit: string }> = {
 
 export default function FoodsPage() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<FoodsPage | null>(null);
-  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<FoodDetail | null>(null);
 
-  const loadFoods = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await apiFetch<FoodsPage>(
-        `/api/dashboard/foods?q=${encodeURIComponent(query)}&page=${page}&limit=20`
-      );
-      setData(result);
-    } catch {}
-    setLoading(false);
-  }, [query, page]);
-
+  // Debounce the search box so we don't hit the API on every keystroke.
   useEffect(() => {
-    const timer = setTimeout(loadFoods, 300);
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
     return () => clearTimeout(timer);
-  }, [loadFoods]);
+  }, [query]);
 
-  async function selectFood(id: string) {
-    if (selectedId === id) {
-      setSelectedId(null);
-      setDetail(null);
-      return;
-    }
-    setSelectedId(id);
-    try {
-      const d = await apiFetch<FoodDetail>(`/api/dashboard/foods/${id}`);
-      setDetail(d);
-    } catch {}
+  const {
+    data,
+    isFetching: loading,
+    isError,
+    error,
+    refetch,
+  } = useFoodsSearch(debouncedQuery, page, 20);
+
+  const { data: detail } = useFoodDetail(selectedId);
+
+  function selectFood(id: string | null) {
+    if (!id) return;
+    setSelectedId((prev) => (prev === id ? null : id));
   }
 
   return (
@@ -105,7 +73,9 @@ export default function FoodsPage() {
             />
           </div>
 
-          {loading ? (
+          {isError ? (
+            <ErrorState message={getErrorMessage(error, "Couldn't load foods.")} onRetry={() => refetch()} />
+          ) : loading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="h-10 rounded-lg bg-muted/50 animate-pulse" />
@@ -126,7 +96,7 @@ export default function FoodsPage() {
                 </div>
                 {data.items.map((food) => (
                   <button
-                    key={food.id}
+                    key={food.id ?? food.name}
                     onClick={() => selectFood(food.id)}
                     className={`grid grid-cols-12 gap-2 w-full items-center rounded-lg px-3 py-2 text-sm text-left transition-all duration-150 ${
                       selectedId === food.id ? "bg-primary/10 clay-card-sm" : "hover:bg-muted/50"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
@@ -8,9 +8,10 @@ import {
   ComposedChart,
 } from "recharts";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { apiFetch } from "@/lib/api";
+import { useStats, useSettings } from "@/hooks/queries";
+import { getErrorMessage } from "@/lib/api";
 import { fmt } from "@/lib/utils";
-import type { StatsSummary, UserSettings } from "@/lib/types";
+import { ErrorState } from "@/components/ui/error-state";
 
 /* ─── Helpers ─── */
 
@@ -118,17 +119,15 @@ const PRESETS = [
 
 /* ─── Custom Tooltip Component ─── */
 
-function ChartTooltip({ active, payload, label, valueSuffix = "", valueKey }: {
+function ChartTooltip({ active, payload, label, valueSuffix = "" }: {
   active?: boolean;
   payload?: Array<{ value: number; dataKey: string; color?: string; name?: string }>;
   label?: string;
   valueSuffix?: string;
-  valueKey?: string;
 }) {
   if (!active || !payload?.length) return null;
   // Filter out raw data entries when rolling average is present
   const filtered = payload.filter(p => !p.dataKey.startsWith("avg_") || true);
-  const item = valueKey ? filtered.find(p => p.dataKey === valueKey) ?? filtered[0] : filtered[0];
   return (
     <div style={TT_STYLE}>
       <p style={TT_LABEL_STYLE}>{fmtDateFull(label ?? "")}</p>
@@ -195,31 +194,14 @@ function SectionCard({ title, span = "", children, className = "" }: {
 /* ─── Main Page ─── */
 
 export default function StatisticsPage() {
-  const [data, setData] = useState<StatsSummary | null>(null);
-  const [settings, setSettings] = useState<UserSettings | null>(null);
   const [days, setDays] = useState(90);
   const [activePreset, setActivePreset] = useState(90);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [loading, setLoading] = useState(true);
   const [macroTab, setMacroTab] = useState<"protein" | "carbs" | "fat" | "all">("all");
 
-  // Fetch data
-  useEffect(() => {
-    // Defer setLoading(true) to a microtask so it is not a synchronous setState call
-    // at the effect top level (avoids react-hooks/set-state-in-effect).
-    let cancelled = false;
-    Promise.resolve().then(() => { if (!cancelled) setLoading(true); });
-    apiFetch<StatsSummary>(`/api/dashboard/stats?days=${days}`)
-      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
-      .catch(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [days]);
-
-  // Fetch settings for targets
-  useEffect(() => {
-    apiFetch<UserSettings>("/api/settings").then(setSettings).catch(() => {});
-  }, []);
+  const { data, isLoading: loading, isError, error, refetch } = useStats(days);
+  const { data: settings } = useSettings();
 
   // Custom date range handler
   function applyCustomRange() {
@@ -258,7 +240,15 @@ export default function StatisticsPage() {
     ];
   }, [data]);
 
-  /* ─── Loading State ─── */
+  /* ─── Error / Loading States ─── */
+
+  if (isError && !data) {
+    return (
+      <DashboardLayout title="Analytics">
+        <ErrorState message={getErrorMessage(error, "Couldn't load analytics data.")} onRetry={() => refetch()} />
+      </DashboardLayout>
+    );
+  }
 
   if (loading || !data) {
     return (
@@ -389,7 +379,7 @@ export default function StatisticsPage() {
                   tickFormatter={(v: string) => fmtDateAxis(v, weightData.length)}
                 />
                 <YAxis tick={TICK_Y} axisLine={false} tickLine={false} width={40} domain={["auto", "auto"]} />
-                <Tooltip content={<ChartTooltip valueSuffix=" kg" valueKey="weight_kg" />} />
+                <Tooltip content={<ChartTooltip valueSuffix=" kg" />} />
                 <ReferenceLine y={targetWeight} stroke={COLORS.blue} strokeDasharray="6 3" strokeWidth={1.5} label={{ value: `Target ${targetWeight} kg`, fill: "#666", fontSize: 10, position: "right" }} />
                 <Area
                   type="monotone"
@@ -479,7 +469,7 @@ export default function StatisticsPage() {
                   tickFormatter={(v: string) => fmtDateAxis(v, rollingNutrition.length)}
                 />
                 <YAxis tick={TICK_Y} axisLine={false} tickLine={false} width={45} />
-                <Tooltip content={<ChartTooltip valueSuffix=" kcal" valueKey="avg_kcal" />} />
+                <Tooltip content={<ChartTooltip valueSuffix=" kcal" />} />
                 <ReferenceLine
                   y={targetKcal}
                   stroke={COLORS.amber}
@@ -669,7 +659,7 @@ export default function StatisticsPage() {
                     tickFormatter={nthTickFormatter(rollingNutrition, 4)}
                   />
                   <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-                  <Tooltip content={<ChartTooltip valueSuffix={` ${metric.unit}`} valueKey={`avg_${metric.key}`} />} />
+                  <Tooltip content={<ChartTooltip valueSuffix={` ${metric.unit}`} />} />
                   <ReferenceLine y={metric.target} stroke={metric.color} strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.6} />
                   <Line
                     type="monotone"
@@ -719,7 +709,7 @@ export default function StatisticsPage() {
                   tickFormatter={nthTickFormatter(rollingNutrition, 4)}
                 />
                 <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-                <Tooltip content={<ChartTooltip valueSuffix=" g" valueKey="avg_alcohol" />} />
+                <Tooltip content={<ChartTooltip valueSuffix=" g" />} />
                 {targetAlcohol > 0 && (
                   <ReferenceLine y={targetAlcohol} stroke={COLORS.orange} strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.6} />
                 )}
@@ -770,7 +760,7 @@ export default function StatisticsPage() {
                   tickFormatter={nthTickFormatter(data.daily_water as { date: string }[], 4)}
                 />
                 <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-                <Tooltip content={<ChartTooltip valueSuffix=" ml" valueKey="total_ml" />} />
+                <Tooltip content={<ChartTooltip valueSuffix=" ml" />} />
                 <ReferenceLine y={targetWaterMl} stroke={COLORS.cyan} strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.6} />
                 <Area
                   type="monotone"
@@ -810,7 +800,7 @@ export default function StatisticsPage() {
                   tickFormatter={nthTickFormatter(data.daily_caffeine as { date: string }[], 4)}
                 />
                 <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-                <Tooltip content={<ChartTooltip valueSuffix=" mg" valueKey="total_mg" />} />
+                <Tooltip content={<ChartTooltip valueSuffix=" mg" />} />
                 <ReferenceLine y={targetCaffeineMg} stroke="#b45309" strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.6} />
                 <Area
                   type="monotone"
@@ -912,7 +902,7 @@ export default function StatisticsPage() {
                       <XAxis dataKey="date" tick={TICK_X} axisLine={false} tickLine={false}
                         tickFormatter={nthTickFormatter(suppLog, 5)} />
                       <YAxis tick={TICK_Y} axisLine={false} tickLine={false} width={25} allowDecimals={false} />
-                      <Tooltip content={<ChartTooltip valueSuffix=" supplements" valueKey="count" />} />
+                      <Tooltip content={<ChartTooltip valueSuffix=" supplements" />} />
                       <Area type="monotone" dataKey="count" stroke={COLORS.green} strokeWidth={2}
                         fill="url(#suppGrad)" dot={false} animationDuration={600} />
                     </AreaChart>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AreaChart, Area, LineChart, Line, ComposedChart,
   PieChart, Pie, Cell,
@@ -8,9 +8,10 @@ import {
   ReferenceLine, Legend,
 } from "recharts";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { apiFetch } from "@/lib/api";
+import { useStats, useSettings } from "@/hooks/queries";
+import { getErrorMessage } from "@/lib/api";
 import { fmt, rnd } from "@/lib/utils";
-import type { StatsSummary, UserSettings, BodyCompEntry } from "@/lib/types";
+import { ErrorState } from "@/components/ui/error-state";
 
 /* ─── Helpers ─── */
 
@@ -176,28 +177,15 @@ function Skeleton() {
 /* ─── Main Page ─── */
 
 export default function BodyCompositionPage() {
-  const [data, setData] = useState<StatsSummary | null>(null);
-  const [settings, setSettings] = useState<UserSettings | null>(null);
   const [days, setDays] = useState(90);
   const [activePreset, setActivePreset] = useState(90);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Defer setLoading(true) to a microtask so it is not a synchronous setState call
-    // at the effect top level (avoids react-hooks/set-state-in-effect).
-    let cancelled = false;
-    Promise.resolve().then(() => { if (!cancelled) setLoading(true); });
-    apiFetch<StatsSummary>(`/api/dashboard/stats?days=${days}`)
-      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
-      .catch(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [days]);
-
-  useEffect(() => {
-    apiFetch<UserSettings>("/api/settings").then(setSettings).catch(() => {});
-  }, []);
+  const { data, isLoading: loading, isError, error, refetch } = useStats(days);
+  // Warms the shared settings cache (hitting the correct /api/v1/settings path);
+  // this page doesn't render nutrition targets itself, other pages do.
+  useSettings();
 
   function applyCustomRange() {
     if (!customFrom || !customTo) return;
@@ -212,7 +200,9 @@ export default function BodyCompositionPage() {
 
   /* ─── Derived data ─── */
 
-  const weightHistory = data?.weight_history ?? [];
+  // Memoized so a stable reference flows into the useMemo hooks below (data?.weight_history ?? []
+  // would otherwise create a new array every render whenever `data` is null/undefined).
+  const weightHistory = useMemo(() => data?.weight_history ?? [], [data]);
 
   const enrichedData = useMemo(() => {
     // Cast to DataRow[] so the generic rollingAvg constraint is satisfied;
@@ -293,6 +283,14 @@ export default function BodyCompositionPage() {
   }, [validWeights]);
 
   if (loading && !data) return <Skeleton />;
+
+  if (isError && !data) {
+    return (
+      <DashboardLayout title="Body Composition">
+        <ErrorState message={getErrorMessage(error, "Couldn't load body composition data.")} onRetry={() => refetch()} />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Body Composition">

@@ -157,6 +157,47 @@ export interface WeightEntry {
   body_fat_pct: number | null;
 }
 
+// Foods
+
+export interface FoodListItem {
+  id: string | null;
+  name: string;
+  barcode: string | null;
+  source: string;
+  kcal: number | null;
+  protein: number | null;
+}
+
+export interface FoodsSearchPage {
+  items: FoodListItem[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface FoodDetail {
+  id: string;
+  name: string;
+  barcode: string | null;
+  source: string;
+  nutrients: Record<string, number | null> | null;
+}
+
+// Nutrient source drill-down (macro-breakdown / micronutrient-summary "sources" dialogs)
+
+export interface NutrientSourceItem {
+  food_name: string;
+  amount: number;
+  quantity_g: number;
+  date: string;
+  meal_type: string;
+}
+
+export interface NutrientSourcesResponse {
+  total: number;
+  sources: NutrientSourceItem[];
+}
+
 // Settings types
 
 export interface NutritionTargets {

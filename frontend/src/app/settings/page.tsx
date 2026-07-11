@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   Dialog,
   DialogContent,
@@ -14,13 +16,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { apiFetch } from "@/lib/api";
+import {
+  useSettings,
+  useIntegrations,
+  useUpdateNutritionTargets,
+  useUpdateMicronutrientTargets,
+  useCreateSupplement,
+  useUpdateSupplement,
+  useDeleteSupplement,
+  useRegenerateApiKey,
+} from "@/hooks/queries";
+import { getErrorMessage } from "@/lib/api";
+import { NUTRITION_TARGET_BOUNDS, validateBounds } from "@/lib/validation";
 import type {
-  UserSettings,
   NutritionTargets,
   MicronutrientTargetItem,
-  SupplementDefinition,
-  Integration,
 } from "@/lib/types";
 
 const DEFAULT_MICRO_TARGETS: MicronutrientTargetItem[] = [
@@ -31,6 +41,19 @@ const DEFAULT_MICRO_TARGETS: MicronutrientTargetItem[] = [
   { nutrient: "fiber", target_value: 30, unit: "g" },
   { nutrient: "iron", target_value: 8, unit: "mg" },
 ];
+
+const DEFAULT_NUTRITION_TARGETS: NutritionTargets = {
+  target_kcal: 2000,
+  target_protein_g: 150,
+  target_carbs_g: 250,
+  target_fat_g: 70,
+  target_fiber_g: 30,
+  target_sugar_g: 50,
+  target_sodium_mg: 2300,
+  target_alcohol_g: 0,
+  target_water_ml: 2500,
+  target_caffeine_mg: 400,
+};
 
 const MICRO_LABELS: Record<string, string> = {
   vitamin_d: "Vitamin D",
@@ -76,32 +99,38 @@ function timeAgo(dateStr: string | null): string {
 }
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<UserSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: settings, isLoading: loading, isError, error, refetch } = useSettings();
+  const { data: integrations = [] } = useIntegrations();
 
-  // Nutrition targets form state
-  const [nutrition, setNutrition] = useState<NutritionTargets>({
-    target_kcal: 2000,
-    target_protein_g: 150,
-    target_carbs_g: 250,
-    target_fat_g: 70,
-    target_fiber_g: 30,
-    target_sugar_g: 50,
-    target_sodium_mg: 2300,
-    target_alcohol_g: 0,
-    target_water_ml: 2500,
-    target_caffeine_mg: 400,
-  });
-  const [nutritionSaved, setNutritionSaved] = useState(false);
+  // Nutrition targets form state (draft, seeded from the fetched settings)
+  const [nutrition, setNutrition] = useState<NutritionTargets>(DEFAULT_NUTRITION_TARGETS);
 
-  // Micronutrient targets
+  // Micronutrient targets (draft, seeded from the fetched settings)
   const [microTargets, setMicroTargets] = useState<MicronutrientTargetItem[]>(DEFAULT_MICRO_TARGETS);
-  const [microSaved, setMicroSaved] = useState(false);
 
-  // Supplement definitions
-  const [supplements, setSupplements] = useState<SupplementDefinition[]>([]);
+  useEffect(() => {
+    if (!settings) return;
+    // Defer to a microtask so this isn't a synchronous setState call at the
+    // effect top level (avoids react-hooks/set-state-in-effect).
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setNutrition(settings.nutrition_targets);
+      setMicroTargets(
+        settings.micronutrient_targets.length > 0
+          ? settings.micronutrient_targets
+          : DEFAULT_MICRO_TARGETS
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings]);
+
+  const supplements = settings?.supplement_definitions ?? [];
+  const apiKeyMasked = settings?.api_key_masked ?? "";
+
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Add supplement form
   const [newSupp, setNewSupp] = useState({
@@ -112,105 +141,103 @@ export default function SettingsPage() {
     micronutrients: "" as string,
   });
 
-  // Integrations
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
-
   // API key
-  const [apiKeyMasked, setApiKeyMasked] = useState("");
   const [fullApiKey, setFullApiKey] = useState<string | null>(null);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
 
-  const loadSettings = useCallback(async () => {
-    try {
-      const data = await apiFetch<UserSettings>("/api/v1/settings");
-      setSettings(data);
-      setNutrition(data.nutrition_targets);
-      setMicroTargets(
-        data.micronutrient_targets.length > 0
-          ? data.micronutrient_targets
-          : DEFAULT_MICRO_TARGETS
-      );
-      setSupplements(data.supplement_definitions);
-      setApiKeyMasked(data.api_key_masked);
-    } catch {
-    } finally {
-      setLoading(false);
+  // --- Mutations ---
+
+  const updateNutritionTargets = useUpdateNutritionTargets();
+  const updateMicroTargets = useUpdateMicronutrientTargets();
+  const createSupplement = useCreateSupplement();
+  const updateSupplement = useUpdateSupplement();
+  const deleteSupplementMutation = useDeleteSupplement();
+  const regenerateApiKey = useRegenerateApiKey();
+
+  // --- Client-side validation ---
+
+  const nutritionErrors = useMemo(() => {
+    const errs: Partial<Record<keyof NutritionTargets, string>> = {};
+    for (const key of Object.keys(NUTRITION_TARGET_BOUNDS) as (keyof NutritionTargets)[]) {
+      const msg = validateBounds(nutrition[key], NUTRITION_TARGET_BOUNDS[key]);
+      if (msg) errs[key] = msg;
     }
-  }, []);
-
-  useEffect(() => {
-    loadSettings();
-  }, [loadSettings]);
-
-  useEffect(() => {
-    apiFetch<Integration[]>("/api/v1/integrations").then(setIntegrations).catch(() => {});
-  }, []);
+    return errs;
+  }, [nutrition]);
+  const hasNutritionErrors = Object.keys(nutritionErrors).length > 0;
 
   // --- Handlers ---
 
-  async function saveNutritionTargets() {
-    await apiFetch("/api/v1/settings/nutrition-targets", {
-      method: "PUT",
-      body: JSON.stringify(nutrition),
+  function saveNutritionTargets() {
+    if (hasNutritionErrors) {
+      toast.error("Fix the highlighted fields before saving.");
+      return;
+    }
+    updateNutritionTargets.mutate(nutrition, {
+      onSuccess: () => toast.success("Nutrition targets saved"),
     });
-    setNutritionSaved(true);
-    setTimeout(() => setNutritionSaved(false), 2000);
   }
 
-  async function saveMicroTargets() {
-    await apiFetch("/api/v1/settings/micronutrient-targets", {
-      method: "PUT",
-      body: JSON.stringify({ targets: microTargets }),
+  function saveMicroTargets() {
+    updateMicroTargets.mutate(microTargets, {
+      onSuccess: () => toast.success("Micronutrient targets saved"),
     });
-    setMicroSaved(true);
-    setTimeout(() => setMicroSaved(false), 2000);
   }
 
-  async function addSupplement() {
+  function addSupplement() {
     let microObj: Record<string, number> | null = null;
     if (newSupp.micronutrients.trim()) {
       try {
         microObj = JSON.parse(newSupp.micronutrients);
       } catch {
+        toast.error("Micronutrients must be valid JSON, e.g. {\"vitamin_d\": 50}");
         return;
       }
     }
-    const created = await apiFetch<SupplementDefinition>("/api/v1/supplements", {
-      method: "POST",
-      body: JSON.stringify({
+    createSupplement.mutate(
+      {
         name: newSupp.name,
         dose_amount: newSupp.dose_amount,
         dose_unit: newSupp.dose_unit,
         time_of_day: newSupp.time_of_day,
         micronutrients: microObj,
-      }),
-    });
-    setSupplements((prev) => [...prev, created]);
-    setShowAddModal(false);
-    setNewSupp({ name: "", dose_amount: 0, dose_unit: "mg", time_of_day: "morning", micronutrients: "" });
-  }
-
-  async function toggleSuppActive(id: string, active: boolean) {
-    const updated = await apiFetch<SupplementDefinition>(`/api/v1/supplements/${id}`, {
-      method: "PUT",
-      body: JSON.stringify({ active }),
-    });
-    setSupplements((prev) => prev.map((s) => (s.id === id ? updated : s)));
-  }
-
-  async function deleteSupplement(id: string) {
-    await apiFetch(`/api/v1/supplements/${id}`, { method: "DELETE" });
-    setSupplements((prev) => prev.filter((s) => s.id !== id));
-  }
-
-  async function regenerateApiKey() {
-    const res = await apiFetch<{ api_key_masked: string; api_key: string }>(
-      "/api/v1/settings/regenerate-api-key",
-      { method: "POST" }
+      },
+      {
+        onSuccess: () => {
+          setShowAddModal(false);
+          setNewSupp({ name: "", dose_amount: 0, dose_unit: "mg", time_of_day: "morning", micronutrients: "" });
+          toast.success("Supplement added");
+        },
+      }
     );
-    setApiKeyMasked(res.api_key_masked);
-    setFullApiKey(res.api_key);
-    setShowRegenConfirm(false);
+  }
+
+  function toggleSuppActive(id: string, active: boolean) {
+    updateSupplement.mutate({ id, active });
+  }
+
+  function deleteSupplement(id: string) {
+    deleteSupplementMutation.mutate(id, {
+      onSuccess: () => toast.success("Supplement removed"),
+    });
+  }
+
+  function regenerateKey() {
+    regenerateApiKey.mutate(undefined, {
+      onSuccess: (res) => {
+        setFullApiKey(res.api_key);
+        setShowRegenConfirm(false);
+        toast.success("API key regenerated");
+      },
+    });
+  }
+
+  if (isError && !settings) {
+    return (
+      <DashboardLayout title="Settings">
+        <ErrorState message={getErrorMessage(error, "Couldn't load settings.")} onRetry={() => refetch()} />
+      </DashboardLayout>
+    );
   }
 
   if (loading) {
@@ -250,28 +277,37 @@ export default function SettingsPage() {
               { label: "Alcohol Limit", key: "target_alcohol_g" as const, unit: "g" },
               { label: "Water Target", key: "target_water_ml" as const, unit: "ml" },
               { label: "Caffeine Limit", key: "target_caffeine_mg" as const, unit: "mg" },
-            ].map((field) => (
-              <div key={field.key} className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">{field.label}</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={nutrition[field.key]}
-                    onChange={(e) =>
-                      setNutrition((prev) => ({ ...prev, [field.key]: Number(e.target.value) }))
-                    }
-                    className="flex-1 tabular-nums"
-                  />
-                  <span className="text-xs text-muted-foreground w-8">{field.unit}</span>
+            ].map((field) => {
+              const bounds = NUTRITION_TARGET_BOUNDS[field.key];
+              const fieldError = nutritionErrors[field.key];
+              return (
+                <div key={field.key} className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{field.label}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={nutrition[field.key]}
+                      min={bounds.min}
+                      max={bounds.max}
+                      aria-invalid={!!fieldError}
+                      onChange={(e) =>
+                        setNutrition((prev) => ({ ...prev, [field.key]: Number(e.target.value) }))
+                      }
+                      className="flex-1 tabular-nums"
+                    />
+                    <span className="text-xs text-muted-foreground w-8">{field.unit}</span>
+                  </div>
+                  {fieldError && <p className="text-[11px] text-destructive">{fieldError}</p>}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             <Button
               onClick={saveNutritionTargets}
+              disabled={updateNutritionTargets.isPending || hasNutritionErrors}
               className="mt-2 w-full"
               size="lg"
             >
-              {nutritionSaved ? "Saved!" : "Save Targets"}
+              {updateNutritionTargets.isPending ? "Saving..." : "Save Targets"}
             </Button>
           </div>
         </div>
@@ -402,11 +438,11 @@ export default function SettingsPage() {
               <div className="flex gap-3 mt-2">
                 <Button
                   onClick={addSupplement}
-                  disabled={!newSupp.name}
+                  disabled={!newSupp.name || createSupplement.isPending}
                   className="flex-1"
                   size="lg"
                 >
-                  Add
+                  {createSupplement.isPending ? "Adding..." : "Add"}
                 </Button>
                 <Button
                   onClick={() => setShowAddModal(false)}
@@ -450,10 +486,11 @@ export default function SettingsPage() {
           </div>
           <Button
             onClick={saveMicroTargets}
+            disabled={updateMicroTargets.isPending}
             className="mt-3 w-full"
             size="lg"
           >
-            {microSaved ? "Saved!" : "Save Targets"}
+            {updateMicroTargets.isPending ? "Saving..." : "Save Targets"}
           </Button>
         </div>
 
@@ -503,11 +540,12 @@ export default function SettingsPage() {
                 </p>
                 <div className="flex gap-2">
                   <Button
-                    onClick={regenerateApiKey}
+                    onClick={regenerateKey}
+                    disabled={regenerateApiKey.isPending}
                     variant="destructive"
                     className="flex-1"
                   >
-                    Confirm
+                    {regenerateApiKey.isPending ? "Regenerating..." : "Confirm"}
                   </Button>
                   <Button
                     onClick={() => setShowRegenConfirm(false)}

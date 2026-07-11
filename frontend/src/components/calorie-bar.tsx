@@ -1,10 +1,5 @@
 "use client";
 
-/* ── Color constants ── */
-const COLOR_SUCCESS = "#4ade80";
-const COLOR_WARNING = "#f9c74f";
-const COLOR_DANGER  = "#f94f4f";
-
 interface Props {
   current: number;
   target: number;

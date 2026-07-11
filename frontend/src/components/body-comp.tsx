@@ -18,7 +18,6 @@ const COLOR_BODY_FAT = "#f9c74f";
 const COLOR_MUSCLE = "#4f9cf9";
 const COLOR_GRID = "rgba(255,255,255,0.06)";
 const COLOR_TICK = { fill: "rgba(255,255,255,0.35)", fontSize: 10 };
-const COLOR_CURSOR = "rgba(255,255,255,0.03)";
 
 const TT_STYLE: React.CSSProperties = {
   backgroundColor: "#1e1e22",
@@ -169,7 +168,7 @@ export function BodyFatCard({ data }: Props) {
   return <BodyCompCard data={data} />;
 }
 
-export function MuscleCard(_props: Props) {
+export function MuscleCard() {
   // Now rendered inside BodyCompCard; this is a no-op to avoid breaking imports
   return null;
 }

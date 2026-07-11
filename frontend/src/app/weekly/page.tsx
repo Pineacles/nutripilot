@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useWeekSummary } from "@/hooks/use-summary";
-import { useSettings } from "@/hooks/use-settings";
+import { useWeekSummary, useSettings } from "@/hooks/queries";
+import { getErrorMessage } from "@/lib/api";
 import { fmt } from "@/lib/utils";
 import { DashboardLayout } from "@/components/dashboard-layout";
+import { ErrorState } from "@/components/ui/error-state";
 import { CalorieChartCard } from "@/components/calorie-chart";
 import { WeightTrendCard } from "@/components/weight-trend";
 import { MacroAveragesCard } from "@/components/macro-averages";
@@ -15,7 +16,7 @@ import { HydrationWeeklyCard } from "@/components/hydration-weekly";
 export default function WeeklyPage() {
   const [mode, setMode] = useState<"last7" | "week">("week");
   const [offset, setOffset] = useState(0);
-  const { data, loading } = useWeekSummary(mode, offset);
+  const { data, isLoading, isError, error, refetch } = useWeekSummary(mode, offset);
   const { data: settings } = useSettings();
 
   function goBack() { setOffset((o) => Math.min(o + 1, 52)); }
@@ -34,7 +35,9 @@ export default function WeeklyPage() {
 
   return (
     <DashboardLayout title="Weekly Overview">
-      {loading || !data ? (
+      {isError ? (
+        <ErrorState message={getErrorMessage(error, "Couldn't load the weekly summary.")} onRetry={() => refetch()} />
+      ) : isLoading || !data ? (
         <div className="space-y-4">
           {/* Skeleton hero row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

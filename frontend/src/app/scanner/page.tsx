@@ -1,21 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { apiFetch } from "@/lib/api";
+import { useBarcodeLookup } from "@/hooks/queries";
+import { ApiError } from "@/lib/api";
+import type { FoodDetail } from "@/lib/types";
 import Link from "next/link";
-
-interface FoodResult {
-  id: string;
-  name: string;
-  barcode: string | null;
-  source: string;
-  nutrients: Record<string, number | null> | null;
-}
 
 type ErrorType = "not-found" | "network" | "camera" | null;
 
@@ -23,12 +17,14 @@ export default function ScannerPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [scanning, setScanning] = useState(false);
   const [manualCode, setManualCode] = useState("");
-  const [result, setResult] = useState<FoodResult | null>(null);
+  const [result, setResult] = useState<FoodDetail | null>(null);
   const [error, setError] = useState("");
   const [errorType, setErrorType] = useState<ErrorType>(null);
-  const [loading, setLoading] = useState(false);
   const [scannedCode, setScannedCode] = useState("");
   const [flashGreen, setFlashGreen] = useState(false);
+
+  const barcodeLookup = useBarcodeLookup();
+  const loading = barcodeLookup.isPending;
 
   function clearState() {
     setResult(null);
@@ -40,14 +36,13 @@ export default function ScannerPage() {
   async function lookupBarcodeByCode(code: string) {
     setError("");
     setErrorType(null);
-    setLoading(true);
     setResult(null);
     setScannedCode(code);
     try {
-      const data = await apiFetch<FoodResult>(`/api/foods/barcode/${code}`);
+      const data = await barcodeLookup.mutateAsync(code);
       setResult(data);
     } catch (err: unknown) {
-      if (err instanceof Error && err.message?.includes("404")) {
+      if (err instanceof ApiError && err.status === 404) {
         setError(`Barcode ${code} not found in our database`);
         setErrorType("not-found");
       } else {
@@ -55,7 +50,6 @@ export default function ScannerPage() {
         setErrorType("network");
       }
     }
-    setLoading(false);
   }
 
   async function startScanning() {

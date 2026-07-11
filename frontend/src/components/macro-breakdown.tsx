@@ -4,16 +4,9 @@ import { useState } from "react";
 import type { MacroTotals, MacroTargets } from "@/lib/types";
 import { DashboardCard } from "./dashboard-card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { apiFetch } from "@/lib/api";
+import { useNutrientSources } from "@/hooks/queries";
+import { getErrorMessage } from "@/lib/api";
 import { fmt } from "@/lib/utils";
-
-interface SourceItem {
-  food_name: string;
-  amount: number;
-  quantity_g: number;
-  date: string;
-  meal_type: string;
-}
 
 interface Props {
   totals: MacroTotals;
@@ -35,26 +28,20 @@ const allMacros = [
 
 export function MacroBreakdownCard({ totals, targets, span, dateRange }: Props) {
   const [selectedMacro, setSelectedMacro] = useState<{ key: string; label: string; unit: string } | null>(null);
-  const [sources, setSources] = useState<SourceItem[]>([]);
-  const [sourcesTotal, setSourcesTotal] = useState(0);
-  const [loadingSources, setLoadingSources] = useState(false);
 
-  async function openSources(key: string, label: string, unit: string) {
+  const fromParam = dateRange?.from || new Date().toISOString().slice(0, 10);
+  const toParam = dateRange?.to || new Date().toISOString().slice(0, 10);
+  const {
+    data: sourcesData,
+    isFetching: loadingSources,
+    isError: sourcesError,
+    error: sourcesErrorObj,
+  } = useNutrientSources(selectedMacro?.key ?? null, fromParam, toParam);
+  const sources = sourcesData?.sources ?? [];
+  const sourcesTotal = sourcesData?.total ?? 0;
+
+  function openSources(key: string, label: string, unit: string) {
     setSelectedMacro({ key, label, unit });
-    setLoadingSources(true);
-    try {
-      const fromParam = dateRange?.from || new Date().toISOString().slice(0, 10);
-      const toParam = dateRange?.to || new Date().toISOString().slice(0, 10);
-      const data = await apiFetch<{ total: number; sources: SourceItem[] }>(
-        `/api/dashboard/nutrient-sources?nutrient=${key}&from=${fromParam}&to=${toParam}`
-      );
-      setSources(data.sources);
-      setSourcesTotal(data.total);
-    } catch {
-      setSources([]);
-      setSourcesTotal(0);
-    }
-    setLoadingSources(false);
   }
 
   return (
@@ -108,7 +95,9 @@ export function MacroBreakdownCard({ totals, targets, span, dateRange }: Props) 
             </p>
           </DialogHeader>
           <div className="overflow-y-auto flex-1 -mx-1 px-1 thin-scrollbar">
-            {loadingSources ? (
+            {sourcesError ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">{getErrorMessage(sourcesErrorObj, "Couldn't load sources for this period")}</p>
+            ) : loadingSources ? (
               <div className="space-y-2 py-2">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="h-14 rounded-lg bg-muted/30 animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />

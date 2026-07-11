@@ -2,9 +2,10 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useTodaySummary } from "@/hooks/use-summary";
-import { useSettings } from "@/hooks/use-settings";
+import { useTodaySummary, useSettings } from "@/hooks/queries";
+import { getErrorMessage } from "@/lib/api";
 import { DashboardLayout } from "@/components/dashboard-layout";
+import { ErrorState } from "@/components/ui/error-state";
 import { CalorieRingCard } from "@/components/macro-ring";
 import { MacroBreakdownCard } from "@/components/macro-breakdown";
 import { QuickStatsCard } from "@/components/quick-stats";
@@ -52,7 +53,7 @@ function TodayPageInner() {
   const todayStr = toDateStr(new Date());
   const [selectedDate, setSelectedDate] = useState(searchParams.get("date") || todayStr);
 
-  const { data, loading } = useTodaySummary(selectedDate);
+  const { data, isLoading, isError, error, refetch } = useTodaySummary(selectedDate);
   const { data: settings } = useSettings();
 
   const hasMeals = data && data.meals.length > 0;
@@ -121,7 +122,9 @@ function TodayPageInner() {
         </div>
       </div>
 
-      {loading || !data ? (
+      {isError ? (
+        <ErrorState message={getErrorMessage(error, "Couldn't load today's summary.")} onRetry={() => refetch()} />
+      ) : isLoading || !data ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="clay-card p-5 space-y-4 animate-pulse">
