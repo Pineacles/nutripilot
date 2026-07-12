@@ -18,8 +18,17 @@ with [Architecture](#architecture) and the [Security model](#security-model).
 
 ## Screenshots
 
-*(Add screenshots here, taken against the `demo@nutripilot.dev` account:
-`seed_demo.py` generates 90 days of realistic data)*
+Daily overview with date navigation, calorie ring, macros, meals, and supplements.
+![Today view](docs/screenshots/today.png)
+
+Analytics with weight history, body composition, calorie trend, and macro distribution charts.
+![Statistics view](docs/screenshots/statistics.png)
+
+Body composition tracking with weight, body fat, and muscle mass trends.
+![Body composition view](docs/screenshots/body.png)
+
+Food database search with nutrient breakdown for a selected food.
+![Foods view](docs/screenshots/foods.png)
 
 ## Features
 
