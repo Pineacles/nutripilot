@@ -18,7 +18,7 @@ const DEFAULT_ICON = (
 );
 
 /**
- * Small, consistent "nothing here yet" state — icon + one line + optional
+ * Small, consistent "nothing here yet" state: icon + one line + optional
  * action button. Reuses the same visual language as error-state.tsx.
  */
 export function EmptyState({ message, actionLabel, onAction, className = "", icon }: EmptyStateProps) {

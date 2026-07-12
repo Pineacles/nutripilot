@@ -6,7 +6,7 @@ import { CHART_COLORS } from "@/lib/chart-theme";
 import type { StatsSummary } from "@/lib/types";
 
 /**
- * All the derived (non-fetched) numbers the body-composition page renders —
+ * All the derived (non-fetched) numbers the body-composition page renders,
  * lifted out of the page component so page.tsx stays a thin composition.
  */
 export function useBodyDerived(data: StatsSummary | undefined, days: number) {

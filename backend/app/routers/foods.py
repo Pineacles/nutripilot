@@ -115,7 +115,7 @@ def _assert_food_writable(food: Food, user: User) -> None:
     if food.created_by is None:
         raise HTTPException(
             status_code=403,
-            detail={"code": "FOOD_READ_ONLY", "detail": "Official foods can't be edited — clone it to customize"},
+            detail={"code": "FOOD_READ_ONLY", "detail": "Official foods can't be edited: clone it to customize"},
         )
     if food.created_by != user.id:
         raise HTTPException(
@@ -156,7 +156,7 @@ async def clone_food(
     summary="Update a food",
     description=(
         "Update any field on a food you own. Only send the fields you want to change.\n\n"
-        "Nutrients can be partially updated — only the nutrient fields you include will be changed.\n\n"
+        "Nutrients can be partially updated: only the nutrient fields you include will be changed.\n\n"
         "**Errors:** `404 FOOD_NOT_FOUND`; `403 FOOD_READ_ONLY` for official foods (clone it first); "
         "`403 NOT_FOOD_OWNER` for foods owned by another user."
     ),

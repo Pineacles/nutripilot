@@ -1,6 +1,6 @@
 # NutriPilot
 
-**Self-hosted nutrition and body-composition tracking — for you and your AI agent.**
+**Self-hosted nutrition and body-composition tracking, for you and your AI agent.**
 
 [![CI](https://github.com/Pineacles/NutriPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/Pineacles/NutriPilot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -8,7 +8,7 @@
 ![Next.js 16](https://img.shields.io/badge/next.js-16-black?logo=nextdotjs)
 
 NutriPilot tracks food, weight, supplements, water, and caffeine. Log by hand
-in the web dashboard — search, barcode scan, per-day editing — or let an AI
+in the web dashboard (search, barcode scan, per-day editing) or let an AI
 agent do it from natural language through the agent-first API ("I had 200g of
 chicken for lunch" becomes a structured, dated entry). Smart scales (Withings,
 Fitbit, Google Fit, Garmin) sync body composition automatically.
@@ -18,32 +18,32 @@ with [Architecture](#architecture) and the [Security model](#security-model).
 
 ## Screenshots
 
-*(Add screenshots here, taken against the `demo@nutripilot.dev` account —
+*(Add screenshots here, taken against the `demo@nutripilot.dev` account:
 `seed_demo.py` generates 90 days of realistic data)*
 
 ## Features
 
-- **Food logging** — search a local database with fuzzy matching, scan a
+- **Food logging**: search a local database with fuzzy matching, scan a
   barcode (camera or manual entry), or log by name. Falls back to
   OpenFoodFacts and USDA FoodData Central when a barcode isn't known locally.
   Includes a curated Swiss food database.
-- **Custom foods with an ownership model** — the shared/official catalog is
+- **Custom foods with an ownership model**: the shared/official catalog is
   read-only; any user can clone an official food to customize it, or add a
   brand-new food they own outright. Only the owner can edit or delete their
   own foods (enforced server-side, not just hidden in the UI).
-- **Body composition** — log weight, body fat %, and muscle mass manually, or
+- **Body composition**: log weight, body fat %, and muscle mass manually, or
   connect a smart scale. Sync worker integrations for Withings, Fitbit,
   Google Fit, and Garmin, plus a generic JSON adapter for anything else.
-- **Supplements** — define supplement profiles with dose and micronutrient
+- **Supplements**: define supplement profiles with dose and micronutrient
   content, then log daily intake.
-- **Water & caffeine** — water logged directly; caffeine tracked
+- **Water & caffeine**: water logged directly; caffeine tracked
   automatically from the `caffeine_mg` field on logged foods, no separate
   entry needed.
-- **Statistics & streaks** — 1–365 day rolling stats, adherence, records, and
+- **Statistics & streaks**: 1-365 day rolling stats, adherence, records, and
   streaks across macros, body comp, and habits.
-- **Per-user timezone** — "today" and daily/weekly boundaries are computed in
+- **Per-user timezone**: "today" and daily/weekly boundaries are computed in
   each user's own configured timezone, not the server's.
-- **PWA** — installable on iOS/Android/desktop.
+- **PWA**: installable on iOS/Android/desktop.
 
 ## Architecture
 
@@ -74,7 +74,7 @@ and pulling the latest body-comp reading on a daily loop started from
 | Frontend | Next.js 16 (App Router), TypeScript (strict), Tailwind CSS, shadcn/ui, TanStack Query, Recharts |
 | Backend | FastAPI, Python 3.12, SQLAlchemy (async), Alembic |
 | Database | PostgreSQL 16 (pg_trgm for fuzzy food search) |
-| Auth | JWT (PyJWT) for the dashboard, per-user `X-API-Key` for the agent — both accepted on agent/food endpoints |
+| Auth | JWT (PyJWT) for the dashboard, per-user `X-API-Key` for the agent (both accepted on agent/food endpoints) |
 | External data | OpenFoodFacts + USDA FoodData Central (barcode fallback), Withings / Fitbit / Google Fit / Garmin (body comp sync) |
 | Infra | Docker Compose, Caddy (reverse proxy for the production/tunnel profiles) |
 
@@ -85,13 +85,13 @@ and pulling the latest body-comp reading on a daily loop started from
   header (agent), via a single `get_current_user_jwt_or_api_key` dependency
   (`backend/app/auth/dependencies.py`) so behavior can't drift between the
   two call paths.
-- **Constant-time API key comparison** — key lookup narrows to a row by
+- **Constant-time API key comparison**: key lookup narrows to a row by
   equality, but the final accept/reject uses `hmac.compare_digest` to avoid
   timing side-channels.
 - **User-scoped queries everywhere**, backed by an IDOR test suite
   (`backend/tests/test_isolation.py`) that asserts one user can never read,
   modify, or delete another user's foods, logs, integrations, or settings.
-- **Food ownership** — the shared catalog (`created_by IS NULL`) is
+- **Food ownership**: the shared catalog (`created_by IS NULL`) is
   read-only for everyone; user-owned foods can only be edited/deleted by
   their owner. Attempting to edit an official food returns
   `403 FOOD_READ_ONLY`; editing someone else's food returns
@@ -100,8 +100,8 @@ and pulling the latest body-comp reading on a daily loop started from
   client secrets stored on an `Integration` row are encrypted transparently
   at the SQLAlchemy type layer (`app/services/crypto.py`, Fernet via
   `TypeDecorator`), so no call site can forget to encrypt. `TOKEN_ENCRYPTION_KEY`
-  accepts a comma-separated list of Fernet keys — the first encrypts, all of
-  them can decrypt — enabling zero-downtime key rotation.
+  accepts a comma-separated list of Fernet keys: the first encrypts, all of
+  them can decrypt, enabling zero-downtime key rotation.
 - **SSRF guard** (`app/services/url_guard.py`) rejects any user/agent-supplied
   integration URL that resolves to a loopback, RFC1918-private, link-local
   (including the `169.254.169.254` cloud metadata address), CGNAT, multicast,
@@ -111,11 +111,11 @@ and pulling the latest body-comp reading on a daily loop started from
 - **Security headers** on every response (`X-Content-Type-Options`,
   `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS from the
   Next.js layer) via middleware in both `app/main.py` and `next.config.ts`.
-- **Production config validation** — `app/config.py` refuses to start with
+- **Production config validation**: `app/config.py` refuses to start with
   `ENVIRONMENT=production` if `JWT_SECRET`, `CORS_ORIGINS`, or
   `TOKEN_ENCRYPTION_KEY` are left at their development defaults. `/docs` and
   `/redoc` are also disabled in production.
-- **Secrets only via environment variables** — nothing sensitive is
+- **Secrets only via environment variables**: nothing sensitive is
   hardcoded or committed; see [Environment variables](#environment-variables).
 
 ## Quickstart
@@ -132,7 +132,7 @@ cd nutripilot
 cp .env.example .env
 ```
 
-Edit `.env` — at minimum set `POSTGRES_PASSWORD` and `JWT_SECRET`. Generate a
+Edit `.env`: at minimum set `POSTGRES_PASSWORD` and `JWT_SECRET`. Generate a
 `TOKEN_ENCRYPTION_KEY` with:
 
 ```bash
@@ -146,7 +146,7 @@ docker compose up -d --build
 ```
 
 The `api` container runs `alembic upgrade head` before starting `uvicorn`
-(see the `command:` in `docker-compose.yml`) — migrations run once, on
+(see the `command:` in `docker-compose.yml`); migrations run once, on
 container start, not from the app's lifespan, so multiple workers never race
 each other applying the same migration.
 
@@ -154,7 +154,7 @@ each other applying the same migration.
 |---|---|
 | Dashboard (Next.js) | http://localhost:3099 |
 | API (FastAPI) | http://localhost:8099 |
-| API docs | http://localhost:8099/docs *(dev only — disabled when `ENVIRONMENT=production`)* |
+| API docs | http://localhost:8099/docs *(dev only; disabled when `ENVIRONMENT=production`)* |
 
 ### 3. Seed a user
 
@@ -166,8 +166,8 @@ Reads `SEED_EMAIL` / `SEED_PASSWORD` / `SEED_API_KEY` from the environment,
 falling back to a randomly generated password and API key (printed once, not
 stored anywhere) when unset.
 
-For a fuller demo — three months of realistic food/weight/supplement history
-so every dashboard page and chart has something to show — use:
+For a fuller demo (three months of realistic food/weight/supplement history
+so every dashboard page and chart has something to show), use:
 
 ```bash
 docker compose exec api python -m seed_demo
@@ -187,13 +187,13 @@ All variables are documented in [`.env.example`](.env.example).
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `POSTGRES_USER` | no | `nutripilot` | PostgreSQL user |
-| `POSTGRES_PASSWORD` | **yes** | — | PostgreSQL password |
+| `POSTGRES_PASSWORD` | **yes** | none | PostgreSQL password |
 | `POSTGRES_DB` | no | `nutripilot` | PostgreSQL database name |
 | `DATABASE_URL` | no | derived from the `POSTGRES_*` values | Full async SQLAlchemy DSN, override to point at an external Postgres |
-| `JWT_SECRET` | **yes** | — | Signs all access/refresh JWTs (min 32 chars) |
+| `JWT_SECRET` | **yes** | none | Signs all access/refresh JWTs (min 32 chars) |
 | `TOKEN_ENCRYPTION_KEY` | **yes in production** | dev-only fixed key | Fernet key(s), comma-separated, encrypting integration credentials at rest |
 | `CORS_ORIGINS` | **yes in production** | `http://localhost:3000` | Comma-separated list of allowed browser origins |
-| `USDA_API_KEY` | no | — | USDA FoodData Central API key (free tier), used as a barcode fallback |
+| `USDA_API_KEY` | no | none | USDA FoodData Central API key (free tier), used as a barcode fallback |
 | `SEED_EMAIL` / `SEED_PASSWORD` / `SEED_API_KEY` | no | random | Used only by `backend/seed.py`; unset values are generated randomly and printed once |
 | `ENVIRONMENT` | no | `dev` | Set to `production` to enforce the secret checks above and disable `/docs`/`/redoc` |
 | `NEXT_PUBLIC_API_URL` | no | `/api` | Build-time base path baked into the frontend production build |
@@ -203,7 +203,7 @@ All variables are documented in [`.env.example`](.env.example).
 There is no global agent API key: `/api/agent/*` and `/api/foods/*` accept a
 **per-user** API key (issued by `seed.py`, visible masked in dashboard
 settings, and rotatable via `POST /api/v1/settings/regenerate-api-key`) or a
-JWT — see [Security model](#security-model).
+JWT; see [Security model](#security-model).
 
 ## Testing
 
@@ -214,17 +214,17 @@ ruff check .
 pytest --tb=short -q
 ```
 
-106 tests, run fully offline against an in-memory SQLite database — no
-Postgres or network access required for most of them. Notable suites:
+106 tests, run fully offline against an in-memory SQLite database (no
+Postgres or network access required for most of them). Notable suites:
 
-- `test_isolation.py` — the IDOR suite (cross-user access must always fail)
-- `test_food_ownership.py` — clone/edit/delete rules for official vs. owned foods
-- `test_encryption.py` — integration credentials round-trip through Fernet
-- `test_url_guard.py` — SSRF guard rejects private/loopback/metadata targets
-- `test_sync_worker.py` — integration sync + OAuth token refresh
-- `test_migrations.py` — **dockerized**: spins up a throwaway
+- `test_isolation.py`: the IDOR suite (cross-user access must always fail)
+- `test_food_ownership.py`: clone/edit/delete rules for official vs. owned foods
+- `test_encryption.py`: integration credentials round-trip through Fernet
+- `test_url_guard.py`: SSRF guard rejects private/loopback/metadata targets
+- `test_sync_worker.py`: integration sync + OAuth token refresh
+- `test_migrations.py` (**dockerized**): spins up a throwaway
   `postgres:16-alpine` container, runs the real Alembic migrations against
-  it, and asserts the resulting schema matches the SQLAlchemy models —
+  it, and asserts the resulting schema matches the SQLAlchemy models;
   automatically skipped if Docker isn't available locally, but runs in CI
 
 CI (`.github/workflows/ci.yml`) runs `ruff check`, the full pytest suite, and

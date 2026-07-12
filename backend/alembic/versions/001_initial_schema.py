@@ -1,4 +1,4 @@
-"""Initial schema — all 6 tables
+"""Initial schema: all 6 tables
 
 Revision ID: 001
 Revises:

@@ -21,7 +21,7 @@ interface Props {
   onClose: () => void;
 }
 
-/** Edit (quantity/meal/date — moving date = "move to another day") or delete a single food log entry. */
+/** Edit (quantity/meal/date, moving date = "move to another day") or delete a single food log entry. */
 export function EditFoodLogDialog({ entry, onClose }: Props) {
   const [quantityG, setQuantityG] = useState("0");
   const [mealType, setMealType] = useState<MealType>("snack");

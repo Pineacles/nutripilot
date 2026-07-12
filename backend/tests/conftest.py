@@ -7,7 +7,7 @@ Design: One in-memory DB per session; each test gets a fresh User (unique email)
 so there are no UNIQUE constraint conflicts between tests.
 
 SQLite compat: The PG UUID(as_uuid=True) type works in SQLAlchemy 2 on SQLite by
-emitting CHAR(32) — but the round-trip requires uuid.UUID objects. We configure
+emitting CHAR(32), but the round-trip requires uuid.UUID objects. We configure
 the engine with a type_coerce_to_known_native event listener so UUID strings are
 correctly roundtripped.
 """
@@ -24,7 +24,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("TOKEN_ENCRYPTION_KEY", "IRrBEixRKeDMt6CFRLeX5PYhYqO-m51ElyzSFq_TA9M=")
 
 # Sentinel API key value assigned directly to the test user (see test_user
-# fixture below) — previously this was pushed through settings.api_key, but
+# fixture below): previously this was pushed through settings.api_key, but
 # that field was removed from Settings (API keys are per-user, DB-backed only).
 _TEST_API_KEY_SENTINEL = "test-api-key-not-for-production-xxx"
 
@@ -177,13 +177,13 @@ async def patch_sync_worker_db(monkeypatch):
     """Point ``app.services.sync_worker``'s DB session factory at the test engine.
 
     ``sync_integration`` / ``run_all_syncs`` open their own session via
-    ``app.database.async_session``, which is bound to ``app.database.engine`` —
+    ``app.database.async_session``, which is bound to ``app.database.engine``,
     a SEPARATE SQLAlchemy engine instance from this file's ``_test_engine``,
     even though both point at the literal URL ``sqlite+aiosqlite:///:memory:``.
     Each in-memory SQLite engine is its own isolated database, so without this
     patch the sync worker would see an empty, tableless DB instead of the rows
     test fixtures create. Monkeypatching the module-level name the worker
-    imported keeps the fix test-only — no production code changes.
+    imported keeps the fix test-only: no production code changes.
     """
     import app.services.sync_worker as sync_worker
 

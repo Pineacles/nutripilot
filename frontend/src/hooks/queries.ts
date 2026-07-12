@@ -80,7 +80,7 @@ export function useStats(days: number) {
   });
 }
 
-/** Full food-log detail (with log ids) for a single day — powers edit/delete in the meals list. */
+/** Full food-log detail (with log ids) for a single day; powers edit/delete in the meals list. */
 export function useFoodLogDay(date: string) {
   return useQuery({
     queryKey: queryKeys.foodLogDay(date),
@@ -88,7 +88,7 @@ export function useFoodLogDay(date: string) {
   });
 }
 
-/** Weight/body-comp rows with ids — powers the Body page "Measurements" list. */
+/** Weight/body-comp rows with ids; powers the Body page "Measurements" list. */
 export function useWeightLogList(from?: string, to?: string, source?: string) {
   return useQuery({
     queryKey: queryKeys.weightLogList(from, to, source),
@@ -103,7 +103,7 @@ export function useWeightLogList(from?: string, to?: string, source?: string) {
   });
 }
 
-/** Water log rows (with ids) for a single day — powers quick-add entries list on Today. */
+/** Water log rows (with ids) for a single day; powers quick-add entries list on Today. */
 export function useWaterLogDay(date: string) {
   return useQuery({
     queryKey: queryKeys.waterLogDay(date),
@@ -111,7 +111,7 @@ export function useWaterLogDay(date: string) {
   });
 }
 
-/** Supplement intake log rows (with ids) for a single day — powers the actionable checklist. */
+/** Supplement intake log rows (with ids) for a single day; powers the actionable checklist. */
 export function useSupplementLogDay(date: string) {
   return useQuery({
     queryKey: queryKeys.supplementLogDay(date),

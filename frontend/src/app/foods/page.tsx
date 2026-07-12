@@ -82,7 +82,7 @@ export default function FoodsPage() {
       },
       onError: (err) => {
         if (err instanceof ApiError && err.status === 409) {
-          toast.error("Can't delete — this food is used in logs");
+          toast.error("Can't delete: this food is used in logs");
         } else {
           toast.error(getErrorMessage(err, "Couldn't delete food."));
         }
@@ -96,7 +96,7 @@ export default function FoodsPage() {
       { id: food.id },
       {
         onSuccess: (cloned) => {
-          toast.success("Cloned — now editable");
+          toast.success("Cloned, now editable");
           setSelectedId(cloned.id);
           openEdit(cloned);
         },

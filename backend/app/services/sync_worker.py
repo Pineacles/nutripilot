@@ -27,7 +27,7 @@ field_mapping schema:
     "refresh_token": "...",
     "client_id": "...",
     "client_secret": "...",
-    "token_expires_at": 1712000000           # UTC epoch — set after each refresh
+    "token_expires_at": 1712000000           # UTC epoch, set after each refresh
 }
 """
 
@@ -64,7 +64,7 @@ TOKEN_EXPIRY_BUFFER_SECS = 300  # refresh 5 minutes before expiry
 
 
 # ================================================================
-# RefreshResult — the return contract for all refresher functions
+# RefreshResult: the return contract for all refresher functions
 # ================================================================
 
 @dataclass
@@ -85,11 +85,11 @@ class RefreshResult:
         return self.tokens is not None and self.tokens.get("access_token") is not None
 
 
-# OAuth refresh endpoint registry — each integration type that supports
+# OAuth refresh endpoint registry: each integration type that supports
 # token refresh registers its handler here. New integrations just add an entry.
 _TOKEN_REFRESHERS: dict[str, typing.Callable[..., typing.Awaitable[RefreshResult]]] = {}
 
-# Fetcher registry — maps integration type -> fetch function
+# Fetcher registry: maps integration type -> fetch function
 _FETCHERS: dict[str, typing.Callable] = {}
 
 
@@ -129,7 +129,7 @@ async def _ensure_valid_token(
             log.debug("token_still_valid", expires_in=int(remaining))
             return True
 
-    # Token expired or about to — refresh with retry
+    # Token expired or about to: refresh with retry
     refresher = _TOKEN_REFRESHERS.get(itype, _refresh_oauth2_token)
     last_result: RefreshResult | None = None
 
@@ -159,7 +159,7 @@ async def _ensure_valid_token(
             return True
 
         if result.permanent:
-            # Don't retry — token is revoked or refresh_token expired
+            # Don't retry: token is revoked or refresh_token expired
             log.error("token_refresh_permanent_fail", attempt=attempt,
                       error_type="permanent",
                       provider_code=result.provider_code,
@@ -167,7 +167,7 @@ async def _ensure_valid_token(
             await _update_status(db, integration, "needs_reauth", result.error, log)
             return False
 
-        # Transient failure — backoff and retry (with jitter to avoid thundering herd)
+        # Transient failure: backoff and retry (with jitter to avoid thundering herd)
         backoff = BACKOFF_BASE_SECONDS * (4 ** (attempt - 1)) + random.uniform(0, 2)
         log.warning("token_refresh_retry", attempt=attempt,
                     error_type="transient",
@@ -179,7 +179,7 @@ async def _ensure_valid_token(
         if attempt < MAX_REFRESH_ATTEMPTS:
             await asyncio.sleep(backoff)
 
-    # All retries exhausted — mark as error (NOT needs_reauth)
+    # All retries exhausted: mark as error (NOT needs_reauth)
     # so the next scheduled sync will try again
     error_msg = f"Token refresh failed after {MAX_REFRESH_ATTEMPTS} attempts: {last_result.error if last_result else 'unknown'}"
     log.error("token_refresh_exhausted", attempt=MAX_REFRESH_ATTEMPTS,
@@ -422,7 +422,7 @@ def _parse_withings_groups(groups: list[dict], accepted_types: set[int]) -> list
     """Parse Withings measuregrps into raw records.
 
     Returns [{date: date, "1": 80.5, "6": 18.2, ...}, ...] where keys are
-    vendor measure type IDs as strings — the generic mapper handles the rest.
+    vendor measure type IDs as strings; the generic mapper handles the rest.
     """
     from datetime import date as date_type
     by_date: dict[date_type, dict] = defaultdict(dict)
@@ -441,14 +441,14 @@ def _parse_withings_groups(groups: list[dict], accepted_types: set[int]) -> list
 
 
 # ================================================================
-# Token refreshers — return RefreshResult, classify errors
+# Token refreshers: return RefreshResult, classify errors
 # ================================================================
 
 # ── Withings error codes (JSON body "status" field, NOT HTTP codes) ──
-# IMPORTANT: Withings ALWAYS returns HTTP 200 — errors are in the JSON "status" field.
+# IMPORTANT: Withings ALWAYS returns HTTP 200; errors are in the JSON "status" field.
 # These are Withings-specific codes, not HTTP status codes.
 #
-# Permanent (re-auth required — retrying with same params won't help):
+# Permanent (re-auth required; retrying with same params won't help):
 #   100  = invalid hash/email
 #   247  = bad/missing userid
 #   250  = invalid userid/publickey
@@ -457,7 +457,7 @@ def _parse_withings_groups(groups: list[dict], accepted_types: set[int]) -> list
 #   301  = token invalid or doesn't exist
 #   302  = action not permitted for user
 #   303  = invalid params / wrong signature
-#   304  = invalid params (NOT "token expired" — Withings codes != HTTP codes)
+#   304  = invalid params (NOT "token expired"; Withings codes != HTTP codes)
 #   320  = invalid refresh_token
 #   342  = invalid OAuth signature
 #   343  = account needs re-linking
@@ -491,7 +491,7 @@ async def _refresh_withings_token(
 ) -> RefreshResult:
     """Withings uses a non-standard OAuth2 endpoint with action= parameter.
 
-    Withings always returns HTTP 200 — errors are in the JSON body "status" field.
+    Withings always returns HTTP 200; errors are in the JSON body "status" field.
     If the HTTP response itself fails (5xx, timeout), that's a real server error (transient).
     """
     url = "https://wbsapi.withings.net/v2/oauth2"
@@ -506,7 +506,7 @@ async def _refresh_withings_token(
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(url, data=data)
 
-        # Real HTTP errors (not Withings status codes) — these are transient server issues
+        # Real HTTP errors (not Withings status codes): these are transient server issues
         if resp.status_code >= 500:
             return RefreshResult(
                 error=f"Withings API server error (HTTP {resp.status_code})",
@@ -544,7 +544,7 @@ async def _refresh_withings_token(
     except httpx.ConnectError:
         return RefreshResult(error="Could not connect to Withings", http_status=0)
     except (ValueError, KeyError) as exc:
-        # JSON decode failed or unexpected structure — likely transient
+        # JSON decode failed or unexpected structure: likely transient
         logger.warning("Withings returned invalid JSON: %s: %s", type(exc).__name__, exc)
         return RefreshResult(error=f"Withings returned invalid JSON response: {type(exc).__name__}")
     except Exception as e:
@@ -557,7 +557,7 @@ _OAUTH2_PERMANENT_ERRORS = {
     "invalid_grant",          # refresh token expired/revoked (Fitbit, Google, all)
     "unauthorized_client",    # client not authorized for this grant type
     "invalid_client",         # client_id/secret wrong
-    "insufficient_scope",     # token lacks required scope (Fitbit) — re-auth with correct scope
+    "insufficient_scope",     # token lacks required scope (Fitbit), re-auth with correct scope
     "access_denied",          # user denied access
 }
 # Transient: the error is temporary, worth retrying
@@ -582,7 +582,7 @@ async def _refresh_oauth2_token(
     client_secret: str,
     fm: dict,
 ) -> RefreshResult:
-    """Generic OAuth2 token refresh — works for Fitbit, Google, and any standard provider.
+    """Generic OAuth2 token refresh: works for Fitbit, Google, and any standard provider.
 
     Uses the standard RFC 6749 token endpoint. The endpoint URL is determined by:
     1. field_mapping["token_url"] (explicit override)
@@ -594,13 +594,13 @@ async def _refresh_oauth2_token(
         return RefreshResult(permanent=True, error="No token_url in field_mapping and no default for this type")
 
     # SSRF guard: re-check immediately before making the request, even though
-    # the router validates source_url/token_url at create/update time — the
+    # the router validates source_url/token_url at create/update time: the
     # stored value could have been set before this guard existed, or the
     # integration type's default token_url could change.
     # Residual risk: httpx re-resolves the hostname itself when it opens the
     # connection, so a DNS-rebinding attacker who flips the A/AAAA record
     # between this check and httpx's own resolution could still slip through
-    # (TOCTOU) — this guard blocks static/typical SSRF targets, not rebinding.
+    # (TOCTOU); this guard blocks static/typical SSRF targets, not rebinding.
     try:
         await assert_public_http_url(token_url, field="field_mapping.token_url")
     except UnsafeURLError as exc:
@@ -653,7 +653,7 @@ async def _refresh_oauth2_token(
             # - Fitbit: error_type="invalid_token" → permanent (revoked)
             # - Google/others: usually means invalid credentials → permanent
             if error_type == "expired_token":
-                is_permanent = False  # transient — token just expired
+                is_permanent = False  # transient: token just expired
             elif error_type == "invalid_token" or oauth_error in _OAUTH2_PERMANENT_ERRORS:
                 is_permanent = True
             else:
@@ -690,7 +690,7 @@ _FETCHERS["withings_measure"] = _fetch_withings
 _TOKEN_REFRESHERS["fitbit_body"] = _refresh_oauth2_token
 _TOKEN_REFRESHERS["google_fit"] = _refresh_oauth2_token
 
-# Garmin uses OAuth 1.0a — tokens don't expire, no refresh needed.
+# Garmin uses OAuth 1.0a: tokens don't expire, no refresh needed.
 # The _ensure_valid_token check skips refresh when no refresh_token is present.
 
 
@@ -719,13 +719,13 @@ async def _fetch_generic_json(
         headers["Authorization"] = f"Bearer {integration.auth_header}"
 
     # SSRF guard: re-check immediately before fetching, even though the
-    # router validates source_url at create/update time — the stored value
+    # router validates source_url at create/update time: the stored value
     # could predate this guard, or an integration could have been created
     # before validation was added.
     # Residual risk: httpx re-resolves the hostname itself when it opens the
     # connection, so a DNS-rebinding attacker who flips the A/AAAA record
     # between this check and httpx's own resolution could still slip through
-    # (TOCTOU) — this guard blocks static/typical SSRF targets, not rebinding.
+    # (TOCTOU); this guard blocks static/typical SSRF targets, not rebinding.
     try:
         await assert_public_http_url(url, field="source_url")
     except UnsafeURLError as exc:

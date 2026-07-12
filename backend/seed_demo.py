@@ -1,4 +1,4 @@
-"""Seed script — creates a demo user with 3 months of realistic data.
+"""Seed script: creates a demo user with 3 months of realistic data.
 
 Usage: docker compose exec api python -m seed_demo
 """
@@ -30,7 +30,7 @@ DEMO_EMAIL = "demo@nutripilot.dev"
 DEMO_PASSWORD = "demo"
 
 # ---------------------------------------------------------------------------
-# Extra foods — only created if not already in the DB (supplements, etc.)
+# Extra foods: only created if not already in the DB (supplements, etc.)
 # Nutrients per 100g.
 # ---------------------------------------------------------------------------
 EXTRA_FOODS = [
@@ -41,7 +41,7 @@ EXTRA_FOODS = [
 ]
 
 # ---------------------------------------------------------------------------
-# Meal templates — (food_index, quantity_g_range) grouped by meal type
+# Meal templates: (food_index, quantity_g_range) grouped by meal type
 # ---------------------------------------------------------------------------
 BREAKFAST_OPTIONS = [
     # Oatmeal bowl with banana and blueberries
@@ -127,7 +127,7 @@ async def seed_demo():
     random.seed(42)  # reproducible
 
     async with async_session() as db:
-        # Check if demo user exists — wipe and recreate
+        # Check if demo user exists: wipe and recreate
         result = await db.execute(select(User).where(User.email == DEMO_EMAIL))
         existing = result.scalar_one_or_none()
         if existing:

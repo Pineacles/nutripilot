@@ -67,7 +67,7 @@ async def _daily_tasks_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Migrations are run once before the server starts (see the api service's
-    # `command` in the docker-compose files / Dockerfile CMD), not here — with
+    # `command` in the docker-compose files / Dockerfile CMD), not here: with
     # multiple uvicorn workers, running `alembic upgrade head` per-worker in
     # the lifespan would race.
     setup_integration_logging()
@@ -85,6 +85,7 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url=None if _is_production else "/docs",
     redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
 )
 
 app.state.limiter = limiter

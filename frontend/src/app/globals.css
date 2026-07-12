@@ -41,7 +41,7 @@
   --radius-2xl: calc(var(--radius) * 1.8);
 }
 
-/* Dark-first — no light mode */
+/* Dark-first: no light mode */
 :root {
   --background: #111114;
   --foreground: #e8e8e8;
@@ -71,7 +71,7 @@
   --success: #4ade80;
   --warning: #f9c74f;
 
-  /* Recharts theme tokens (statistics + body pages) — same hex values the
+  /* Recharts theme tokens (statistics + body pages): same hex values the
      charts used to hardcode, now themeable from one place. See lib/chart-theme.ts. */
   --chart-grid-subtle: rgba(255, 255, 255, 0.06);
   --chart-grid-solid: #2a2a30;
@@ -156,7 +156,7 @@
     transform: translateY(-1px);
   }
 
-  /* Inner pills — flat gradient tiles for stats/items inside clay cards */
+  /* Inner pills: flat gradient tiles for stats/items inside clay cards */
   .pill {
     background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
     border-radius: 0.75rem;

@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     usda_api_key: str = ""
     # Fernet key(s) for encrypting integration credentials at rest.
     # Comma-separated for rotation: the FIRST key encrypts new values, all keys
-    # (first + rest) can decrypt — so to rotate, prepend a new key and keep the
+    # (first + rest) can decrypt, so to rotate, prepend a new key and keep the
     # old one until every row has been re-written. See app/services/crypto.py.
     token_encryption_key: str = _DEV_TOKEN_ENCRYPTION_KEY
     # withings_client_id and withings_client_secret were removed:

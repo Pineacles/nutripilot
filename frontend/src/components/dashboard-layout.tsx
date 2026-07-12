@@ -13,7 +13,7 @@ interface Props {
 
 export function DashboardLayout({ title, children }: Props) {
   const router = useRouter();
-  // Derive auth status during render — avoids calling setState synchronously
+  // Derive auth status during render: avoids calling setState synchronously
   // inside an effect (react-hooks/set-state-in-effect).
   const authed = isLoggedIn();
 

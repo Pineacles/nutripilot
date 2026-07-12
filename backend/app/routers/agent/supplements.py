@@ -138,7 +138,7 @@ async def delete_supplement_log(
     description=(
         "Get all configured supplement definitions. These define what supplements the user takes, "
         "their dose, and which micronutrients they contribute.\n\n"
-        "Supplement definitions are separate from supplement logs — "
+        "Supplement definitions are separate from supplement logs: "
         "definitions describe *what* the user takes, logs record *when* they took it."
     ),
 )

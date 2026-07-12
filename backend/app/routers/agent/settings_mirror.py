@@ -41,7 +41,7 @@ async def agent_get_settings(
     response_model=NutritionTargetsResponse,
     summary="Update nutrition targets",
     description=(
-        "Replace all daily nutrition targets. **All fields are required** — GET settings first to preserve unchanged values.\n\n"
+        "Replace all daily nutrition targets. **All fields are required**: GET settings first to preserve unchanged values.\n\n"
         "Fields: `target_kcal` (1-10000), `target_protein_g` (0-1000), `target_carbs_g` (0-1000), "
         "`target_fat_g` (0-500), `target_fiber_g` (0-200, default 30), `target_sugar_g` (0-500, default 50), "
         "`target_sodium_mg` (0-10000, default 2300), `target_alcohol_g` (0-500), "
@@ -62,7 +62,7 @@ async def agent_update_nutrition_targets(
     summary="Replace micronutrient targets",
     description=(
         "Replace ALL micronutrient targets at once (delete + re-insert). "
-        "Send the complete list you want — any target not included will be removed.\n\n"
+        "Send the complete list you want: any target not included will be removed.\n\n"
         "Each item: `{nutrient: str, target_value: float (0-100000), unit: str}`.\n\n"
         "Common examples: `{nutrient: 'calcium', target_value: 1000, unit: 'mg'}`, "
         "`{nutrient: 'vit_d', target_value: 50, unit: 'mcg'}`."

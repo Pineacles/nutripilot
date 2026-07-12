@@ -51,13 +51,13 @@ ignore = [
     # would otherwise force across ~140 call sites throughout app/schemas and
     # app/routers (this codebase predates any ruff config and consistently
     # uses typing.Optional). Rewriting all of them is out of scope for a
-    # test/CI hardening pass — pragmatic call per the redesign brief.
+    # test/CI hardening pass: pragmatic call per the redesign brief.
     "UP045",
     # This is a FastAPI app with rich OpenAPI `description=` prose and seed
     # data literals; long single-line strings there aren't a readability
     # problem the way long *code* lines would be, and ruff has no autofix
     # for E501. Enforcing it would mean manually rewrapping prose across a
-    # dozen router/schema files for zero behavior change — not a good trade
+    # dozen router/schema files for zero behavior change, not a good trade
     # for a test/CI hardening pass. (line-length is still set above for
     # tooling that reads it, e.g. editor integrations.)
     "E501",
@@ -69,7 +69,7 @@ ignore = [
 "tests/conftest.py" = ["E402"]
 # SQLAlchemy relationship() forward refs: Mapped["Nutrient"] / Mapped["Food"]
 # are resolved by SQLAlchemy at mapper-configuration time via the class
-# registry, not by Python's own name resolution — ruff can't see that and
+# registry, not by Python's own name resolution, so ruff can't see that and
 # flags the quoted name as undefined.
 "app/models/food.py" = ["F821"]
 "app/models/food_log.py" = ["F821"]

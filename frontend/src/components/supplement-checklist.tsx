@@ -25,7 +25,7 @@ const MICRO_LABELS: Record<string, string> = {
 };
 
 interface Props {
-  /** Day being viewed on Today — drives the actionable "taken today" state. */
+  /** Day being viewed on Today: drives the actionable "taken today" state. */
   date: string;
   definitions?: SupplementDefinition[];
   microTargets?: MicronutrientTargetItem[];
@@ -51,7 +51,7 @@ export function SupplementsCard({ date, definitions = [], microTargets = [] }: P
 
   function markTaken(def: SupplementDefinition) {
     // Supplement *definitions* allow free-form time_of_day (e.g. "with meal"), but the
-    // intake-log endpoint restricts it to morning/afternoon/evening — drop anything else
+    // intake-log endpoint restricts it to morning/afternoon/evening, drop anything else
     // rather than let the request 422.
     const safeTiming = def.time_of_day && INTAKE_LOG_TIMINGS.includes(def.time_of_day) ? def.time_of_day : null;
     logIntake.mutate(
@@ -73,7 +73,7 @@ export function SupplementsCard({ date, definitions = [], microTargets = [] }: P
   if (activeDefs.length === 0) {
     return (
       <DashboardCard title="Supplements" span="lg:col-span-1">
-        <p className="text-sm text-muted-foreground">No supplements configured — add some in Settings</p>
+        <p className="text-sm text-muted-foreground">No supplements configured, add some in Settings</p>
       </DashboardCard>
     );
   }

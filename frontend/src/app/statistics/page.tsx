@@ -53,7 +53,7 @@ export default function StatisticsPage() {
   const targetAlcohol = settings?.nutrition_targets?.target_alcohol_g ?? 0;
   const targetWaterMl = settings?.nutrition_targets?.target_water_ml ?? 2500;
   const targetCaffeineMg = settings?.nutrition_targets?.target_caffeine_mg ?? 400;
-  // Nullable — goal reference line is hidden entirely when no goal weight is set.
+  // Nullable: goal reference line is hidden entirely when no goal weight is set.
   const targetWeight = settings?.nutrition_targets?.target_weight_kg ?? null;
 
   /* ─── Error / Loading States ─── */

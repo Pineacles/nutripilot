@@ -18,10 +18,10 @@ venv
 logs
 *.log
 
-# Env files (secrets — never bake into an image)
+# Env files (secrets, never bake into an image)
 .env
 .env.*
 
-# Tests — not needed at runtime; CI runs pytest directly on the host, it
+# Tests: not needed at runtime; CI runs pytest directly on the host, it
 # does not build this image, so leaving them out is safe.
 tests

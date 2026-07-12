@@ -1,4 +1,4 @@
-# For use with Cloudflare Tunnel — expose only port 3000.
+# For use with Cloudflare Tunnel: expose only port 3000.
 # Next.js proxies /api/* to the backend internally.
 #
 # 1. Copy .env.example to .env and fill in values

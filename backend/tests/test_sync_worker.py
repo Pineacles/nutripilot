@@ -1,7 +1,7 @@
 """Service-layer tests for app.services.sync_worker.
 
 Previously zero coverage. These tests call the worker's functions directly
-with a db session (per the redesign brief) rather than going through HTTP —
+with a db session (per the redesign brief) rather than going through HTTP;
 httpx calls to the *vendor* APIs (Withings, generic OAuth2, generic JSON) are
 mocked with respx; the SSRF guard's DNS resolution is real (it targets
 loopback/private addresses, which resolve locally without network access).
@@ -9,8 +9,8 @@ loopback/private addresses, which resolve locally without network access).
 ``patch_sync_worker_db`` (see conftest.py) is required by every test that
 calls ``sync_integration`` / ``run_all_syncs`` / ``_ensure_valid_token``,
 because those functions open their own session via
-``app.database.async_session`` — a different engine instance than the
-fixtures' ``db_session`` — and need to be pointed at the same in-memory DB.
+``app.database.async_session`` (a different engine instance than the
+fixtures' ``db_session``) and need to be pointed at the same in-memory DB.
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ async def _no_real_sleep(monkeypatch):
     """Every backoff sleep in these tests is patched to a no-op.
 
     Without this, the transient-retry test would burn real wall-clock time
-    (2s + 8s of backoff — see BACKOFF_BASE_SECONDS/MAX_REFRESH_ATTEMPTS).
+    (2s + 8s of backoff; see BACKOFF_BASE_SECONDS/MAX_REFRESH_ATTEMPTS).
     """
     async def _fast_sleep(_seconds):
         return None
@@ -134,7 +134,7 @@ async def test_oauth2_refresh_expired_token_error_type_is_transient():
 
 @respx.mock
 async def test_withings_refresh_status_in_body_permanent():
-    """Withings ALWAYS returns HTTP 200 — errors live in the JSON 'status' field."""
+    """Withings ALWAYS returns HTTP 200; errors live in the JSON 'status' field."""
     respx.post("https://wbsapi.withings.net/v2/oauth2").mock(
         return_value=httpx.Response(200, json={"status": 401, "error": "expired token"})
     )
@@ -263,7 +263,7 @@ async def test_ensure_valid_token_refresh_success_writes_back_encrypted_tokens(
     assert integration.field_mapping["refresh_token"] == new_refresh
     assert integration.field_mapping["token_expires_at"] is not None
 
-    # Raw column must NOT contain the plaintext token — it's encrypted at rest.
+    # Raw column must NOT contain the plaintext token: it's encrypted at rest.
     row = (
         await db_session.execute(
             text("SELECT auth_header, field_mapping FROM integrations WHERE id = :id"),

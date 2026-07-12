@@ -18,7 +18,7 @@ interface Props {
   rollingNutrition: (DailyNutritionLike & Record<string, number>)[];
 }
 
-/** Small single-metric 7-day-average trend chart — shared by Fiber/Sugar/Sodium/Alcohol. */
+/** Small single-metric 7-day-average trend chart: shared by Fiber/Sugar/Sodium/Alcohol. */
 export function NutrientTrendCard({ title, dataKey, unit, color, target, showReferenceLine = true, nutritionLength, rollingNutrition }: Props) {
   return (
     <SectionCard title={`${title} Trend`}>

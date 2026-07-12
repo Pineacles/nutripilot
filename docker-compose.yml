@@ -52,7 +52,7 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:3099:3000"
-    # API calls use relative URLs proxied via Next.js rewrites — no NEXT_PUBLIC_API_URL needed
+    # API calls use relative URLs proxied via Next.js rewrites, no NEXT_PUBLIC_API_URL needed
     depends_on:
       api:
         condition: service_healthy

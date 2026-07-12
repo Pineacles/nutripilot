@@ -23,7 +23,7 @@ import type { FoodDetail, MealType } from "@/lib/types";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The day currently being viewed on the Today page — quantity step defaults to this date. */
+  /** The day currently being viewed on the Today page: quantity step defaults to this date. */
   defaultDate: string;
 }
 
@@ -102,7 +102,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
       if (err instanceof ApiError && err.status === 404) {
         setBarcodeError(`Barcode ${code} not found. Try search, or add it as a new food.`);
       } else {
-        setBarcodeError(getErrorMessage(err, "Lookup failed — check your connection and try again."));
+        setBarcodeError(getErrorMessage(err, "Lookup failed, check your connection and try again."));
       }
     }
   }
@@ -187,7 +187,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
                         <div className="min-w-0">
                           <p className="truncate text-foreground/90">{food.name}</p>
                           {disabled && (
-                            <p className="text-[10px] text-muted-foreground">Not in database yet — try Barcode or add it on the Foods page</p>
+                            <p className="text-[10px] text-muted-foreground">Not in database yet, try Barcode or add it on the Foods page</p>
                           )}
                         </div>
                         <span className="tabular-nums text-muted-foreground text-xs shrink-0 ml-2">

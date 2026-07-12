@@ -16,9 +16,9 @@ export function MilestonesCard({ targetWeight, targetBf, currentWeight, starting
   return (
     <SectionCard title="Milestones" span="lg:col-span-2">
       <div className="space-y-5">
-        {/* Weight progress — hidden entirely when no goal weight is set */}
+        {/* Weight progress: hidden entirely when no goal weight is set */}
         {targetWeight == null ? (
-          <p className="text-xs text-muted-foreground">No weight goal set — add one in Settings</p>
+          <p className="text-xs text-muted-foreground">No weight goal set, add one in Settings</p>
         ) : (
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -51,9 +51,9 @@ export function MilestonesCard({ targetWeight, targetBf, currentWeight, starting
           </div>
         )}
 
-        {/* Body fat progress — hidden entirely when no goal body fat % is set */}
+        {/* Body fat progress: hidden entirely when no goal body fat % is set */}
         {targetBf == null ? (
-          <p className="text-xs text-muted-foreground">No body fat goal set — add one in Settings</p>
+          <p className="text-xs text-muted-foreground">No body fat goal set, add one in Settings</p>
         ) : (
           <div>
             <div className="flex items-center justify-between mb-2">

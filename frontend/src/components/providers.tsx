@@ -12,7 +12,7 @@ import { getErrorMessage } from "@/lib/api";
 declare module "@tanstack/react-query" {
   interface Register {
     mutationMeta: {
-      /** Skip the global error toast — the mutation's own onError already surfaces it. */
+      /** Skip the global error toast: the mutation's own onError already surfaces it. */
       suppressErrorToast?: boolean;
     };
   }

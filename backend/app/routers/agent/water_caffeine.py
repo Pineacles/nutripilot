@@ -104,7 +104,7 @@ async def delete_water_log(
     "/log/caffeine",
     response_model=CaffeineLogResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="DEPRECATED — Log caffeine intake",
+    summary="DEPRECATED: Log caffeine intake",
     description=(
         "**DEPRECATED: Caffeine is now tracked automatically through food nutrients.** "
         "Instead of using this endpoint, log a caffeinated food/drink via `POST /log/food-by-name` "
@@ -130,7 +130,7 @@ async def log_caffeine(
     summary="List caffeine logs for a day",
     description=(
         "Get all (legacy) caffeine log entries for a specific date (default: today). "
-        "Note: caffeine is now tracked automatically through food nutrients — this only "
+        "Note: caffeine is now tracked automatically through food nutrients; this only "
         "returns entries created via the deprecated `POST /log/caffeine` endpoint."
     ),
 )
@@ -151,7 +151,7 @@ async def list_caffeine_logs(
 @router.put(
     "/log/caffeine/{log_id}",
     response_model=CaffeineLogResponse,
-    summary="DEPRECATED — Update a caffeine log entry",
+    summary="DEPRECATED: Update a caffeine log entry",
     description="**DEPRECATED.** Caffeine is now tracked through food nutrients. Use food log endpoints instead.",
     deprecated=True,
 )
@@ -175,7 +175,7 @@ async def update_caffeine_log(
 @router.delete(
     "/log/caffeine/{log_id}",
     status_code=204,
-    summary="DEPRECATED — Delete a caffeine log entry",
+    summary="DEPRECATED: Delete a caffeine log entry",
     description="**DEPRECATED.** Caffeine is now tracked through food nutrients. Use food log endpoints instead.",
     deprecated=True,
 )

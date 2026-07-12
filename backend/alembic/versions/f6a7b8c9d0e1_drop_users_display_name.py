@@ -4,7 +4,7 @@ Revision ID: f6a7b8c9d0e1
 Revises: e5f6a7b8c9d0
 Create Date: 2026-07-12 00:00:00.000000
 
-display_name was write-only — set at seed time but never read anywhere in
+display_name was write-only: set at seed time but never read anywhere in
 the application. Dropping it to match the ORM model.
 """
 from typing import Sequence, Union

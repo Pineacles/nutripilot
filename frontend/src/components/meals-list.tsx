@@ -10,7 +10,7 @@ import { getErrorMessage } from "@/lib/api";
 import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/meal-types";
 
 interface Props {
-  /** The currently viewed day (drives its own fetch — decoupled from the today-summary
+  /** The currently viewed day (drives its own fetch, decoupled from the today-summary
    *  totals, since editing/deleting a log entry needs its id, which the aggregate
    *  summary endpoint doesn't carry). */
   date: string;
@@ -94,7 +94,7 @@ export function MealsLogCard({ date }: Props) {
                         <span className="text-xs text-muted-foreground/50 shrink-0">{item.quantity_g}g</span>
                       </div>
                       <span className="tabular-nums text-muted-foreground shrink-0 ml-2">
-                        {item.nutrients_consumed.kcal != null ? `${Math.round(item.nutrients_consumed.kcal)} kcal` : "—"}
+                        {item.nutrients_consumed.kcal != null ? `${Math.round(item.nutrients_consumed.kcal)} kcal` : "--"}
                       </span>
                     </button>
                   ))}

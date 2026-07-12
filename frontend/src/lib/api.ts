@@ -2,7 +2,7 @@ import { getToken, refreshAccessToken, clearTokens } from "./auth";
 
 /**
  * Error thrown by apiFetch for non-2xx responses. Carries the HTTP status and,
- * when the backend returned a parseable `detail` message, that message too —
+ * when the backend returned a parseable `detail` message, that message too,
  * so callers/toasts can surface the real API error instead of a generic one.
  */
 export class ApiError extends Error {
@@ -70,7 +70,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     try {
       detail = extractDetail(await res.json());
     } catch {
-      // response body wasn't JSON — fall back to the generic status message
+      // response body wasn't JSON: fall back to the generic status message
     }
     throw new ApiError(res.status, detail);
   }

@@ -1,5 +1,5 @@
 /**
- * Client-side mirror of backend/app/schemas/integration.py INTEGRATION_TYPES — just the
+ * Client-side mirror of backend/app/schemas/integration.py INTEGRATION_TYPES: just the
  * parts the "Add integration" form needs (credential field names, whether a top-level
  * auth_header is required, and which measure_map target fields are valid for this type).
  * Keep in sync manually if the backend adds a new integration type.

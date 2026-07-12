@@ -91,7 +91,7 @@ export function MacroBreakdownCard({ totals, targets, span, dateRange }: Props) 
             <DialogTitle className="text-lg">{selectedMacro?.label} Sources</DialogTitle>
             <p className="text-sm text-muted-foreground">
               Total: <span className="font-semibold text-foreground">{fmt(sourcesTotal)} {selectedMacro?.unit}</span>
-              {dateRange && <span className="ml-2 text-xs text-muted-foreground/60">{dateRange.from === dateRange.to ? dateRange.from : `${dateRange.from} — ${dateRange.to}`}</span>}
+              {dateRange && <span className="ml-2 text-xs text-muted-foreground/60">{dateRange.from === dateRange.to ? dateRange.from : `${dateRange.from} to ${dateRange.to}`}</span>}
             </p>
           </DialogHeader>
           <div className="overflow-y-auto flex-1 -mx-1 px-1 thin-scrollbar">

@@ -80,7 +80,7 @@ export function BodyCompCard({ data }: Props) {
 
   return (
     <DashboardCard title="Body Composition" span="lg:col-span-1">
-      {/* Stats row — values + legend integrated */}
+      {/* Stats row: values + legend integrated */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-5">
           {latestFat != null && (

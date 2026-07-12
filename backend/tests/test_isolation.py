@@ -6,7 +6,7 @@ exists), and every list endpoint must never leak another user's rows. A
 settings update by one user must never affect another user's settings.
 
 Exercised across both auth modes: user A authenticates with a JWT, user B
-with an API key — proving the scoping is enforced at the query layer (every
+with an API key, proving the scoping is enforced at the query layer (every
 router filters by ``user.id``), not as a side effect of one particular auth
 dependency.
 """
@@ -34,7 +34,7 @@ _FOOD_PAYLOAD = {
 
 @pytest_asyncio.fixture()
 async def user_b(db_session) -> User:
-    """A second, independent user — B — to attempt cross-user access as."""
+    """A second, independent user (B) to attempt cross-user access as."""
     user = User(
         id=uuid.uuid4(),
         email=f"userb-{uuid.uuid4().hex[:10]}@nutripilot.dev",
@@ -59,7 +59,7 @@ async def user_b(db_session) -> User:
 
 @pytest_asyncio.fixture()
 async def b_headers(user_b) -> dict:
-    """User B's auth — API key (user A uses JWT via the shared ``auth_headers`` fixture)."""
+    """User B's auth: API key (user A uses JWT via the shared ``auth_headers`` fixture)."""
     return {"X-API-Key": user_b.api_key}
 
 

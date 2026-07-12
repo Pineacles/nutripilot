@@ -72,7 +72,7 @@ export default function ScannerPage() {
     setScanning(true);
     clearState();
     try {
-      // Explicitly request camera permission first — some browsers won't
+      // Explicitly request camera permission first: some browsers won't
       // prompt unless getUserMedia is called directly before the library uses it.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },

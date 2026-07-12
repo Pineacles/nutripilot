@@ -12,7 +12,7 @@ from app.models import CaffeineLog, Food, FoodLog, Supplement, User, WaterLog, W
 from app.services.clock import today_for
 
 # ---------------------------------------------------------------------------
-# Meal templates — (food_name, qty_lo, qty_hi)
+# Meal templates: (food_name, qty_lo, qty_hi)
 # ---------------------------------------------------------------------------
 BREAKFAST_OPTIONS = [
     [("Oat flakes", 250, 350), ("Banana, raw", 80, 120), ("Blueberries", 40, 80), ("Honey, from flowers", 10, 20)],
@@ -126,7 +126,7 @@ async def seed_today():
                 ))
                 count += 1
 
-        # Weight log — continue trend from most recent entry
+        # Weight log: continue trend from most recent entry
         result = await db.execute(
             select(WeightLog)
             .where(WeightLog.user_id == user.id)
@@ -156,7 +156,7 @@ async def seed_today():
                 source="manual",
             ))
 
-        # Supplements — ~90% adherence
+        # Supplements: ~90% adherence
         supp_count = 0
         for sd in SUPPLEMENT_DEFS:
             if random.random() < 0.90:

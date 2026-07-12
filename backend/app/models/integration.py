@@ -15,7 +15,7 @@ class Integration(Base):
 
     ``auth_header`` (the OAuth access token / API key) and ``field_mapping``
     (which carries refresh_token / client_secret / consumer_secret / oauth_token
-    / etc.) are ENCRYPTED AT REST via the EncryptedStr / EncryptedJSON types —
+    / etc.) are ENCRYPTED AT REST via the EncryptedStr / EncryptedJSON types:
     all reads/writes, including the sync worker's token refresh write-back, go
     through the ORM and are therefore transparently encrypted/decrypted.
 

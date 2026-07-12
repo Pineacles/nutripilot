@@ -34,7 +34,7 @@ INTEGRATION_TYPES = {
     "garmin_body": {
         "description": (
             "Garmin Index scales (Index S2, Index 2). Uses OAuth 1.0a (NOT 2.0). "
-            "Tokens do not expire — they remain valid until the user revokes access. "
+            "Tokens do not expire: they remain valid until the user revokes access. "
             "Requires Garmin Health API partner approval. Weight is returned in grams."
         ),
         "required_fm_keys": {"consumer_key", "consumer_secret", "oauth_token", "oauth_token_secret", "measure_map"},
@@ -62,12 +62,12 @@ Configuration object that tells the sync worker how to map external API data to 
 
 ---
 
-**`withings_measure` — Withings Body / Body+ / Body Cardio / Body Scan**
+**`withings_measure`: Withings Body / Body+ / Body Cardio / Body Scan**
 - OAuth2 flow. Authorization: `https://account.withings.com/oauth2_user/authorize2`
 - Token endpoint: `https://wbsapi.withings.net/v2/oauth2` (non-standard, uses `action=requesttoken`)
 - Required: `refresh_token`, `client_id`, `client_secret` in field_mapping. `auth_header` = access token.
 - `measure_map` keys are Withings measure type IDs (strings):
-  - `"1"` = weight (kg) → use target `"weight_kg"`
+  - `"1"` = weight (kg): use target `"weight_kg"`
   - `"5"` = fat free mass (kg)
   - `"6"` = fat ratio (%) → use target `"body_fat_pct"`
   - `"8"` = fat mass weight (kg) → use target `"body_fat_kg"`
@@ -79,7 +79,7 @@ Configuration object that tells the sync worker how to map external API data to 
 
 ---
 
-**`fitbit_body` — Fitbit Aria / Aria Air / Aria 2**
+**`fitbit_body`: Fitbit Aria / Aria Air / Aria 2**
 - OAuth2 + PKCE. Authorization: `https://www.fitbit.com/oauth2/authorize`
 - Token endpoint: `https://api.fitbit.com/oauth2/token`
 - Required: `refresh_token`, `client_id`, `client_secret` in field_mapping. `auth_header` = access token.
@@ -87,16 +87,16 @@ Configuration object that tells the sync worker how to map external API data to 
 - Scope needed: `weight`
 - `source_url` should be `https://api.fitbit.com/1/user/-/body/log/weight/date`
 - `measure_map` keys are Fitbit response field names:
-  - `"weight"` → use target `"weight_kg"` (value is in user's unit system — set Accept-Language: en_US)
+  - `"weight"` → use target `"weight_kg"` (value is in user's unit system; set Accept-Language: en_US)
   - `"fat"` → use target `"body_fat_pct"`
   - `"bmi"` = BMI (calculated, not a NutriPilot target)
-  - Fitbit Aria does NOT report muscle mass, bone mass, or water — only weight and body fat.
+  - Fitbit Aria does NOT report muscle mass, bone mass, or water: only weight and body fat.
 - Error codes: HTTP 401 `expired_token` = refresh. HTTP 401 `invalid_token`/`invalid_grant` = permanent. HTTP 429 = rate limit.
 - Rate limit: 150 requests/hour per user. Headers: `Fitbit-Rate-Limit-Remaining`, `Fitbit-Rate-Limit-Reset`.
 
 ---
 
-**`google_fit` — Google Fit (catches Xiaomi, Eufy, Samsung, Renpho users)**
+**`google_fit`: Google Fit (catches Xiaomi, Eufy, Samsung, Renpho users)**
 - Standard Google OAuth2. Authorization: `https://accounts.google.com/o/oauth2/v2/auth`
 - Token endpoint: `https://oauth2.googleapis.com/token`
 - Required: `refresh_token`, `client_id`, `client_secret` in field_mapping. `auth_header` = access token.
@@ -114,10 +114,10 @@ Configuration object that tells the sync worker how to map external API data to 
 
 ---
 
-**`garmin_body` — Garmin Index S2 / Index 2**
+**`garmin_body`: Garmin Index S2 / Index 2**
 - **OAuth 1.0a (NOT 2.0)**. Tokens do NOT expire and do NOT need refreshing.
 - Required: `consumer_key`, `consumer_secret`, `oauth_token`, `oauth_token_secret` in field_mapping.
-- No `auth_header` or `refresh_token` needed — OAuth 1.0a signs each request with HMAC.
+- No `auth_header` or `refresh_token` needed: OAuth 1.0a signs each request with HMAC.
 - Requires Garmin Health API partner approval at developer.garmin.com.
 - `source_url` should be `https://apis.garmin.com/wellness-api/rest/bodyComps`
 - Garmin is push-based (sends data to your callback), but also supports pull-based backfill.
@@ -131,7 +131,7 @@ Configuration object that tells the sync worker how to map external API data to 
 
 ---
 
-**`generic_json` — Any JSON API**
+**`generic_json`: Any JSON API**
 - For any API returning a JSON array with date + numeric fields.
 - `response_path` (str, optional): Dot-path to the array (e.g. "data.records").
 - `date_field` (str, optional): Key for the date. Default: "date".
@@ -148,7 +148,7 @@ If a scale does not report a measurement (e.g. Fitbit has no muscle mass), do NO
 
 ---
 
-**`conversions` — Post-mapping value transformations (optional)**
+**`conversions`: Post-mapping value transformations (optional)**
 
 Scales like Withings report "muscle mass" as BIA lean mass (everything except fat and bone),
 which is ~60-65% of body weight. This is NOT comparable to DEXA skeletal muscle mass (~35-45%).
@@ -167,7 +167,7 @@ Use `conversions` to apply a scaling factor so stored values are DEXA-equivalent
 - **description** (str, optional): Human-readable note for what the conversion does.
 - After conversion, `muscle_mass_pct` is auto-derived from the converted `muscle_mass_kg` / `weight_kg`.
 - Applies to any field in `measure_map` values: `weight_kg`, `body_fat_pct`, `muscle_mass_kg`, etc.
-- Common factor for Withings/BIA → DEXA skeletal muscle: **0.55–0.65** depending on individual body composition.\
+- Common factor for Withings/BIA → DEXA skeletal muscle: **0.55-0.65** depending on individual body composition.\
 """
 
 _FIELD_MAPPING_EXAMPLES = {

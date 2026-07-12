@@ -22,7 +22,7 @@ import { getErrorMessage } from "@/lib/api";
 interface Props {
   water: WaterTotals;
   caffeine: CaffeineTotals;
-  /** Day being viewed on Today — drives quick-add and the entries list. */
+  /** Day being viewed on Today: drives quick-add and the entries list. */
   date: string;
 }
 

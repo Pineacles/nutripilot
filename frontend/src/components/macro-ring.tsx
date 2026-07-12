@@ -19,9 +19,9 @@ interface Props {
 }
 
 function getRingColor(pct: number): string {
-  if (pct > 1.0) return COLOR_DANGER;   // over target — red
-  if (pct > 0.9) return COLOR_WARNING;  // 90-100% — amber
-  return COLOR_SUCCESS;                // under 90% — green
+  if (pct > 1.0) return COLOR_DANGER;   // over target: red
+  if (pct > 0.9) return COLOR_WARNING;  // 90-100%: amber
+  return COLOR_SUCCESS;                // under 90%: green
 }
 
 function HydrationBar({ label, current, target, unit, gradient, budget }: {
@@ -112,7 +112,7 @@ export function CalorieRingCard({ totals, targets, water, caffeine, span }: Prop
         </p>
       </div>
 
-      {/* Hydration & Alcohol bars — matches MacroBreakdown formatting */}
+      {/* Hydration & Alcohol bars: matches MacroBreakdown formatting */}
       <div className="mt-4 pt-3 border-t border-white/5 flex flex-col gap-1">
         {water && (
           <HydrationBar label="Water" current={water.total_ml} target={water.target_ml} unit=" ml"

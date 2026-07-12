@@ -1,4 +1,4 @@
-/** Shared per-100g nutrient label/unit metadata — mirrors backend/app/schemas/food.py NutrientData. */
+/** Shared per-100g nutrient label/unit metadata: mirrors backend/app/schemas/food.py NutrientData. */
 export const MACRO_NUTRIENT_LABELS: Record<string, { label: string; unit: string }> = {
   kcal: { label: "Calories", unit: "kcal" },
   protein: { label: "Protein", unit: "g" },

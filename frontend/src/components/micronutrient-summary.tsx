@@ -24,12 +24,12 @@ function getProgressColor(pct: number): string {
 const NUTRIENT_MAP: { key: keyof MicronutrientAverages; settingsKey: string; label: string; defaultTarget: number; defaultUnit: string }[] = [
   { key: "vit_d", settingsKey: "vitamin_d", label: "Vitamin D", defaultTarget: 15, defaultUnit: "\u00b5g" },       // WHO/IOM: 15 µg (600 IU)
   { key: "calcium", settingsKey: "calcium", label: "Calcium", defaultTarget: 1000, defaultUnit: "mg" },             // WHO: 1000 mg
-  { key: "iron", settingsKey: "iron", label: "Iron", defaultTarget: 18, defaultUnit: "mg" },                         // RDA: 18 mg (women), 8 mg (men) — use higher
-  { key: "zinc", settingsKey: "zinc", label: "Zinc", defaultTarget: 11, defaultUnit: "mg" },                         // RDA: 11 mg (men), 8 mg (women) — use higher
+  { key: "iron", settingsKey: "iron", label: "Iron", defaultTarget: 18, defaultUnit: "mg" },                         // RDA: 18 mg (women), 8 mg (men): use higher
+  { key: "zinc", settingsKey: "zinc", label: "Zinc", defaultTarget: 11, defaultUnit: "mg" },                         // RDA: 11 mg (men), 8 mg (women): use higher
   { key: "magnesium", settingsKey: "magnesium", label: "Magnesium", defaultTarget: 400, defaultUnit: "mg" },         // RDA: 400 mg (men), 310 mg (women)
   { key: "vit_c", settingsKey: "vit_c", label: "Vitamin C", defaultTarget: 90, defaultUnit: "mg" },                  // RDA: 90 mg (men), 75 mg (women)
   { key: "b12", settingsKey: "b12", label: "B12", defaultTarget: 2.4, defaultUnit: "\u00b5g" },                      // RDA: 2.4 µg
-  { key: "potassium", settingsKey: "potassium", label: "Potassium", defaultTarget: 2600, defaultUnit: "mg" },        // AI: 2600 mg (women), 3400 mg (men) — use middle
+  { key: "potassium", settingsKey: "potassium", label: "Potassium", defaultTarget: 2600, defaultUnit: "mg" },        // AI: 2600 mg (women), 3400 mg (men): use middle
   { key: "omega3", settingsKey: "omega3", label: "Omega-3", defaultTarget: 250, defaultUnit: "mg" },                 // WHO: 250 mg EPA+DHA
 ];
 
@@ -108,7 +108,7 @@ export function MicronutrientSummaryCard({ microAvg, microTargets = [], dateRang
             <DialogTitle className="text-lg">{selectedNutrient?.label} Sources</DialogTitle>
             <p className="text-sm text-muted-foreground">
               Total: <span className="font-semibold text-foreground">{fmt(sourcesTotal)} {selectedNutrient?.unit}</span>
-              {dateRange && <span className="ml-2 text-xs text-muted-foreground/60">{dateRange.from === dateRange.to ? dateRange.from : `${dateRange.from} — ${dateRange.to}`}</span>}
+              {dateRange && <span className="ml-2 text-xs text-muted-foreground/60">{dateRange.from === dateRange.to ? dateRange.from : `${dateRange.from} to ${dateRange.to}`}</span>}
             </p>
           </DialogHeader>
           <div className="overflow-y-auto flex-1 -mx-1 px-1 thin-scrollbar">

@@ -20,7 +20,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  // Skip caching _next/static assets — Next.js uses content hashes
+  // Skip caching _next/static assets: Next.js uses content hashes
   if (request.url.includes("/_next/")) {
     return;
   }

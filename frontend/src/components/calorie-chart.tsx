@@ -59,7 +59,7 @@ export function CalorieChartCard({ dailyAvgKcal, targetKcal, dailyData }: Props 
         isToday: i === dailyData.length - 1,
       }))
     : (() => {
-        // No real data — show empty bars
+        // No real data: show empty bars
         if (dailyAvgKcal < 1) return [];
         const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         return dayNames.map((day, i) => ({

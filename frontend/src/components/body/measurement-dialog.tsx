@@ -24,7 +24,7 @@ interface Props {
   defaultDate?: string;
 }
 
-/** Simple weight/body-fat/muscle-mass measurement — create or edit, per the Body page spec. */
+/** Simple weight/body-fat/muscle-mass measurement: create or edit, per the Body page spec. */
 export function MeasurementDialog({ open, onOpenChange, entry, defaultDate }: Props) {
   const isEdit = !!entry;
   const canEditDate = !isEdit || entry?.source === "manual";
@@ -134,7 +134,7 @@ export function MeasurementDialog({ open, onOpenChange, entry, defaultDate }: Pr
             </div>
           ) : (
             <p className="text-[11px] text-muted-foreground">
-              Synced from {entry?.source} on {entry?.date} — date can&apos;t be changed for synced entries.
+              Synced from {entry?.source} on {entry?.date}. Date can&apos;t be changed for synced entries.
             </p>
           )}
           <div className="flex gap-2 pt-1">

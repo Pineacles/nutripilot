@@ -1,4 +1,4 @@
-/** Shared local-date (YYYY-MM-DD) helpers — avoids UTC/local drift from Date.toISOString(). */
+/** Shared local-date (YYYY-MM-DD) helpers: avoids UTC/local drift from Date.toISOString(). */
 
 export function toDateStr(d: Date): string {
   const y = d.getFullYear();

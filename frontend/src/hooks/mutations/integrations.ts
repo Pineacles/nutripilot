@@ -9,7 +9,7 @@ function invalidateIntegrations(queryClient: ReturnType<typeof useQueryClient>) 
   queryClient.invalidateQueries({ queryKey: queryKeys.integrations() });
 }
 
-// These mutate through /api/agent/integrations rather than /api/v1/integrations —
+// These mutate through /api/agent/integrations rather than /api/v1/integrations:
 // the settings router only exposes a read-only GET; create/update/delete/sync live
 // under the agent router (also JWT-accessible per the Phase 5 auth change).
 export function useCreateIntegration() {

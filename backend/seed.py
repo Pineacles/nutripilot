@@ -1,4 +1,4 @@
-"""Seed script — creates an initial user.
+"""Seed script: creates an initial user.
 
 Usage: docker compose exec api python -m seed
 Reads SEED_EMAIL / SEED_PASSWORD / SEED_API_KEY from env (falls back to

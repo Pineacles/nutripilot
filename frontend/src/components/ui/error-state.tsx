@@ -9,7 +9,7 @@ interface ErrorStateProps {
 }
 
 /**
- * Compact inline error state for failed queries — replaces silent empty
+ * Compact inline error state for failed queries: replaces silent empty
  * catches with a visible message and a retry action.
  */
 export function ErrorState({ message = "Something went wrong.", onRetry, className = "" }: ErrorStateProps) {

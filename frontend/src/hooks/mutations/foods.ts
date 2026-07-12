@@ -6,7 +6,7 @@ import { queryKeys } from "@/hooks/queries";
 import type { FoodCloneInput, FoodCreateInput, FoodDetail, FoodUpdateInput } from "@/lib/types";
 
 function invalidateFoods(queryClient: ReturnType<typeof useQueryClient>, id?: string) {
-  // Prefix invalidation — matches every ["foods", "search", ...] query regardless of
+  // Prefix invalidation: matches every ["foods", "search", ...] query regardless of
   // the current search term/page/limit.
   queryClient.invalidateQueries({ queryKey: ["foods", "search"] });
   if (id) queryClient.invalidateQueries({ queryKey: queryKeys.foodDetail(id) });

@@ -4,7 +4,7 @@
 Dockerfile
 Dockerfile.prod
 
-# Dependencies / build output — always produced fresh inside the image
+# Dependencies / build output: always produced fresh inside the image
 node_modules
 .next
 out
@@ -13,7 +13,7 @@ out
 # fresh container and would poison a clean build if copied in)
 tsconfig.tsbuildinfo
 
-# Env files (secrets — never bake into an image; runtime config comes from
+# Env files (secrets, never bake into an image; runtime config comes from
 # docker-compose environment/build args instead)
 .env
 .env.*

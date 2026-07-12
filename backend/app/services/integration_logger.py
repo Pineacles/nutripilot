@@ -1,7 +1,7 @@
 """Secure structured logging for the integration sync layer.
 
 Design principles (from OWASP, Stripe, Cloudflare patterns):
-- Logs reference entities by opaque ID only — never PII, tokens, or health data.
+- Logs reference entities by opaque ID only: never PII, tokens, or health data.
 - A redaction filter runs at the formatter level so developers can't bypass it.
 - Every sync run gets a correlation ``sync_id`` that ties all steps together.
 - JSON-lines output: greppable, parseable by jq / Datadog / Loki / CloudWatch.
@@ -135,7 +135,7 @@ def setup_integration_logging(
 
     formatter = _JSONFormatter()
 
-    # File handler — JSON lines, rotated
+    # File handler: JSON lines, rotated
     fh = RotatingFileHandler(
         log_path / "integrations.log",
         maxBytes=max_bytes,
@@ -145,7 +145,7 @@ def setup_integration_logging(
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
-    # Console handler — same JSON, only WARNING+ to keep stdout clean
+    # Console handler: same JSON, only WARNING+ to keep stdout clean
     ch = logging.StreamHandler()
     ch.setLevel(logging.WARNING)
     ch.setFormatter(formatter)
@@ -153,7 +153,7 @@ def setup_integration_logging(
 
 
 # ───────────────────────────────────────────────────────────────
-# SyncLogger — context manager for a single sync run
+# SyncLogger: context manager for a single sync run
 # ───────────────────────────────────────────────────────────────
 
 class SyncLogger:
@@ -175,7 +175,7 @@ class SyncLogger:
         fm = integration.field_mapping or {}
         self._base_extra = {
             "sync_id": f"s_{uuid.uuid4().hex[:12]}",
-            "user_id": str(integration.user_id)[:8],  # truncated — enough to filter, not PII
+            "user_id": str(integration.user_id)[:8],  # truncated, enough to filter, not PII
             "integration_id": str(integration.id)[:8],
             "provider": fm.get("source_label", fm.get("type", "unknown")),
         }
@@ -184,7 +184,7 @@ class SyncLogger:
         self._failed: bool = False
         self._fail_reason: str = ""
 
-    # — Convenience log methods —
+    # Convenience log methods
 
     def _log(self, level: int, event: str, **kwargs: Any) -> None:
         extra = {**self._base_extra, **kwargs}
@@ -202,7 +202,7 @@ class SyncLogger:
     def error(self, event: str, **kwargs: Any) -> None:
         self._log(logging.ERROR, event, **kwargs)
 
-    # — Context manager —
+    # Context manager
 
     def __enter__(self) -> SyncLogger:
         self._start = time.monotonic()

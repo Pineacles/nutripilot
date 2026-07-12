@@ -47,7 +47,7 @@ export default function BodyCompositionPage() {
     }
   }
 
-  // Targets — nullable; goal lines/progress are hidden entirely when unset.
+  // Targets: nullable; goal lines/progress are hidden entirely when unset.
   const targetWeight = settings?.nutrition_targets.target_weight_kg ?? null;
   const targetBf = settings?.nutrition_targets.target_body_fat_pct ?? null;
 

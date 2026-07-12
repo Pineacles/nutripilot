@@ -189,7 +189,7 @@ export interface FoodDetail {
   editable?: boolean;
 }
 
-// Per-100g nutrient fields — mirrors backend/app/schemas/food.py NutrientData
+// Per-100g nutrient fields: mirrors backend/app/schemas/food.py NutrientData
 // and backend/app/schemas/food_log.py NutrientsPer100g (same field set).
 export interface NutrientData {
   kcal: number | null;
@@ -235,7 +235,7 @@ export interface FoodCloneInput {
   name?: string | null;
 }
 
-// Food log CRUD — mirrors backend/app/schemas/food_log.py
+// Food log CRUD: mirrors backend/app/schemas/food_log.py
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
 export interface FoodLogCreateInput {
@@ -260,7 +260,7 @@ export interface FoodLogUpdateInput {
   date?: string;
 }
 
-/** Response from POST/PUT /api/agent/log/food[-by-barcode]/{id} — mirrors FoodLogResponse. */
+/** Response from POST/PUT /api/agent/log/food[-by-barcode]/{id}; mirrors FoodLogResponse. */
 export interface FoodLogCreateResponse {
   id: string;
   food_name: string;
@@ -275,7 +275,7 @@ export interface FoodLogCreateResponse {
   serving_label: string | null;
 }
 
-/** One entry from GET /api/agent/log/food?day= — mirrors FoodLogDetail. */
+/** One entry from GET /api/agent/log/food?day=; mirrors FoodLogDetail. */
 export interface FoodLogDetailEntry {
   id: string;
   food_id: string;
@@ -292,7 +292,7 @@ export interface FoodLogDetailEntry {
   nutrients_per_100g: NutrientData | null;
 }
 
-/** GET /api/agent/log/food?day= — mirrors DailyLogResponse. */
+/** GET /api/agent/log/food?day=; mirrors DailyLogResponse. */
 export interface DailyFoodLogResponse {
   date: string;
   total_items: number;
@@ -300,7 +300,7 @@ export interface DailyFoodLogResponse {
   entries: FoodLogDetailEntry[];
 }
 
-// Weight log CRUD — mirrors backend/app/schemas/weight_log.py
+// Weight log CRUD: mirrors backend/app/schemas/weight_log.py
 export interface WeightLogRow {
   id: string;
   weight_kg: number;
@@ -329,11 +329,11 @@ export interface WeightLogUpdateInput {
   muscle_mass_pct?: number | null;
   body_fat_kg?: number | null;
   muscle_mass_kg?: number | null;
-  /** Only allowed when the row's source is 'manual' — synced rows reject this with 422. */
+  /** Only allowed when the row's source is 'manual'; synced rows reject this with 422. */
   log_date?: string;
 }
 
-// Water log CRUD — mirrors backend/app/schemas/water_log.py
+// Water log CRUD: mirrors backend/app/schemas/water_log.py
 export interface WaterLogRow {
   id: string;
   amount_ml: number;
@@ -350,7 +350,7 @@ export interface WaterLogUpdateInput {
   amount_ml?: number;
 }
 
-// Supplement intake log CRUD — mirrors backend/app/schemas/supplement.py
+// Supplement intake log CRUD: mirrors backend/app/schemas/supplement.py
 // (distinct from SupplementDefinition, which describes what the user takes)
 export interface SupplementIntakeLog {
   id: string;
@@ -377,7 +377,7 @@ export interface SupplementLogUpdateInput {
   date?: string;
 }
 
-// Supplement definition update — mirrors backend/app/schemas/settings.py SupplementDefinitionUpdate
+// Supplement definition update: mirrors backend/app/schemas/settings.py SupplementDefinitionUpdate
 export interface SupplementDefinitionUpdateInput {
   name?: string;
   dose_amount?: number;
@@ -387,7 +387,7 @@ export interface SupplementDefinitionUpdateInput {
   micronutrients?: Record<string, number> | null;
 }
 
-// Integrations CRUD — mirrors backend/app/schemas/integration.py
+// Integrations CRUD: mirrors backend/app/schemas/integration.py
 export interface IntegrationCreateInput {
   name: string;
   source_url: string;

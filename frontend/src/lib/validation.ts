@@ -1,6 +1,6 @@
 /**
  * Client-side numeric bounds mirroring backend/app/schemas/settings.py
- * (NutritionTargetsUpdate). Kept in sync manually — read-only on the backend.
+ * (NutritionTargetsUpdate). Kept in sync manually; read-only on the backend.
  */
 export interface NumberConstraint {
   min: number;
@@ -30,7 +30,7 @@ export function validateBounds(value: number, bounds: NumberConstraint): string 
 
 /**
  * Bounds for optional goal fields on NutritionTargetsUpdate
- * (target_weight_kg, target_body_fat_pct) — nullable, so callers should skip
+ * (target_weight_kg, target_body_fat_pct): nullable, so callers should skip
  * validation entirely when the field is empty/null.
  */
 export const GOAL_BOUNDS = {

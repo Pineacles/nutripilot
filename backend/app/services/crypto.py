@@ -3,14 +3,14 @@
 Integration credentials (OAuth access/refresh tokens, client secrets, consumer
 secrets, etc.) are encrypted with Fernet (AES-128-CBC + HMAC) via SQLAlchemy
 ``TypeDecorator`` types. Because the encryption lives at the type layer, EVERY
-read/write path — routers, the sync worker's token write-back, seed scripts —
+read/write path (routers, the sync worker's token write-back, seed scripts)
 is covered automatically; no call site can "forget" to encrypt.
 
 Key management:
 - ``settings.token_encryption_key`` is one or more comma-separated Fernet keys.
 - The FIRST key encrypts; ALL keys can decrypt (``MultiFernet``), enabling
   zero-downtime key rotation.
-- **Losing the key(s) makes all stored integration credentials unrecoverable —
+- **Losing the key(s) makes all stored integration credentials unrecoverable:
   every integration would need to be re-authorized from scratch.**
 
 Legacy plaintext rows (written before the encryption migration ran) are read

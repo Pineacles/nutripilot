@@ -125,14 +125,14 @@ async def agent_update_integration(
         merged = dict(existing_fm)
         for k, v in updates["field_mapping"].items():
             if v == REDACTED_SENTINEL:
-                # Caller is echoing back our redaction — preserve stored secret
+                # Caller is echoing back our redaction: preserve stored secret
                 pass
             else:
                 merged[k] = v
         updates["field_mapping"] = merged
 
         # Validate the MERGED mapping (same rules as IntegrationCreate).
-        # Must run on the merged result, not the raw PATCH body — a partial
+        # Must run on the merged result, not the raw PATCH body: a partial
         # update may only send one changed key while relying on stored
         # values (including sentinel-preserved secrets) for the rest.
         errors = validate_field_mapping(merged)
@@ -184,7 +184,7 @@ async def agent_delete_integration(
         "This is the **correct way** to fetch the latest data from Withings, Fitbit, Google Fit, Garmin, etc.\n\n"
         "**IMPORTANT: Never call external provider APIs (Withings, Fitbit, etc.) directly.** "
         "Doing so will consume OAuth tokens and permanently break the integration. "
-        "Always use this endpoint instead — it safely handles token refresh, API calls, "
+        "Always use this endpoint instead: it safely handles token refresh, API calls, "
         "and data storage in one atomic operation.\n\n"
         "**When to use:**\n"
         "- User says 'sync my scale', 'get my latest weight', 'fetch data from Withings'\n"
@@ -192,8 +192,8 @@ async def agent_delete_integration(
         "- After setting up a new integration to pull initial data\n\n"
         "**Returns** `{ok: true, entries_synced: N}` on success.\n\n"
         "**Errors:**\n"
-        "- `404 INTEGRATION_NOT_FOUND` — wrong ID or not owned by this user\n"
-        "- `502 SYNC_FAILED` — sync failed (check error details). If `needs_reauth`, "
+        "- `404 INTEGRATION_NOT_FOUND`: wrong ID or not owned by this user\n"
+        "- `502 SYNC_FAILED`: sync failed (check error details). If `needs_reauth`, "
         "the user must re-authorize through the provider's OAuth flow to get fresh tokens."
     ),
 )

@@ -24,7 +24,7 @@ export function useLogSupplementIntake() {
   });
 }
 
-/** Delete a supplement intake log — used both for explicit delete and "undo" after mark-taken. */
+/** Delete a supplement intake log; used both for explicit delete and "undo" after mark-taken. */
 export function useDeleteSupplementLog() {
   const queryClient = useQueryClient();
   return useMutation({

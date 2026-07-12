@@ -65,7 +65,7 @@ async def test_integration_update_preserves_secrets_when_sentinel_sent(async_cli
     assert create_resp.status_code == 201
     integration_id = create_resp.json()["id"]
 
-    # Send back the redacted value — stored secret should be preserved
+    # Send back the redacted value: stored secret should be preserved
     patch_resp = await async_client.patch(
         f"/api/agent/integrations/{integration_id}",
         json={"field_mapping": {"refresh_token": "•••", "client_secret": "•••", "client_id": "my-client-id", "type": "withings_measure", "source_label": "withings", "data_type": "weight", "measure_map": {"1": "weight_kg"}}},

@@ -28,7 +28,7 @@ interface Props {
 /**
  * One shape, five charts: Weight/Body Fat %/Muscle %/Fat kg/Muscle kg trends on
  * the body-composition page all render the same area+scatter+rolling-avg-line
- * combination — parameterized here instead of five near-identical blocks.
+ * combination, parameterized here instead of five near-identical blocks.
  */
 export function MetricTrendCard({
   title, span, data, hasData, emptyMessage, gradientId, dataKey, avgKey, color, height,

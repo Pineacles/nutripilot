@@ -1,7 +1,7 @@
 /**
  * Chart color/style tokens shared by the statistics and body-composition pages.
  *
- * These are plain `var(--x)` strings — recharts (and SVG in general) resolve
+ * These are plain `var(--x)` strings; recharts (and SVG in general) resolve
  * CSS custom properties in presentation-attribute values (stroke, fill, etc.)
  * exactly like any other CSS color, so passing these strings straight into
  * recharts props renders identically to the old hardcoded hex values, but the
@@ -12,7 +12,7 @@
 export const CHART_GRID_DASH = "3 3";
 
 // The statistics page originally used a subtle translucent-white grid line;
-// the body page used a solid dark one. Kept distinct on purpose — unifying
+// the body page used a solid dark one. Kept distinct on purpose; unifying
 // them would be a (forbidden) visual change.
 export const CHART_GRID_SUBTLE = "var(--chart-grid-subtle)";
 export const CHART_GRID_SOLID = "var(--chart-grid-solid)";

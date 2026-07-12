@@ -21,7 +21,7 @@ interface Props {
   onClose: () => void;
 }
 
-/** Full edit form for a supplement definition — mirrors the "+ Add Supplement" create form. */
+/** Full edit form for a supplement definition: mirrors the "+ Add Supplement" create form. */
 export function EditSupplementDialog({ supplement, onClose }: Props) {
   const [name, setName] = useState("");
   const [doseAmount, setDoseAmount] = useState(0);

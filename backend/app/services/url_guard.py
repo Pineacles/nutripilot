@@ -4,7 +4,7 @@ Used before making any outbound HTTP request whose target is at least
 partially user/agent-controlled (integration source_url, OAuth token_url),
 to stop an attacker from pointing the sync worker at loopback, RFC1918,
 link-local (including the 169.254.169.254 cloud metadata endpoint), CGNAT,
-multicast, reserved, or unspecified addresses — IPv4 or IPv6.
+multicast, reserved, or unspecified addresses, whether IPv4 or IPv6.
 
 Residual risk: this performs a point-in-time DNS resolution check. httpx
 re-resolves the hostname itself when it actually opens the connection, so a
@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 
 _ALLOWED_SCHEMES = {"http", "https"}
 
-# IPv4 Carrier-Grade NAT (CGNAT) range — not classified as "private" by the
+# IPv4 Carrier-Grade NAT (CGNAT) range: not classified as "private" by the
 # stdlib ipaddress module, so it needs an explicit check.
 _CGNAT_V4 = ipaddress.ip_network("100.64.0.0/10")
 

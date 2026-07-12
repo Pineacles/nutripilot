@@ -55,9 +55,9 @@ Get a JWT via `POST /api/auth/login` (email + password). Refresh via `POST /api/
 
 ## Nutrient fields
 
-**Macros (per food):** kcal, protein, carbs, sugar, fiber, fat, sat_fat, salt, alcohol, caffeine_mg — all per 100g.
+**Macros (per food):** kcal, protein, carbs, sugar, fiber, fat, sat_fat, salt, alcohol, caffeine_mg (all per 100g).
 
-**Micros (per food):** calcium, potassium, omega3, zinc, vit_d, vit_k2, vit_c, magnesium, b12, iron — all per 100g.
+**Micros (per food):** calcium, potassium, omega3, zinc, vit_d, vit_k2, vit_c, magnesium, b12, iron (all per 100g).
 
 **Body comp targets (for integrations):** weight_kg, body_fat_pct, muscle_mass_pct, body_fat_kg, muscle_mass_kg.
 
@@ -68,18 +68,18 @@ Get a JWT via `POST /api/auth/login` (email + password). Refresh via `POST /api/
 **NEVER call third-party APIs (Withings, Fitbit, Google Fit, Garmin, etc.) directly.**
 All integrations are managed by NutriPilot's sync worker. If you call an external OAuth endpoint
 yourself (e.g. Withings `requesttoken`), you will **consume the refresh token** and permanently
-break the integration — Withings and Fitbit rotate refresh tokens on every use, so the one stored
+break the integration: Withings and Fitbit rotate refresh tokens on every use, so the one stored
 in NutriPilot becomes dead and all future syncs fail with a permanent auth error.
 
 **Instead, use NutriPilot's integration endpoints:**
-- `GET /api/agent/integrations` — check integration status
-- `POST /api/agent/integrations/{id}/sync` — trigger a manual data sync (fetches latest data from the scale)
-- `POST /api/agent/integrations` — set up a new integration
-- `PATCH /api/agent/integrations/{id}` — update integration config
-- `DELETE /api/agent/integrations/{id}` — remove an integration
+- `GET /api/agent/integrations`: check integration status
+- `POST /api/agent/integrations/{id}/sync`: trigger a manual data sync (fetches latest data from the scale)
+- `POST /api/agent/integrations`: set up a new integration
+- `PATCH /api/agent/integrations/{id}`: update integration config
+- `DELETE /api/agent/integrations/{id}`: remove an integration
 
 **If the user asks to "sync my scale" or "get my latest weight from Withings":**
-→ Call `POST /api/agent/integrations/{id}/sync` — this handles token refresh, API calls, and data storage safely.
+→ Call `POST /api/agent/integrations/{id}/sync`: this handles token refresh, API calls, and data storage safely.
 
 **If sync fails with `needs_reauth`:**
 → The user must re-authorize through the OAuth flow to get fresh tokens. You cannot fix this by calling the provider API.

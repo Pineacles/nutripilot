@@ -27,8 +27,8 @@ export default function WeeklyPage() {
     const from = new Date(data.start_date + "T00:00:00");
     const to = new Date(data.end_date + "T00:00:00");
     const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    if (offset === 0) return `${fmt(from)} — ${fmt(to)} (current)`;
-    return `${fmt(from)} — ${fmt(to)}`;
+    if (offset === 0) return `${fmt(from)}-${fmt(to)} (current)`;
+    return `${fmt(from)}-${fmt(to)}`;
   }
 
   const targetKcal = settings?.nutrition_targets.target_kcal ?? 2000;
@@ -68,7 +68,7 @@ export default function WeeklyPage() {
             <div className="flex items-center gap-1.5">
               {([
                 { value: "last7" as const, label: "Last 7 days" },
-                { value: "week" as const, label: "Mon–Sun" },
+                { value: "week" as const, label: "Mon-Sun" },
               ]).map((opt) => (
                 <button
                   key={opt.value}
