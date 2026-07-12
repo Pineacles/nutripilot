@@ -2,7 +2,7 @@
 
 **Self-hosted nutrition and body-composition tracking, for you and your AI agent.**
 
-[![CI](https://github.com/Pineacles/NutriPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/Pineacles/NutriPilot/actions/workflows/ci.yml)
+[![CI](https://github.com/Pineacles/nutripilot/actions/workflows/ci.yml/badge.svg)](https://github.com/Pineacles/nutripilot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Next.js 16](https://img.shields.io/badge/next.js-16-black?logo=nextdotjs)
