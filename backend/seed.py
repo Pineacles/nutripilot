@@ -40,7 +40,6 @@ async def seed():
             email=email,
             password_hash=pwd_context.hash(password),
             api_key=api_key,
-            display_name=email.split("@")[0].title(),
             target_kcal=2000,
             target_protein_g=150.0,
             target_carbs_g=250.0,

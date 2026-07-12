@@ -162,13 +162,3 @@ export function BodyCompCard({ data }: Props) {
     </DashboardCard>
   );
 }
-
-// Keep legacy exports for backward compat (they just render the combined card)
-export function BodyFatCard({ data }: Props) {
-  return <BodyCompCard data={data} />;
-}
-
-export function MuscleCard() {
-  // Now rendered inside BodyCompCard; this is a no-op to avoid breaking imports
-  return null;
-}

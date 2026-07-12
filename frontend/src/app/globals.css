@@ -126,20 +126,7 @@
   }
 }
 
-/* Utility: smooth transitions */
 @layer utilities {
-  .transition-default {
-    @apply transition-colors duration-150 ease-in-out;
-  }
-  .transition-slow {
-    @apply transition-all duration-300 ease-in-out;
-  }
-  .glow-primary {
-    box-shadow: 0 0 12px 2px oklch(from var(--primary) l c h / 0.25);
-  }
-  .glow-primary-sm {
-    box-shadow: 0 0 6px 1px oklch(from var(--primary) l c h / 0.15);
-  }
   .clay-card {
     background: var(--card);
     border-radius: 1.25rem;
@@ -198,19 +185,5 @@
   .pill-pink {
     background: linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgba(236,72,153,0.03) 100%);
     border: 1px solid rgba(236,72,153,0.1);
-  }
-
-  /* Gradient progress bars */
-  .bar-gradient-green {
-    background: linear-gradient(90deg, #22c55e, #4ade80);
-  }
-  .bar-gradient-blue {
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
-  }
-  .bar-gradient-amber {
-    background: linear-gradient(90deg, #f59e0b, #fbbf24);
-  }
-  .bar-gradient-red {
-    background: linear-gradient(90deg, #ef4444, #f87171);
   }
 }

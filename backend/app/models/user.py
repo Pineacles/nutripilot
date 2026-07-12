@@ -15,7 +15,6 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     api_key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    display_name: Mapped[str | None] = mapped_column(String(100))
     target_kcal: Mapped[int] = mapped_column(Integer, default=2000)
     target_protein_g: Mapped[float] = mapped_column(Float, default=150.0)
     target_carbs_g: Mapped[float] = mapped_column(Float, default=250.0)

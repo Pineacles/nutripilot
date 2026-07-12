@@ -225,7 +225,3 @@ class SyncLogger:
         """Mark this sync as failed (logged on context exit)."""
         self._failed = True
         self._fail_reason = reason
-
-    @property
-    def sync_id(self) -> str:
-        return self._base_extra["sync_id"]

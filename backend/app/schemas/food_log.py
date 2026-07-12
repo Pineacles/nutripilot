@@ -5,6 +5,13 @@ from uuid import UUID
 from pydantic import BaseModel, Field, model_validator
 
 
+def _check_quantity_or_servings(model):
+    """Shared validator: exactly one of quantity_g / servings must be set."""
+    if model.quantity_g is None and model.servings is None:
+        raise ValueError("Either quantity_g or servings must be provided")
+    return model
+
+
 class FoodLogCreate(BaseModel):
     food_id: UUID
     quantity_g: Optional[float] = Field(None, gt=0, le=10000)
@@ -12,11 +19,7 @@ class FoodLogCreate(BaseModel):
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
     date: Optional[datetime.date] = None
 
-    @model_validator(mode="after")
-    def check_quantity_or_servings(self):
-        if self.quantity_g is None and self.servings is None:
-            raise ValueError("Either quantity_g or servings must be provided")
-        return self
+    _check_quantity_or_servings = model_validator(mode="after")(_check_quantity_or_servings)
 
 
 class FoodLogByBarcodeCreate(BaseModel):
@@ -26,11 +29,7 @@ class FoodLogByBarcodeCreate(BaseModel):
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
     date: Optional[datetime.date] = None
 
-    @model_validator(mode="after")
-    def check_quantity_or_servings(self):
-        if self.quantity_g is None and self.servings is None:
-            raise ValueError("Either quantity_g or servings must be provided")
-        return self
+    _check_quantity_or_servings = model_validator(mode="after")(_check_quantity_or_servings)
 
 
 class FoodLogByNameCreate(BaseModel):
@@ -40,11 +39,7 @@ class FoodLogByNameCreate(BaseModel):
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
     date: Optional[datetime.date] = None
 
-    @model_validator(mode="after")
-    def check_quantity_or_servings(self):
-        if self.quantity_g is None and self.servings is None:
-            raise ValueError("Either quantity_g or servings must be provided")
-        return self
+    _check_quantity_or_servings = model_validator(mode="after")(_check_quantity_or_servings)
 
 
 class FoodLogUpdate(BaseModel):

@@ -1,5 +1,5 @@
 """Seed Swiss Food Composition Database.
-Usage: docker compose exec api python -m seed_swiss_foods
+Usage: docker compose exec api python -m scripts.seed_swiss_foods
 """
 import asyncio
 from pathlib import Path

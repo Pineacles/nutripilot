@@ -1,5 +1,5 @@
 """Populate common serving sizes for Swiss DB foods.
-Usage: docker compose exec api python -m populate_serving_sizes
+Usage: docker compose exec api python -m scripts.populate_serving_sizes
 """
 import asyncio
 

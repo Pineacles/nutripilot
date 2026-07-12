@@ -149,7 +149,6 @@ async def seed_demo():
             email=DEMO_EMAIL,
             password_hash=pwd_context.hash(DEMO_PASSWORD),
             api_key="demo-api-key-" + uuid.uuid4().hex[:20],
-            display_name="Demo User",
             target_kcal=2200,
             target_protein_g=170.0,
             target_carbs_g=230.0,

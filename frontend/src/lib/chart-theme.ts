@@ -7,16 +7,7 @@
  * recharts props renders identically to the old hardcoded hex values, but the
  * actual color now lives in one place (globals.css `:root`).
  *
- * `getCssVar` is a fallback for the rare spot that needs a resolved literal
- * (e.g. server-rendered code, or math on a color outside of CSS) rather than
- * a `var()` string.
  */
-
-export function getCssVar(name: string, fallback: string): string {
-  if (typeof window === "undefined") return fallback;
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
-}
 
 export const CHART_GRID_DASH = "3 3";
 

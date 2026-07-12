@@ -56,9 +56,6 @@ export const FOOD_LOG_BOUNDS = {
   servings: { min: 0.1, max: 100 } as NumberConstraint,
 };
 
-/** Bounds mirroring backend/app/schemas/supplement.py (SupplementCreate dose_amount). */
-export const SUPPLEMENT_DOSE_BOUNDS: NumberConstraint = { min: 0.01, max: 100000 };
-
 /** True when a nutrient value (per-100g, always >= 0) is valid or empty. */
 export function validateNonNegative(value: number): string | null {
   if (Number.isNaN(value)) return "Enter a number";

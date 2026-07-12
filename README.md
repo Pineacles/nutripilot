@@ -176,6 +176,10 @@ docker compose exec api python -m seed_demo
 This creates a fixed `demo@nutripilot.dev` account with deterministic fake
 data; screenshots in this README should be taken against that account.
 
+To populate the local food database itself (independent of any user), run
+`docker compose exec api python -m scripts.seed_swiss_foods` to import the Swiss food
+composition database.
+
 ## Environment variables
 
 All variables are documented in [`.env.example`](.env.example).
@@ -250,6 +254,9 @@ nutripilot/
 │   │   ├── docs.py        # agent-facing OpenAPI description
 │   │   └── main.py        # app wiring, middleware, lifespan
 │   ├── alembic/versions/  # migrations (Postgres-only DDL)
+│   ├── scripts/
+│   │   ├── seed_swiss_foods.py       # imports the Swiss food composition DB
+│   │   └── populate_serving_sizes.py # backfills serving sizes on Swiss DB foods
 │   ├── tests/
 │   ├── seed.py            # minimal user seed
 │   └── seed_demo.py       # 3-month demo dataset

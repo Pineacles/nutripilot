@@ -18,7 +18,6 @@ import type {
   UserSettings,
   WaterLogRow,
   WeekSummary,
-  WeightEntry,
   WeightLogRow,
 } from "@/lib/types";
 
@@ -31,7 +30,6 @@ export const queryKeys = {
   today: (date?: string) => ["summary", "today", date ?? null] as const,
   weekly: (mode: "last7" | "week", offset: number) => ["summary", "weekly", mode, offset] as const,
   stats: (days: number) => ["stats", days] as const,
-  weightLogs: (days: number) => ["weight-logs", days] as const,
   foodsSearch: (q: string, page: number, limit: number) => ["foods", "search", q, page, limit] as const,
   foodDetail: (id: string | null) => ["foods", "detail", id] as const,
   nutrientSources: (nutrient: string | null, from: string, to: string) =>
@@ -79,13 +77,6 @@ export function useStats(days: number) {
   return useQuery({
     queryKey: queryKeys.stats(days),
     queryFn: () => apiFetch<StatsSummary>(`/api/dashboard/stats?days=${days}`),
-  });
-}
-
-export function useWeightLogs(days: number = 90) {
-  return useQuery({
-    queryKey: queryKeys.weightLogs(days),
-    queryFn: () => apiFetch<WeightEntry[]>(`/api/dashboard/weight?days=${days}`),
   });
 }
 

@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { queryKeys } from "@/hooks/queries";
 import { invalidateDaySummaries } from "./shared";
-import type { SupplementIntakeLog, SupplementLogCreateInput, SupplementLogUpdateInput } from "@/lib/types";
+import type { SupplementIntakeLog, SupplementLogCreateInput } from "@/lib/types";
 
 function invalidateSupplementLog(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: queryKeys.supplementLogDayAll() });
@@ -19,18 +19,6 @@ export function useLogSupplementIntake() {
       apiFetch<SupplementIntakeLog>("/api/agent/log/supplement", {
         method: "POST",
         body: JSON.stringify(input),
-      }),
-    onSuccess: () => invalidateSupplementLog(queryClient),
-  });
-}
-
-export function useUpdateSupplementLog() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...body }: { id: string } & SupplementLogUpdateInput) =>
-      apiFetch<SupplementIntakeLog>(`/api/agent/log/supplement/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(body),
       }),
     onSuccess: () => invalidateSupplementLog(queryClient),
   });

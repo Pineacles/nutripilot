@@ -28,18 +28,6 @@ async def _lookup_user_by_api_key(db: AsyncSession, api_key: str) -> User | None
     return user
 
 
-async def get_current_user_api_key(
-    api_key: str = Depends(api_key_header),
-    db: AsyncSession = Depends(get_db),
-) -> User:
-    if api_key is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
-    user = await _lookup_user_by_api_key(db, api_key)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
-    return user
-
-
 async def get_current_user_jwt(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
