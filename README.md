@@ -1,15 +1,25 @@
 # NutriPilot
 
-A self-hosted nutrition and body-composition tracker: an agent-first API (an
-AI agent logs food, weight, and supplements from natural language) plus a
-full web dashboard for browsing and editing the same data by hand.
+**Self-hosted nutrition and body-composition tracking — for you and your AI agent.**
 
-Built as a portfolio project — see [Architecture](#architecture) and
-[Security model](#security-model) below for the parts worth reading as code
-samples.
+[![CI](https://github.com/Pineacles/NutriPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/Pineacles/NutriPilot/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
+![Next.js 16](https://img.shields.io/badge/next.js-16-black?logo=nextdotjs)
 
-![CI](https://github.com/your-org/nutripilot/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+NutriPilot tracks food, weight, supplements, water, and caffeine. Log by hand
+in the web dashboard — search, barcode scan, per-day editing — or let an AI
+agent do it from natural language through the agent-first API ("I had 200g of
+chicken for lunch" becomes a structured, dated entry). Smart scales (Withings,
+Fitbit, Google Fit, Garmin) sync body composition automatically.
+
+I track my own nutrition with it daily. If you're here to read code, start
+with [Architecture](#architecture) and the [Security model](#security-model).
+
+## Screenshots
+
+*(Add screenshots here, taken against the `demo@nutripilot.dev` account —
+`seed_demo.py` generates 90 days of realistic data)*
 
 ## Features
 
@@ -250,12 +260,6 @@ nutripilot/
         ├── hooks/         # TanStack Query queries + mutations
         └── lib/           # api client, types, formatting, validation
 ```
-
-## Screenshots
-
-> Add screenshots here, taken against the `demo@nutripilot.dev` account
-> produced by `docker compose exec api python -m seed_demo` — not real
-> personal data.
 
 ## License
 
