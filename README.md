@@ -16,19 +16,7 @@ Fitbit, Google Fit, Garmin) sync body composition automatically.
 I track my own nutrition with it daily. If you're here to read code, start
 with [Architecture](#architecture) and the [Security model](#security-model).
 
-## Screenshots
-
-Daily overview with date navigation, calorie ring, macros, meals, and supplements.
-![Today view](docs/screenshots/today.png)
-
-Analytics with weight history, body composition, calorie trend, and macro distribution charts.
-![Statistics view](docs/screenshots/statistics.png)
-
-Body composition tracking with weight, body fat, and muscle mass trends.
-![Body composition view](docs/screenshots/body.png)
-
-Food database search with nutrient breakdown for a selected food.
-![Foods view](docs/screenshots/foods.png)
+![Daily overview with date navigation, calorie ring, macros, meals, and supplements](docs/screenshots/today.png)
 
 ## Features
 
@@ -53,6 +41,28 @@ Food database search with nutrient breakdown for a selected food.
 - **Per-user timezone**: "today" and daily/weekly boundaries are computed in
   each user's own configured timezone, not the server's.
 - **PWA**: installable on iOS/Android/desktop.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/statistics.png" alt="Analytics with weight history, body composition, and calorie trend charts">
+      <p align="center">Analytics: streaks, weight history, calorie trend</p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/body.png" alt="Body composition tracking with weight, body fat, and muscle mass trends">
+      <p align="center">Body composition trends and stats</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/foods.png" alt="Food database search with nutrient breakdown for a selected food">
+      <p align="center">Food database with full nutrient breakdown</p>
+    </td>
+    <td width="50%"></td>
+  </tr>
+</table>
 
 ## Architecture
 
