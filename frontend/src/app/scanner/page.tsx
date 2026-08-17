@@ -47,6 +47,24 @@ export default function ScannerPage() {
     setLogDate(todayStr());
   }
 
+  function handleLogModeChange(m: "grams" | "servings") {
+    if (m === logMode) return;
+    const servingSize = result?.serving_size_g;
+    if (!servingSize) {
+      setLogMode(m);
+      return;
+    }
+    const current = Number(logQuantity) || 0;
+    if (m === "servings") {
+      const servings = Math.round((current / servingSize) * 10) / 10;
+      setLogQuantity(String(servings));
+    } else {
+      const grams = Math.round(current * servingSize * 10) / 10;
+      setLogQuantity(String(grams));
+    }
+    setLogMode(m);
+  }
+
   async function lookupBarcodeByCode(code: string) {
     setError("");
     setErrorType(null);
@@ -56,7 +74,13 @@ export default function ScannerPage() {
       const data = await barcodeLookup.mutateAsync(code);
       setResult(data);
       setJustLogged(false);
-      setLogMode(data.serving_size_g ? "servings" : "grams");
+      if (data.serving_size_g) {
+        setLogMode("servings");
+        setLogQuantity("1");
+      } else {
+        setLogMode("grams");
+        setLogQuantity("100");
+      }
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 404) {
         setError(`Barcode ${code} not found in our database`);
@@ -176,10 +200,11 @@ export default function ScannerPage() {
           scannedCode={scannedCode}
           onRetryLookup={() => scannedCode && lookupBarcodeByCode(scannedCode)}
           onScanAnother={handleScanAnother}
+          onCorrected={(f) => setResult(f)}
           justLogged={justLogged}
           logDate={logDate}
           logMode={logMode}
-          onLogModeChange={setLogMode}
+          onLogModeChange={handleLogModeChange}
           logQuantity={logQuantity}
           onLogQuantityChange={setLogQuantity}
           logMealType={logMealType}

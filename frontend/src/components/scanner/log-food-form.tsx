@@ -26,6 +26,15 @@ export function LogFoodForm({
   result, justLogged, logDate, logMode, onLogModeChange, logQuantity, onLogQuantityChange,
   logMealType, onLogMealTypeChange, onLogDateChange, onSubmit, pending,
 }: Props) {
+  const hasServing = !!result.serving_size_g;
+  const servingSize = result.serving_size_g;
+  const servingLabel = result.serving_label;
+
+  const resolvedGrams =
+    logMode === "servings" && servingSize
+      ? Number(logQuantity) * servingSize
+      : Number(logQuantity);
+
   return (
     <>
       <Separator className="my-1" />
@@ -38,7 +47,7 @@ export function LogFoodForm({
         </div>
       ) : (
         <div className="space-y-3">
-          {result.serving_size_g && (
+          {hasServing && (
             <div className="flex gap-1.5">
               {(["grams", "servings"] as const).map((m) => (
                 <button
@@ -64,6 +73,11 @@ export function LogFoodForm({
                 min={logMode === "grams" ? FOOD_LOG_BOUNDS.quantity_g.min : FOOD_LOG_BOUNDS.servings.min}
                 className="tabular-nums h-8"
               />
+              {logMode === "servings" && servingSize && (
+                <p className="text-[11px] text-muted-foreground">
+                  {logQuantity} {servingLabel ? servingLabel : "servings"} = {resolvedGrams.toFixed(1)} g
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-[11px] text-muted-foreground">Meal</Label>

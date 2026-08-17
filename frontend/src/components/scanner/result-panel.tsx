@@ -1,8 +1,12 @@
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { LogFoodForm } from "./log-food-form";
+import { useCorrectFoodByBarcode } from "@/hooks/mutations/food-correction";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/api";
 import type { FoodDetail, MealType } from "@/lib/types";
 
 type ErrorType = "not-found" | "network" | "camera" | null;
@@ -31,6 +35,7 @@ interface Props {
   scannedCode: string;
   onRetryLookup: () => void;
   onScanAnother: () => void;
+  onCorrected: (food: FoodDetail) => void;
   // log-food-form passthrough
   justLogged: boolean;
   logDate: string;
@@ -46,10 +51,96 @@ interface Props {
 }
 
 export function ResultPanel({
-  loading, result, error, errorType, scannedCode, onRetryLookup, onScanAnother,
+  loading, result, error, errorType, scannedCode, onRetryLookup, onScanAnother, onCorrected,
   justLogged, logDate, logMode, onLogModeChange, logQuantity, onLogQuantityChange,
   logMealType, onLogMealTypeChange, onLogDateChange, onSubmitLog, logPending,
 }: Props) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editServingSize, setEditServingSize] = useState("");
+  const [editServingLabel, setEditServingLabel] = useState("");
+  const [editNutrients, setEditNutrients] = useState<Record<string, string>>({});
+  const correctFood = useCorrectFoodByBarcode();
+
+  const startEdit = () => {
+    if (!result) return;
+    setEditServingSize(result.serving_size_g != null ? String(result.serving_size_g) : "");
+    setEditServingLabel(result.serving_label || "");
+    const n: Record<string, string> = {};
+    if (result.nutrients) {
+      for (const key of Object.keys(NUTRIENT_CONFIG)) {
+        const val = result.nutrients[key];
+        n[key] = val != null ? String(val) : "";
+      }
+    }
+    setEditNutrients(n);
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const saveEdit = () => {
+    if (!result) return;
+    const body: Record<string, unknown> = {};
+    if (editServingSize !== "" && Number(editServingSize) !== result.serving_size_g) {
+      body.serving_size_g = Number(editServingSize);
+    }
+    if (editServingLabel !== (result.serving_label || "")) body.serving_label = editServingLabel;
+    
+    const nutrients: Record<string, number> = {};
+    for (const key of Object.keys(NUTRIENT_CONFIG)) {
+      const newVal = editNutrients[key];
+      const oldVal = result.nutrients?.[key];
+      if (newVal !== "" && Number(newVal) !== oldVal) {
+        nutrients[key] = Number(newVal);
+      }
+    }
+    if (Object.keys(nutrients).length > 0) body.nutrients = nutrients;
+
+    if (Object.keys(body).length === 0) {
+      setIsEditing(false);
+      return;
+    }
+
+    correctFood.mutate(
+      { barcode: result.barcode || scannedCode, body },
+      {
+        onSuccess: (updated) => {
+          toast.success("Values corrected");
+          onCorrected(updated);
+          setIsEditing(false);
+        },
+        onError: (err) => {
+          toast.error(getErrorMessage(err));
+        }
+      }
+    );
+  };
+
+  const getDisplayGrams = (): number => {
+    if (!result) return 100;
+    if (logMode === "grams") {
+      return Number(logQuantity) || 0;
+    } else {
+      const servings = Number(logQuantity) || 0;
+      const size = result.serving_size_g || 100;
+      return servings * size;
+    }
+  };
+
+  const displayGrams = getDisplayGrams();
+  const scaleFactor = displayGrams / 100;
+
+  const formatScaled = (val: number | undefined | null) => {
+    if (val == null) return null;
+    return Math.round(val * scaleFactor * 10) / 10;
+  };
+
+  const footerText = logMode === "grams" 
+    ? `Per ${Math.round(displayGrams * 10) / 10} g`
+    : `Per ${Math.round(displayGrams * 10) / 10} g — ${logQuantity} ${result?.serving_label ? result.serving_label : "servings"}`;
+
   return (
     <div className="clay-card p-5">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Result</h3>
@@ -146,58 +237,119 @@ export function ResultPanel({
             </div>
           </div>
 
-          {/* Nutrient grid */}
-          {result.nutrients ? (
-            <div>
-              {/* Primary macros -- 2-column grid */}
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(NUTRIENT_CONFIG)
-                  .filter(([, cfg]) => cfg.primary)
-                  .map(([key, cfg]) => {
-                    const val = result.nutrients?.[key];
-                    if (val == null) return null;
-                    return (
-                      <div key={key} className={`pill ${cfg.pill} p-3 flex flex-col`}>
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{cfg.label}</span>
-                        <span className="text-lg font-bold tabular-nums text-foreground mt-0.5">
-                          {Math.round(val * 10) / 10}
-                          <span className="text-xs font-normal text-muted-foreground ml-1">{cfg.unit}</span>
-                        </span>
-                      </div>
-                    );
-                  })}
+          {/* Edit Mode Controls */}
+          {isEditing ? (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Button onClick={saveEdit} size="sm" className="text-xs flex-1" disabled={correctFood.isPending}>
+                  {correctFood.isPending ? "Saving..." : "Save"}
+                </Button>
+                <Button onClick={cancelEdit} variant="ghost" size="sm" className="text-xs flex-1">
+                  Cancel
+                </Button>
               </div>
-
-              {/* Secondary nutrients */}
-              {Object.entries(NUTRIENT_CONFIG)
-                .filter(([, cfg]) => !cfg.primary)
-                .some(([key]) => result.nutrients?.[key] != null) && (
-                <>
-                  <Separator className="my-3" />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Serving Size (g)</label>
+                  <input
+                    type="number"
+                    value={editServingSize}
+                    onChange={(e) => setEditServingSize(e.target.value)}
+                    className="w-full bg-background/50 border border-border rounded px-2 py-1 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Serving Label</label>
+                  <input
+                    type="text"
+                    value={editServingLabel}
+                    onChange={(e) => setEditServingLabel(e.target.value)}
+                    className="w-full bg-background/50 border border-border rounded px-2 py-1 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(NUTRIENT_CONFIG).map(([key, cfg]) => (
+                  <div key={key} className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground">{cfg.label} ({cfg.unit}/100g)</label>
+                    <input
+                      type="number"
+                      value={editNutrients[key] || ""}
+                      onChange={(e) => setEditNutrients(prev => ({ ...prev, [key]: e.target.value }))}
+                      className="w-full bg-background/50 border border-border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Nutrient grid */}
+              {result.nutrients ? (
+                <div>
+                  {/* Primary macros -- 2-column grid */}
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(NUTRIENT_CONFIG)
-                      .filter(([, cfg]) => !cfg.primary)
+                      .filter(([, cfg]) => cfg.primary)
                       .map(([key, cfg]) => {
                         const val = result.nutrients?.[key];
                         if (val == null) return null;
+                        const scaled = formatScaled(val);
                         return (
-                          <div key={key} className={`pill ${cfg.pill} p-2.5 flex items-center justify-between`}>
-                            <span className="text-xs text-muted-foreground">{cfg.label}</span>
-                            <span className="text-sm font-semibold tabular-nums text-foreground">
-                              {Math.round(val * 10) / 10}
-                              <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{cfg.unit}</span>
+                          <div key={key} className={`pill ${cfg.pill} p-3 flex flex-col`}>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{cfg.label}</span>
+                            <span className="text-lg font-bold tabular-nums text-foreground mt-0.5">
+                              {scaled}
+                              <span className="text-xs font-normal text-muted-foreground ml-1">{cfg.unit}</span>
                             </span>
                           </div>
                         );
                       })}
                   </div>
-                </>
-              )}
 
-              <p className="text-[9px] text-muted-foreground/50 mt-3">Per 100 g</p>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No nutrient data available</p>
+                  {/* Secondary nutrients */}
+                  {Object.entries(NUTRIENT_CONFIG)
+                    .filter(([, cfg]) => !cfg.primary)
+                    .some(([key]) => result.nutrients?.[key] != null) && (
+                    <>
+                      <Separator className="my-3" />
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(NUTRIENT_CONFIG)
+                          .filter(([, cfg]) => !cfg.primary)
+                          .map(([key, cfg]) => {
+                            const val = result.nutrients?.[key];
+                            if (val == null) return null;
+                            const scaled = formatScaled(val);
+                            return (
+                              <div key={key} className={`pill ${cfg.pill} p-2.5 flex items-center justify-between`}>
+                                <span className="text-xs text-muted-foreground">{cfg.label}</span>
+                                <span className="text-sm font-semibold tabular-nums text-foreground">
+                                  {scaled}
+                                  <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{cfg.unit}</span>
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </>
+                  )}
+
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="text-[9px] text-muted-foreground/50">{footerText}</p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                      onClick={startEdit}
+                    >
+                      Edit values
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No nutrient data available</p>
+              )}
+            </>
           )}
 
           {/* Log this */}
