@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -5,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.food import Food
 from app.models.nutrient import Nutrient
-from app.schemas.food import FoodCreate, NutrientData
+from app.schemas.food import FoodCorrectionUpdate, FoodCreate, NutrientData
 
 
 async def create_food(
@@ -162,3 +163,37 @@ async def get_food_by_barcode(db: AsyncSession, barcode: str) -> Food | None:
 async def get_food_by_id(db: AsyncSession, food_id: UUID) -> Food | None:
     result = await db.execute(select(Food).where(Food.id == food_id))
     return result.scalar_one_or_none()
+
+
+async def correct_food_by_barcode(
+    db: AsyncSession, barcode: str, data: FoodCorrectionUpdate, user_id: UUID
+) -> Food | None:
+    food = await get_food_by_barcode(db, barcode)
+    if food is None:
+        return None
+
+    if data.serving_size_g is not None:
+        food.serving_size_g = data.serving_size_g
+    if data.serving_label is not None:
+        food.serving_label = data.serving_label
+    if data.name is not None:
+        food.name = data.name
+
+    if data.nutrients is not None:
+        nutrient = food.nutrients
+        if nutrient is None:
+            nutrient = Nutrient(food_id=food.id)
+            db.add(nutrient)
+            await db.flush()
+
+        nutrient_data = data.nutrients.model_dump(exclude_unset=True)
+        for field in _NUTRIENT_FIELDS:
+            if field in nutrient_data:
+                setattr(nutrient, field, nutrient_data[field])
+
+    food.corrected_at = datetime.now(timezone.utc)
+    food.corrected_by = user_id
+
+    await db.commit()
+    await db.refresh(food)
+    return food

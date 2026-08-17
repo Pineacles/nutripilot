@@ -9,7 +9,15 @@ from app.database import get_db
 from app.models.food import Food
 from app.models.food_log import FoodLog
 from app.models.user import User
-from app.schemas.food import FoodClone, FoodCreate, FoodResponse, FoodSearchResult, FoodUpdate, NutrientData
+from app.schemas.food import (
+    FoodClone,
+    FoodCorrectionUpdate,
+    FoodCreate,
+    FoodResponse,
+    FoodSearchResult,
+    FoodUpdate,
+    NutrientData,
+)
 from app.services import barcode_service, food_service
 
 router = APIRouter(prefix="/api/foods", tags=["foods"])
@@ -148,6 +156,31 @@ async def clone_food(
         raise HTTPException(status_code=404, detail={"code": "FOOD_NOT_FOUND"})
     clone = await food_service.clone_food(db, food, owner_id=user.id, name=body.name if body else None)
     return _food_to_response(clone, user)
+
+
+@router.patch(
+    "/barcode/{barcode}/correction",
+    response_model=FoodResponse,
+    summary="Correct food values by barcode",
+    description=(
+        "Update serving size, label, name, or nutrient values for a food identified by barcode.\n\n"
+        "This is the sanctioned correction path for official/cached foods (created_by IS NULL).\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND` if no food matches the barcode."
+    ),
+)
+async def correct_food_by_barcode(
+    barcode: str,
+    body: FoodCorrectionUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt_or_api_key),
+):
+    food = await food_service.correct_food_by_barcode(db, barcode, body, user.id)
+    if food is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "FOOD_NOT_FOUND", "detail": "Food not found for barcode", "barcode": barcode},
+        )
+    return _food_to_response(food, user)
 
 
 @router.put(

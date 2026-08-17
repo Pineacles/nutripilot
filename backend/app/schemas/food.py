@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class NutrientData(BaseModel):
@@ -41,6 +41,24 @@ class FoodUpdate(BaseModel):
     serving_size_g: Optional[float] = None
     serving_label: Optional[str] = Field(None, max_length=100)
     nutrients: Optional[NutrientData] = None
+
+
+class FoodCorrectionUpdate(BaseModel):
+    serving_size_g: Optional[float] = Field(None, gt=0)
+    serving_label: Optional[str] = Field(None, max_length=100)
+    name: Optional[str] = Field(None, min_length=1, max_length=500)
+    nutrients: Optional[NutrientData] = None
+
+    @model_validator(mode="after")
+    def check_at_least_one_field(self):
+        if (
+            self.serving_size_g is None
+            and self.serving_label is None
+            and self.name is None
+            and self.nutrients is None
+        ):
+            raise ValueError("At least one field must be provided")
+        return self
 
 
 class FoodClone(BaseModel):
