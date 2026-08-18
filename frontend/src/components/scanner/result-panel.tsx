@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { LogFoodForm } from "./log-food-form";
 import { useCorrectFoodByBarcode } from "@/hooks/mutations/food-correction";
 import { toast } from "sonner";
@@ -59,6 +60,7 @@ export function ResultPanel({
   const [editServingSize, setEditServingSize] = useState("");
   const [editServingLabel, setEditServingLabel] = useState("");
   const [editNutrients, setEditNutrients] = useState<Record<string, string>>({});
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const correctFood = useCorrectFoodByBarcode();
 
   const startEdit = () => {
@@ -66,13 +68,18 @@ export function ResultPanel({
     setEditServingSize(result.serving_size_g != null ? String(result.serving_size_g) : "");
     setEditServingLabel(result.serving_label || "");
     const n: Record<string, string> = {};
+    let hasNonPrimary = false;
     if (result.nutrients) {
       for (const key of Object.keys(NUTRIENT_CONFIG)) {
         const val = result.nutrients[key];
         n[key] = val != null ? String(val) : "";
+        if (!NUTRIENT_CONFIG[key].primary && val != null) {
+          hasNonPrimary = true;
+        }
       }
     }
     setEditNutrients(n);
+    setShowAdvanced(hasNonPrimary);
     setIsEditing(true);
   };
 
@@ -137,9 +144,10 @@ export function ResultPanel({
     return Math.round(val * scaleFactor * 10) / 10;
   };
 
-  const footerText = logMode === "grams" 
-    ? `Per ${Math.round(displayGrams * 10) / 10} g`
-    : `Per ${Math.round(displayGrams * 10) / 10} g — ${logQuantity} ${result?.serving_label ? result.serving_label : "servings"}`;
+  const gramsStr = `${Math.round(displayGrams * 10) / 10} g`;
+  const footerText = logMode === "grams"
+    ? `Per ${gramsStr}`
+    : `Per ${gramsStr} (${logQuantity} × ${result?.serving_label || `${result?.serving_size_g} g`})`;
 
   return (
     <div className="clay-card p-5">
@@ -240,46 +248,93 @@ export function ResultPanel({
           {/* Edit Mode Controls */}
           {isEditing ? (
             <div className="space-y-3">
-              <div className="flex gap-2">
-                <Button onClick={saveEdit} size="sm" className="text-xs flex-1" disabled={correctFood.isPending}>
-                  {correctFood.isPending ? "Saving..." : "Save"}
-                </Button>
-                <Button onClick={cancelEdit} variant="ghost" size="sm" className="text-xs flex-1">
-                  Cancel
-                </Button>
-              </div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Edit values · per 100 g</p>
+              
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Serving Size (g)</label>
-                  <input
+                  <label className="text-[11px] normal-case tracking-normal text-muted-foreground">Serving size (g)</label>
+                  <Input
                     type="number"
+                    inputMode="decimal"
                     value={editServingSize}
                     onChange={(e) => setEditServingSize(e.target.value)}
-                    className="w-full bg-background/50 border border-border rounded px-2 py-1 text-sm"
+                    className="h-9 tabular-nums"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Serving Label</label>
-                  <input
+                  <label className="text-[11px] normal-case tracking-normal text-muted-foreground">Serving label</label>
+                  <Input
                     type="text"
                     value={editServingLabel}
                     onChange={(e) => setEditServingLabel(e.target.value)}
-                    className="w-full bg-background/50 border border-border rounded px-2 py-1 text-sm"
+                    className="h-9"
                   />
                 </div>
               </div>
+
+              <Separator className="my-3" />
+
               <div className="grid grid-cols-2 gap-2">
-                {Object.entries(NUTRIENT_CONFIG).map(([key, cfg]) => (
-                  <div key={key} className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground">{cfg.label} ({cfg.unit}/100g)</label>
-                    <input
-                      type="number"
-                      value={editNutrients[key] || ""}
-                      onChange={(e) => setEditNutrients(prev => ({ ...prev, [key]: e.target.value }))}
-                      className="w-full bg-background/50 border border-border rounded px-2 py-1 text-sm"
-                    />
-                  </div>
-                ))}
+                {Object.entries(NUTRIENT_CONFIG)
+                  .filter(([, cfg]) => cfg.primary)
+                  .map(([key, cfg]) => (
+                    <div key={key} className="space-y-1">
+                      <label className="text-[11px] normal-case tracking-normal text-muted-foreground">{cfg.label} · {cfg.unit}/100g</label>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        value={editNutrients[key] || ""}
+                        onChange={(e) => setEditNutrients(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="h-9 tabular-nums"
+                      />
+                    </div>
+                  ))}
+              </div>
+
+              <Separator className="my-3" />
+
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(v => !v)}
+                className="flex w-full items-center justify-between py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                More nutrients (fiber, sugar, salt)
+                <svg
+                  className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+              {showAdvanced && (
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(NUTRIENT_CONFIG)
+                    .filter(([, cfg]) => !cfg.primary)
+                    .map(([key, cfg]) => (
+                      <div key={key} className="space-y-1">
+                        <label className="text-[11px] normal-case tracking-normal text-muted-foreground">{cfg.label} · {cfg.unit}/100g</label>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          value={editNutrients[key] || ""}
+                          onChange={(e) => setEditNutrients(prev => ({ ...prev, [key]: e.target.value }))}
+                          className="h-9 tabular-nums"
+                        />
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              <div className="sticky bottom-2 -mx-1 flex gap-2 rounded-xl border border-border/50 bg-card/95 p-2 backdrop-blur">
+                <Button onClick={cancelEdit} variant="ghost" size="sm" className="text-xs px-4">
+                  Cancel
+                </Button>
+                <Button onClick={saveEdit} size="sm" className="text-xs flex-1" disabled={correctFood.isPending}>
+                  {correctFood.isPending ? "Saving..." : "Save corrections"}
+                </Button>
               </div>
             </div>
           ) : (
@@ -334,14 +389,12 @@ export function ResultPanel({
                     </>
                   )}
 
-                  <div className="mt-3 flex items-center justify-between">
-                    <p className="text-[9px] text-muted-foreground/50">{footerText}</p>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                      onClick={startEdit}
-                    >
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground">{footerText}</p>
+                    <Button variant="secondary" size="sm" className="h-8 px-3 text-xs" onClick={startEdit}>
+                      <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                      </svg>
                       Edit values
                     </Button>
                   </div>
@@ -369,8 +422,7 @@ export function ResultPanel({
           />
 
           {/* Action buttons */}
-          <Separator className="my-1" />
-          <div className="flex gap-2">
+          <div className="flex justify-end gap-2">
             <Button onClick={onScanAnother} variant="secondary" size="sm" className="text-xs">
               Scan another
             </Button>

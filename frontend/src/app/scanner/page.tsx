@@ -11,6 +11,8 @@ import { todayStr } from "@/lib/dates";
 import type { FoodDetail, MealType } from "@/lib/types";
 import { CameraViewfinder } from "@/components/scanner/camera-viewfinder";
 import { ResultPanel } from "@/components/scanner/result-panel";
+import { Button } from "@/components/ui/button";
+import { Scan } from "lucide-react";
 
 type ErrorType = "not-found" | "network" | "camera" | null;
 
@@ -176,21 +178,42 @@ export default function ScannerPage() {
     );
   }
 
+  const isCollapsed = result !== null;
+
   return (
     <DashboardLayout title="Barcode Scanner">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <CameraViewfinder
-          videoRef={videoRef}
-          scanning={scanning}
-          flashGreen={flashGreen}
-          onStartScanning={startScanning}
-          manualCode={manualCode}
-          onManualCodeChange={setManualCode}
-          onManualSubmit={handleManualSubmit}
-          loading={loading}
-          cameraError={error}
-          showCameraError={!!error && errorType === "camera"}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start pb-24">
+        <div className="clay-card p-5 self-start">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Scan</h3>
+          <div className="space-y-4">
+            {isCollapsed ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Scan className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <span className="font-mono text-sm truncate">{scannedCode}</span>
+                </div>
+                <Button variant="secondary" size="sm" onClick={handleScanAnother}>
+                  Scan another
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-hidden transition-all duration-300">
+                <CameraViewfinder
+                  videoRef={videoRef}
+                  scanning={scanning}
+                  flashGreen={flashGreen}
+                  onStartScanning={startScanning}
+                  manualCode={manualCode}
+                  onManualCodeChange={setManualCode}
+                  onManualSubmit={handleManualSubmit}
+                  loading={loading}
+                  cameraError={error}
+                  showCameraError={!!error && errorType === "camera"}
+                />
+              </div>
+            )}
+          </div>
+        </div>
 
         <ResultPanel
           loading={loading}
