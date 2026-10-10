@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -191,7 +191,7 @@ async def correct_food_by_barcode(
             if field in nutrient_data:
                 setattr(nutrient, field, nutrient_data[field])
 
-    food.corrected_at = datetime.now(timezone.utc)
+    food.corrected_at = datetime.now(UTC)
     food.corrected_by = user_id
 
     await db.commit()
