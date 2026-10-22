@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { isLoggedIn } from "@/lib/auth";
 import { Sidebar } from "@/components/sidebar";
@@ -11,14 +11,16 @@ interface Props {
   children: React.ReactNode;
 }
 
+const subscribeNever = () => () => {};
+
 export function DashboardLayout({ title, children }: Props) {
   const router = useRouter();
-  // Derive auth status during render: avoids calling setState synchronously
-  // inside an effect (react-hooks/set-state-in-effect).
-  const authed = isLoggedIn();
+  // localStorage only exists on the client: read it through useSyncExternalStore so the
+  // server and first client render agree (spinner), avoiding a hydration mismatch.
+  const authed = useSyncExternalStore(subscribeNever, isLoggedIn, () => null);
 
   useEffect(() => {
-    if (!authed) {
+    if (authed === false) {
       router.replace("/login");
     }
   }, [authed, router]);
@@ -33,9 +35,15 @@ export function DashboardLayout({ title, children }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
       <Sidebar />
       <NavBar />
-      <main className="lg:ml-56 pb-20 lg:pb-0">
+      <main id="main-content" tabIndex={-1} className="lg:ml-56 pb-20 lg:pb-0 outline-none">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <h1 className="text-xl font-semibold text-foreground mb-6">{title}</h1>
           {children}

@@ -74,9 +74,25 @@ export function SupplementsSection({ supplements }: Props) {
     updateSupplement.mutate({ id, active });
   }
 
-  function deleteSupplement(id: string) {
-    deleteSupplementMutation.mutate(id, {
-      onSuccess: () => toast.success("Supplement removed"),
+  function deleteSupplement(supp: SupplementDefinition) {
+    deleteSupplementMutation.mutate(supp.id, {
+      onSuccess: () =>
+        toast.success("Supplement removed", {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              createSupplement.mutate(
+                {
+                  name: supp.name,
+                  dose_amount: supp.dose_amount,
+                  dose_unit: supp.dose_unit,
+                  time_of_day: supp.time_of_day,
+                  micronutrients: supp.micronutrients,
+                },
+                { onSuccess: () => toast.success("Supplement restored") }
+              ),
+          },
+        }),
     });
   }
 
@@ -94,17 +110,23 @@ export function SupplementsSection({ supplements }: Props) {
           >
             <button
               onClick={() => toggleSuppActive(s.id, !s.active)}
-              className={`h-5 w-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
-                s.active
-                  ? "border-primary/40 bg-primary/10"
-                  : "border-border bg-muted/50"
-              }`}
+              aria-label={s.active ? `Deactivate ${s.name}` : `Activate ${s.name}`}
+              aria-pressed={s.active}
+              className="-m-2.5 flex h-10 w-10 shrink-0 items-center justify-center"
             >
+              <span
+                className={`h-5 w-5 rounded-md border flex items-center justify-center transition-colors ${
+                  s.active
+                    ? "border-primary/40 bg-primary/10"
+                    : "border-border bg-muted/50"
+                }`}
+              >
               {s.active && (
                 <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               )}
+              </span>
             </button>
             <div className="flex-1 min-w-0">
               <p className={`text-sm truncate ${s.active ? "text-foreground/80" : "text-muted-foreground line-through"}`}>
@@ -123,15 +145,17 @@ export function SupplementsSection({ supplements }: Props) {
             </div>
             <button
               onClick={() => setEditingSupp(s)}
-              className="text-muted-foreground/40 hover:text-foreground transition-colors text-xs px-1"
+              aria-label={`Edit ${s.name}`}
+              className="flex h-10 min-w-10 items-center justify-center text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
             >
               Edit
             </button>
             <button
-              onClick={() => deleteSupplement(s.id)}
-              className="text-muted-foreground/40 hover:text-destructive transition-colors"
+              onClick={() => deleteSupplement(s)}
+              aria-label={`Delete ${s.name}`}
+              className="flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>

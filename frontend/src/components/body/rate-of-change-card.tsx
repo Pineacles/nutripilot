@@ -1,7 +1,7 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 import { SectionCard } from "@/components/charts/section-card";
 import { ChartTooltip } from "./chart-tooltip";
-import { nthTickFormatter } from "@/lib/chart-utils";
+import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
 import { CHART_COLORS, CHART_GRID_SOLID, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
 import { fmt } from "@/lib/utils";
 
@@ -15,10 +15,10 @@ export function RateOfChangeCard({ weeklyRateData, weeklyAvgChange }: Props) {
     <SectionCard title="Rate of Change">
       {weeklyRateData.length > 0 ? (
         <div className="space-y-3">
-          <ResponsiveContainer width="100%" height={140}>
+          <ResponsiveContainer minWidth={0} width="100%" height={140}>
             <LineChart data={weeklyRateData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
               <CartesianGrid stroke={CHART_GRID_SOLID} strokeDasharray={CHART_GRID_DASH} />
-              <XAxis dataKey="date" tickFormatter={nthTickFormatter(weeklyRateData, 4)} tick={CHART_TICK_X} axisLine={false} tickLine={false} />
+              <XAxis dataKey="date" tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} tick={CHART_TICK_X} axisLine={false} tickLine={false} />
               <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTooltip valueSuffix=" kg/w" valueKey="rate" />} />
               <ReferenceLine y={0} stroke="#555" strokeDasharray="3 3" />

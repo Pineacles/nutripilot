@@ -22,7 +22,7 @@ export function HeroStats({ data, avgKcal, targetKcal, logPct }: Props) {
       </div>
       <div className="pill pill-amber rounded-xl p-4">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Avg Daily Kcal</p>
-        <p className="text-2xl font-bold tabular-nums text-foreground">{avgKcal.toLocaleString()}</p>
+        <p className="text-2xl font-bold tabular-nums text-foreground">{Math.round(avgKcal).toLocaleString()}</p>
         <p className="text-xs text-amber-400 font-medium mt-0.5">target {targetKcal.toLocaleString()}</p>
       </div>
       <div className="pill pill-purple rounded-xl p-4">

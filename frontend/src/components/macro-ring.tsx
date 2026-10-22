@@ -74,7 +74,7 @@ export function CalorieRingCard({ totals, targets, water, caffeine, span }: Prop
           className="relative h-[150px] w-[150px]"
           style={{ filter: `drop-shadow(0 0 12px ${ringColor}33)` }}
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer minWidth={0} width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}

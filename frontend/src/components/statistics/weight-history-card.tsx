@@ -3,7 +3,7 @@ import {
 } from "recharts";
 import { SectionCard } from "@/components/charts/section-card";
 import { ChartTooltip } from "./chart-tooltip";
-import { fmtDateAxis, computeAxisInterval } from "@/lib/chart-utils";
+import { fmtDateAxis, AXIS_TICK_PROPS } from "@/lib/chart-utils";
 import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
 import type { BodyCompEntry } from "@/lib/types";
 
@@ -18,7 +18,7 @@ export function WeightHistoryCard({ weightData, targetWeight }: Props) {
       {weightData.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No weight data recorded yet</p>
       ) : (
-        <ResponsiveContainer width="100%" height={240}>
+        <ResponsiveContainer minWidth={0} width="100%" height={240}>
           <AreaChart data={weightData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
             <defs>
               <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
@@ -32,13 +32,13 @@ export function WeightHistoryCard({ weightData, targetWeight }: Props) {
               tick={CHART_TICK_X}
               axisLine={false}
               tickLine={false}
-              interval={computeAxisInterval(weightData.length)}
+              {...AXIS_TICK_PROPS}
               tickFormatter={(v: string) => fmtDateAxis(v, weightData.length)}
             />
             <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} width={40} domain={["auto", "auto"]} />
             <Tooltip content={<ChartTooltip valueSuffix=" kg" />} />
             {targetWeight != null && (
-              <ReferenceLine y={targetWeight} stroke={CHART_COLORS.blue} strokeDasharray="6 3" strokeWidth={1.5} label={{ value: `Target ${targetWeight} kg`, fill: "#666", fontSize: 10, position: "right" }} />
+              <ReferenceLine y={targetWeight} stroke={CHART_COLORS.blue} strokeDasharray="6 3" strokeWidth={1.5} label={{ value: `Target ${targetWeight} kg`, fill: "#666", fontSize: 10, position: "insideTopRight" }} />
             )}
             <Area
               type="monotone"

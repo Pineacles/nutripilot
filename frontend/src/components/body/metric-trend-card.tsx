@@ -3,7 +3,7 @@ import {
 } from "recharts";
 import { SectionCard } from "@/components/charts/section-card";
 import { ChartTooltip } from "./chart-tooltip";
-import { nthTickFormatter } from "@/lib/chart-utils";
+import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
 import { CHART_GRID_SOLID, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
 
 type DataRow = Record<string, unknown>;
@@ -37,7 +37,7 @@ export function MetricTrendCard({
   return (
     <SectionCard title={title} span={span}>
       {hasData ? (
-        <ResponsiveContainer width="100%" height={height}>
+        <ResponsiveContainer minWidth={0} width="100%" height={height}>
           <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -46,7 +46,7 @@ export function MetricTrendCard({
               </linearGradient>
             </defs>
             <CartesianGrid stroke={CHART_GRID_SOLID} strokeDasharray={CHART_GRID_DASH} />
-            <XAxis dataKey="date" tickFormatter={nthTickFormatter(data as { date: string }[], tickMaxLabels)} tick={CHART_TICK_X} axisLine={false} tickLine={false} />
+            <XAxis dataKey="date" tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} tick={CHART_TICK_X} axisLine={false} tickLine={false} />
             <YAxis domain={["dataMin - 1", "dataMax + 1"]} tick={CHART_TICK_Y} axisLine={false} tickLine={false} />
             <Tooltip content={<ChartTooltip valueSuffix={valueSuffix} valueKey={avgKey} />} />
             {referenceValue != null && (

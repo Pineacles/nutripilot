@@ -80,7 +80,7 @@ export function CalorieChartCard({ dailyAvgKcal, targetKcal, dailyData }: Props 
 
   return (
     <DashboardCard title="7-Day Calories" span="lg:col-span-2">
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer minWidth={0} width="100%" height={260}>
         <BarChart data={data} barCategoryGap="20%">
           <defs>
             <linearGradient id="calBarGreen" x1="0" y1="0" x2="0" y2="1">

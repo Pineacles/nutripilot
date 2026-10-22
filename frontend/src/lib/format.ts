@@ -25,3 +25,19 @@ export function timeAgo(dateStr: string | null): string {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
+
+/** Human label for a food's source key (swiss_db, manual, ...). isMine tells your own foods from other people's. */
+export function sourceLabel(source: string, isMine?: boolean): string {
+  switch (source) {
+    case "swiss_db":
+      return "Swiss database";
+    case "manual":
+      return isMine === false ? "Added food" : "Your food";
+    case "openfoodfacts":
+      return "Open Food Facts";
+    case "usda":
+      return "USDA";
+    default:
+      return source ? source.replace(/_/g, " ") : "Added food";
+  }
+}

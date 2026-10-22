@@ -3,7 +3,7 @@ import {
 } from "recharts";
 import { SectionCard } from "@/components/charts/section-card";
 import { ChartTooltip } from "./chart-tooltip";
-import { nthTickFormatter, type DailyNutritionLike } from "@/lib/chart-utils";
+import { type DailyNutritionLike, AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
 import { CHART_GRID_SUBTLE, CHART_GRID_DASH } from "@/lib/chart-theme";
 
 interface Props {
@@ -25,7 +25,7 @@ export function NutrientTrendCard({ title, dataKey, unit, color, target, showRef
       {nutritionLength === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">No data</p>
       ) : (
-        <ResponsiveContainer width="100%" height={140}>
+        <ResponsiveContainer minWidth={0} width="100%" height={140}>
           <ComposedChart data={rollingNutrition} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
             <defs>
               <linearGradient id={`${dataKey}Grad`} x1="0" y1="0" x2="0" y2="1">
@@ -39,7 +39,7 @@ export function NutrientTrendCard({ title, dataKey, unit, color, target, showRef
               tick={{ fill: "#888", fontSize: 9 }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={nthTickFormatter(rollingNutrition, 4)}
+              tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS}
             />
             <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
             <Tooltip content={<ChartTooltip valueSuffix={` ${unit}`} />} />

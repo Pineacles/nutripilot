@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCreateFood, useUpdateFood } from "@/hooks/mutations/foods";
 import { useFoodsSearch } from "@/hooks/queries";
-import { atwaterMismatch } from "@/lib/portion";
+import { atwaterMismatch, labelProblem } from "@/lib/portion";
 import { validateNonNegative } from "@/lib/validation";
 import { MACRO_NUTRIENT_LABELS, MICRO_NUTRIENT_LABELS } from "@/lib/nutrient-labels";
 import { getErrorMessage } from "@/lib/api";
@@ -60,6 +60,12 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
   const [servingSizeG, setServingSizeG] = useState(initial?.serving_size_g != null ? String(initial.serving_size_g) : "");
   const [servingLabel, setServingLabel] = useState(initial?.serving_label ?? "");
   const [nutrients, setNutrients] = useState<NutrientFields>(fieldsFromFood(initial));
+  // "Required" waits until the field was left empty or saving was tried, not the moment the form opens.
+  const [touched, setTouched] = useState<Set<string>>(() => new Set());
+  const [attempted, setAttempted] = useState(false);
+  const touch = (key: string) => setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  const shown = (key: string, error: string | null | undefined) =>
+    error && (error !== "Required" || attempted || touched.has(key)) ? error : null;
 
   // Before creating, show foods with a similar name so the same food isn't added twice.
   const [nameQuery, setNameQuery] = useState("");
@@ -94,6 +100,12 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
   const num = (k: keyof NutrientData) => (nutrients[k] === "" ? null : Number(nutrients[k]));
   // Calories vs protein/carbs/fat works the same per serving or per 100 g.
   const kcalEstimate = atwaterMismatch({ kcal: num("kcal"), protein: num("protein"), carbs: num("carbs"), fat: num("fat"), alcohol: num("alcohol") });
+  // Checked per 100 g, so per serving values count after scaling up.
+  const per100 = (k: keyof NutrientData) => {
+    const v = num(k);
+    return v == null ? null : perServing && hasServing ? (v * 100) / servingNum : v;
+  };
+  const labelWarning = labelProblem({ protein: per100("protein"), carbs: per100("carbs"), sugar: per100("sugar"), fat: per100("fat"), sat_fat: per100("sat_fat") });
 
   /** Switch what the fields mean and convert what is already typed, so nothing changes meaning. */
   function switchBasis(next: Basis) {
@@ -138,6 +150,7 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
   }
 
   function handleSubmit() {
+    setAttempted(true);
     if (hasErrors) {
       toast.error("Fix the highlighted fields before saving.");
       return;
@@ -164,7 +177,7 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {Object.entries(fields).map(([key, meta]) => {
           const k = key as keyof NutrientData;
-          const error = nutrientErrors[k];
+          const error = shown(k, nutrientErrors[k]);
           return (
             <div key={key} className="space-y-1">
               <Label className="text-[11px] text-muted-foreground">{meta.label} <span className="text-muted-foreground/50">({meta.unit})</span></Label>
@@ -172,6 +185,7 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
                 type="number"
                 value={nutrients[k]}
                 onChange={(e) => setNutrient(k, e.target.value)}
+                onBlur={() => touch(k)}
                 min={0}
                 step="any"
                 aria-invalid={!!error}
@@ -193,8 +207,8 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
         <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Basics</h4>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} aria-invalid={!!nameError} placeholder="e.g. Rolled oats" />
-          {nameError && <p className="text-[11px] text-destructive">{nameError}</p>}
+          <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => touch("name")} aria-invalid={!!shown("name", nameError)} placeholder="e.g. Rolled oats" />
+          {shown("name", nameError) && <p className="text-[11px] text-destructive">{nameError}</p>}
           {mode === "create" && lookalikes.length > 0 && (
             <p className="text-[11px] text-muted-foreground">
               Already in your foods: {lookalikes.map((f) => f.name).join(", ")}. Search for it instead if it&apos;s the same.
@@ -250,6 +264,12 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
             <span>Calories look off: protein, carbs and fat add up to about {kcalEstimate} kcal. Check the label before saving.</span>
           </p>
         )}
+        {labelWarning && (
+          <p className="pill pill-amber flex items-start gap-2 px-3 py-2 text-[11px] text-amber-300">
+            <svg className="h-4 w-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+            <span>{labelWarning}</span>
+          </p>
+        )}
         {renderNutrientGrid(MACRO_NUTRIENT_LABELS)}
       </section>
 
@@ -263,7 +283,7 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
       </section>
 
       <div className="flex gap-2 pt-2 sticky bottom-0 bg-popover">
-        <Button onClick={handleSubmit} disabled={hasErrors || pending} size="lg" className="flex-1">
+        <Button onClick={handleSubmit} disabled={pending} size="lg" className="flex-1">
           {pending ? "Saving..." : mode === "edit" ? "Save changes" : "Create food"}
         </Button>
         <Button onClick={onCancel} variant="outline" size="lg">Cancel</Button>

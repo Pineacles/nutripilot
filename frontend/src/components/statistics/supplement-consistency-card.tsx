@@ -1,7 +1,7 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
 import { SectionCard } from "@/components/charts/section-card";
 import { ChartTooltip } from "./chart-tooltip";
-import { nthTickFormatter } from "@/lib/chart-utils";
+import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
 import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
 import type { SupplementLogEntry } from "@/lib/types";
 
@@ -34,7 +34,7 @@ export function SupplementConsistencyCard({ supplementLog, days }: Props) {
           <div className="flex flex-col lg:flex-row gap-5">
             {/* Left: trend chart */}
             <div className="flex-1 min-w-0">
-              <ResponsiveContainer width="100%" height={160}>
+              <ResponsiveContainer minWidth={0} width="100%" height={160}>
                 <AreaChart data={supplementLog} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
                   <defs>
                     <linearGradient id="suppGrad" x1="0" y1="0" x2="0" y2="1">
@@ -44,7 +44,7 @@ export function SupplementConsistencyCard({ supplementLog, days }: Props) {
                   </defs>
                   <CartesianGrid strokeDasharray={CHART_GRID_DASH} stroke={CHART_GRID_SUBTLE} vertical={false} />
                   <XAxis dataKey="date" tick={CHART_TICK_X} axisLine={false} tickLine={false}
-                    tickFormatter={nthTickFormatter(supplementLog, 5)} />
+                    tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} />
                   <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} width={25} allowDecimals={false} />
                   <Tooltip content={<ChartTooltip valueSuffix=" supplements" />} />
                   <Area type="monotone" dataKey="count" stroke={CHART_COLORS.green} strokeWidth={2}

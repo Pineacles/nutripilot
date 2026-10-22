@@ -18,19 +18,12 @@ export function fmtDateAxis(dateStr: string, dataLength: number): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function computeAxisInterval(dataLength: number): number {
-  if (dataLength <= 14) return 0;
-  if (dataLength <= 30) return 2;
-  if (dataLength <= 90) return 6;
-  return 13;
-}
+/** Props that keep date ticks readable at any width: Recharts drops labels that would overlap. */
+export const AXIS_TICK_PROPS = { interval: "preserveStartEnd", minTickGap: 24 } as const;
 
-export function nthTickFormatter(data: { date: string }[], maxLabels = 8) {
-  const interval = Math.max(1, Math.floor(data.length / maxLabels));
-  return (_value: string, index: number) => {
-    if (index % interval !== 0) return "";
-    return fmtDate(data[index]?.date ?? _value);
-  };
+/** Formats the tick value itself (a date string), independent of tick position. */
+export function dateTickFormatter() {
+  return (value: string) => fmtDate(String(value));
 }
 
 export interface DailyNutritionLike {

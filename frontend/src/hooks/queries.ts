@@ -196,6 +196,9 @@ export function useUpdateNutritionTargets() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings() });
+      // Targets and supplement micronutrients are part of the day, week and stats summaries.
+      queryClient.invalidateQueries({ queryKey: ["summary"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.statsAll() });
     },
   });
 }
@@ -210,6 +213,9 @@ export function useUpdateMicronutrientTargets() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings() });
+      // Targets and supplement micronutrients are part of the day, week and stats summaries.
+      queryClient.invalidateQueries({ queryKey: ["summary"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.statsAll() });
     },
   });
 }
@@ -232,6 +238,9 @@ export function useCreateSupplement() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings() });
+      // Targets and supplement micronutrients are part of the day, week and stats summaries.
+      queryClient.invalidateQueries({ queryKey: ["summary"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.statsAll() });
     },
   });
 }
@@ -251,6 +260,9 @@ export function useUpdateSupplement() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings() });
+      // Targets and supplement micronutrients are part of the day, week and stats summaries.
+      queryClient.invalidateQueries({ queryKey: ["summary"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.statsAll() });
     },
   });
 }
@@ -261,6 +273,9 @@ export function useDeleteSupplement() {
     mutationFn: (id: string) => apiFetch<void>(`/api/v1/supplements/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings() });
+      // Targets and supplement micronutrients are part of the day, week and stats summaries.
+      queryClient.invalidateQueries({ queryKey: ["summary"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.statsAll() });
     },
   });
 }

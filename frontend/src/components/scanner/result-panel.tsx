@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { atwaterMismatch } from "@/lib/portion";
+import { BARCODE_PROBLEM_TEXT, barcodeProblem } from "@/lib/barcode";
+import { sourceLabel } from "@/lib/format";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +11,7 @@ import { LogFoodForm } from "./log-food-form";
 import { useCorrectFoodByBarcode } from "@/hooks/mutations/food-correction";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/api";
-import type { FoodDetail, MealType } from "@/lib/types";
+import type { FoodDetail } from "@/lib/types";
 
 type ErrorType = "not-found" | "network" | "camera" | null;
 
@@ -23,11 +25,6 @@ const NUTRIENT_CONFIG: Record<string, { label: string; unit: string; pill: strin
   salt:    { label: "Salt",     unit: "g",    pill: "pill-red",    primary: false },
 };
 
-const SOURCE_LABELS: Record<string, string> = {
-  openfoodfacts: "OpenFoodFacts",
-  swiss_food_composition: "Swiss DB",
-  usda: "USDA",
-};
 
 interface Props {
   loading: boolean;
@@ -39,23 +36,13 @@ interface Props {
   onScanAnother: () => void;
   onCorrected: (food: FoodDetail) => void;
   // log-food-form passthrough
-  justLogged: boolean;
-  logDate: string;
-  logMode: "grams" | "servings";
-  onLogModeChange: (m: "grams" | "servings") => void;
-  logQuantity: string;
-  onLogQuantityChange: (v: string) => void;
-  logMealType: MealType;
-  onLogMealTypeChange: (m: MealType) => void;
-  onLogDateChange: (v: string) => void;
-  onSubmitLog: () => void;
-  logPending: boolean;
+  loggedOn: string | null;
+  onLog: () => void;
 }
 
 export function ResultPanel({
   loading, result, error, errorType, scannedCode, onRetryLookup, onScanAnother, onCorrected,
-  justLogged, logDate, logMode, onLogModeChange, logQuantity, onLogQuantityChange,
-  logMealType, onLogMealTypeChange, onLogDateChange, onSubmitLog, logPending,
+  loggedOn, onLog,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [editServingSize, setEditServingSize] = useState("");
@@ -63,6 +50,7 @@ export function ResultPanel({
   const [editNutrients, setEditNutrients] = useState<Record<string, string>>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
   const correctFood = useCorrectFoodByBarcode();
+  const problem = scannedCode ? barcodeProblem(scannedCode) : null;
 
   const startEdit = () => {
     if (!result) return;
@@ -126,16 +114,8 @@ export function ResultPanel({
     );
   };
 
-  const getDisplayGrams = (): number => {
-    if (!result) return 100;
-    if (logMode === "grams") {
-      return Number(logQuantity) || 0;
-    } else {
-      const servings = Number(logQuantity) || 0;
-      const size = result.serving_size_g || 100;
-      return servings * size;
-    }
-  };
+  // Shown for one serving when the pack names one (what people compare on the label), else 100 g.
+  const getDisplayGrams = (): number => result?.serving_size_g || 100;
 
   const kcalEstimate = result?.nutrients ? atwaterMismatch(result.nutrients) : null;
   const displayGrams = getDisplayGrams();
@@ -147,9 +127,9 @@ export function ResultPanel({
   };
 
   const gramsStr = `${Math.round(displayGrams * 10) / 10} g`;
-  const footerText = logMode === "grams"
-    ? `Per ${gramsStr}`
-    : `Per ${gramsStr} (${logQuantity} × ${result?.serving_label || `${result?.serving_size_g} g`})`;
+  const footerText = result?.serving_size_g
+    ? `Per serving, ${result.serving_label || gramsStr}${result.serving_label ? ` (${gramsStr})` : ""}`
+    : `Per ${gramsStr}`;
 
   return (
     <div className="clay-card p-5">
@@ -178,7 +158,7 @@ export function ResultPanel({
         </div>
       )}
 
-      {/* Not found error */}
+      {/* Not found error: a shop's counter label and a misread scan get their own advice */}
       {!loading && errorType === "not-found" && (
         <div className="pill pill-amber p-4 space-y-3">
           <div className="flex items-start gap-3">
@@ -186,21 +166,26 @@ export function ResultPanel({
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
             <div>
-              <p className="text-sm font-medium text-amber-300">Barcode not found</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="font-mono text-foreground/70">{scannedCode}</span> is not in our database.
+              <p className="text-sm font-medium text-amber-300">
+                {problem === "store_label" ? "Shop label, not a product code" : problem === "misread" ? "Scan misread" : "Barcode not found"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Add it from the package label, or search by name instead.
+                <span className="font-mono text-foreground/70">{scannedCode}</span>
+                {problem ? null : " is not in our database."}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {problem ? BARCODE_PROBLEM_TEXT[problem] : "Add it from the package label, or search by name instead."}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href={`/foods?new=1&barcode=${encodeURIComponent(scannedCode)}`}>
-              <Button size="sm" className="h-7 text-xs">
-                Add as new food
-              </Button>
-            </Link>
+            {!problem && (
+              <Link href={`/foods?new=1&barcode=${encodeURIComponent(scannedCode)}`}>
+                <Button size="sm" className="h-7 text-xs">
+                  Add as new food
+                </Button>
+              </Link>
+            )}
             <Link href="/foods">
               <Button variant="secondary" size="sm" className="h-7 text-xs">
                 Browse foods
@@ -246,7 +231,7 @@ export function ResultPanel({
                   <span className="font-mono text-[10px] text-muted-foreground">{result.barcode}</span>
                 )}
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                  {SOURCE_LABELS[result.source] || result.source}
+                  {sourceLabel(result.source, result.is_mine)}
                 </Badge>
               </div>
             </div>
@@ -357,7 +342,7 @@ export function ResultPanel({
               {/* Nutrient grid */}
               {result.nutrients ? (
                 <div>
-                  {/* Primary macros -- 2-column grid */}
+                  {/* Primary macros, 2-column grid */}
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(NUTRIENT_CONFIG)
                       .filter(([, cfg]) => cfg.primary)
@@ -421,20 +406,7 @@ export function ResultPanel({
           )}
 
           {/* Log this */}
-          <LogFoodForm
-            result={result}
-            justLogged={justLogged}
-            logDate={logDate}
-            logMode={logMode}
-            onLogModeChange={onLogModeChange}
-            logQuantity={logQuantity}
-            onLogQuantityChange={onLogQuantityChange}
-            logMealType={logMealType}
-            onLogMealTypeChange={onLogMealTypeChange}
-            onLogDateChange={onLogDateChange}
-            onSubmit={onSubmitLog}
-            pending={logPending}
-          />
+          <LogFoodForm result={result} loggedOn={loggedOn} onLog={onLog} />
 
           {/* Action buttons */}
           <div className="flex justify-end gap-2">

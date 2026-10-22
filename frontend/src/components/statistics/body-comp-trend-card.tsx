@@ -3,7 +3,7 @@ import {
 } from "recharts";
 import { SectionCard } from "@/components/charts/section-card";
 import { MultiLineTooltip } from "./chart-tooltip";
-import { nthTickFormatter } from "@/lib/chart-utils";
+import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
 import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
 import type { BodyCompEntry } from "@/lib/types";
 
@@ -18,7 +18,7 @@ export function BodyCompTrendCard({ bodyCompData }: Props) {
       {bodyCompData.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No body composition data</p>
       ) : (
-        <ResponsiveContainer width="100%" height={240}>
+        <ResponsiveContainer minWidth={0} width="100%" height={240}>
           <LineChart data={bodyCompData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
             <CartesianGrid strokeDasharray={CHART_GRID_DASH} stroke={CHART_GRID_SUBTLE} vertical={false} />
             <XAxis
@@ -26,7 +26,7 @@ export function BodyCompTrendCard({ bodyCompData }: Props) {
               tick={CHART_TICK_X}
               axisLine={false}
               tickLine={false}
-              tickFormatter={nthTickFormatter(bodyCompData, 6)}
+              tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS}
             />
             <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} width={35} domain={["auto", "auto"]} />
             <Tooltip content={<MultiLineTooltip />} />

@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { queryKeys } from "@/hooks/queries";
+import { invalidateDaySummaries } from "./shared";
 import type { Integration, IntegrationCreateInput, IntegrationUpdateInput } from "@/lib/types";
 
 function invalidateIntegrations(queryClient: ReturnType<typeof useQueryClient>) {
@@ -51,6 +52,12 @@ export function useSyncIntegration() {
       apiFetch<{ ok: boolean; entries_synced: number }>(`/api/agent/integrations/${id}/sync`, {
         method: "POST",
       }),
-    onSuccess: () => invalidateIntegrations(queryClient),
+    onSuccess: () => {
+      invalidateIntegrations(queryClient);
+      // Synced weights show up on Body and in the summaries.
+      queryClient.invalidateQueries({ queryKey: queryKeys.weightLogListAll() });
+      queryClient.invalidateQueries({ queryKey: ["weight-logs"] });
+      invalidateDaySummaries(queryClient);
+    },
   });
 }

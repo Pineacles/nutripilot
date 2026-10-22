@@ -9,9 +9,9 @@ interface Props {
 
 export function QuickStatsCard({ data }: Props) {
   const stats = [
-    { label: "Meals", value: data.meals.reduce((acc, m) => acc + m.items.length, 0).toString(), pill: "pill-green" },
+    { label: "Meals", value: data.meals.filter((m) => m.items.length > 0).length.toString(), pill: "pill-green" },
     { label: "Supplements", value: data.supplements.length.toString(), pill: "pill-blue" },
-    { label: "Kcal Left", value: Math.max(0, Math.round(data.targets.kcal - data.totals.kcal)).toString(), pill: "pill-amber" },
+    { label: "Fiber (g)", value: Math.round(data.totals.fiber).toString(), pill: "pill-amber" },
     { label: "Protein %", value: data.totals.kcal > 0 ? Math.round((data.totals.protein * 4 / data.totals.kcal) * 100).toString() : "0", pill: "pill-purple" },
   ];
 

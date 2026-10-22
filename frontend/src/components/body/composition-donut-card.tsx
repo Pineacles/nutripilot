@@ -18,7 +18,7 @@ export function CompositionDonutCard({ compositionDonut }: Props) {
     <SectionCard title="Current Composition">
       {compositionDonut.length > 0 ? (
         <div className="flex flex-col items-center">
-          <ResponsiveContainer width="100%" height={160}>
+          <ResponsiveContainer minWidth={0} width="100%" height={160}>
             <PieChart>
               <Pie
                 data={compositionDonut}

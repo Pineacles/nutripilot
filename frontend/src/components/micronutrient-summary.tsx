@@ -65,8 +65,9 @@ export function MicronutrientSummaryCard({ microAvg, microTargets = [], dateRang
           const userTarget = microTargets.find((t) => t.nutrient === n.settingsKey);
           const target = userTarget?.target_value ?? n.defaultTarget;
           const unit = userTarget?.unit ?? n.defaultUnit;
-          const displayVal = value != null ? Math.round(value * 10) / 10 : "\u2014";
-          const pct = value != null && target > 0 ? Math.min((value / target) * 100, 100) : 0;
+          const displayVal = value != null ? (Math.abs(value) >= 100 ? Math.round(value) : Math.round(value * 10) / 10) : "\u2014";
+          const pct = value != null && target > 0 ? (value / target) * 100 : 0;
+          const barPct = Math.min(pct, 100);
           const pctRounded = Math.round(pct);
 
           return (
@@ -78,20 +79,20 @@ export function MicronutrientSummaryCard({ microAvg, microTargets = [], dateRang
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5">{n.label}</p>
               <p className="text-xl font-bold tabular-nums text-foreground">
                 {displayVal}
-                <span className="text-xs font-normal text-muted-foreground ml-0.5">/ {target} {unit}</span>
               </p>
+              <p className="text-[11px] text-muted-foreground whitespace-nowrap">/ {target} {unit}</p>
               <div className="flex items-center gap-2 mt-2">
                 <div className="h-2 flex-1 rounded-full overflow-hidden bg-muted/60">
                   <div
                     className="h-full rounded-full transition-all duration-500 ease-out"
                     style={{
-                      width: `${pct}%`,
+                      width: `${barPct}%`,
                       background: getProgressGradient(pct),
                     }}
                   />
                 </div>
                 <span
-                  className="text-[11px] font-semibold tabular-nums min-w-[32px] text-right"
+                  className="text-[11px] font-semibold tabular-nums min-w-[36px] text-right"
                   style={{ color: getProgressColor(pct) }}
                 >
                   {pctRounded}%

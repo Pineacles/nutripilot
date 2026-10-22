@@ -26,11 +26,12 @@ interface Props {
   date: string;
 }
 
-function WaterEntryRow({ entry }: { entry: WaterLogRow }) {
+function WaterEntryRow({ entry, date }: { entry: WaterLogRow; date: string }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(entry.amount_ml));
   const updateLog = useUpdateWaterLog();
   const deleteLog = useDeleteWaterLog();
+  const logWater = useLogWater();
 
   const error = editing ? validateBounds(Number(value), WATER_LOG_BOUNDS) : null;
 
@@ -43,7 +44,15 @@ function WaterEntryRow({ entry }: { entry: WaterLogRow }) {
   }
 
   function remove() {
-    deleteLog.mutate(entry.id, { onSuccess: () => toast.success("Water entry removed") });
+    deleteLog.mutate(entry.id, {
+      onSuccess: () =>
+        toast.success("Water entry removed", {
+          action: {
+            label: "Undo",
+            onClick: () => logWater.mutate({ amount_ml: entry.amount_ml, date }),
+          },
+        }),
+    });
   }
 
   if (editing) {
@@ -56,20 +65,20 @@ function WaterEntryRow({ entry }: { entry: WaterLogRow }) {
           min={WATER_LOG_BOUNDS.min}
           max={WATER_LOG_BOUNDS.max}
           aria-invalid={!!error}
-          className="h-7 flex-1 tabular-nums"
+          className="h-10 flex-1 tabular-nums"
         />
-        <Button size="xs" onClick={save} disabled={!!error || updateLog.isPending}>Save</Button>
-        <Button size="xs" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+        <Button size="xs" className="h-10 px-3" onClick={save} disabled={!!error || updateLog.isPending}>Save</Button>
+        <Button size="xs" variant="ghost" className="h-10 px-3" onClick={() => setEditing(false)}>Cancel</Button>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-between py-1.5 group">
+    <div className="flex min-h-10 items-center justify-between py-0.5 group">
       <span className="text-sm tabular-nums text-foreground">{fmt(entry.amount_ml, 0)} ml</span>
-      <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => setEditing(true)} className="text-xs text-muted-foreground hover:text-foreground px-1.5">Edit</button>
-        <button onClick={remove} disabled={deleteLog.isPending} className="text-xs text-muted-foreground hover:text-destructive px-1.5">Delete</button>
+      <div className="flex items-center opacity-80 group-hover:opacity-100 transition-opacity">
+        <button onClick={() => setEditing(true)} className="h-10 text-xs text-muted-foreground hover:text-foreground px-3">Edit</button>
+        <button onClick={remove} disabled={deleteLog.isPending} className="h-10 text-xs text-muted-foreground hover:text-destructive px-3">Delete</button>
       </div>
     </div>
   );
@@ -128,11 +137,11 @@ export function HydrationCard({ water, caffeine, date }: Props) {
           </div>
 
           {/* Quick add */}
-          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-            <Button size="xs" variant="secondary" onClick={() => quickAdd(250)} disabled={logWater.isPending}>+250ml</Button>
-            <Button size="xs" variant="secondary" onClick={() => quickAdd(500)} disabled={logWater.isPending}>+500ml</Button>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <Button size="xs" variant="secondary" className="h-10 px-3" onClick={() => quickAdd(250)} disabled={logWater.isPending}>+250ml</Button>
+            <Button size="xs" variant="secondary" className="h-10 px-3" onClick={() => quickAdd(500)} disabled={logWater.isPending}>+500ml</Button>
             {!showCustom ? (
-              <Button size="xs" variant="ghost" onClick={() => setShowCustom(true)}>Custom</Button>
+              <Button size="xs" variant="ghost" className="h-10 px-3" onClick={() => setShowCustom(true)}>Custom</Button>
             ) : (
               <div className="flex items-center gap-1">
                 <Input
@@ -140,17 +149,17 @@ export function HydrationCard({ water, caffeine, date }: Props) {
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   placeholder="ml"
-                  className="h-6 w-20 text-xs"
+                  className="h-10 w-20 text-xs"
                   aria-invalid={!!customError}
                   autoFocus
                 />
-                <Button size="xs" onClick={submitCustom} disabled={!!customError || !customAmount || logWater.isPending}>Add</Button>
-                <Button size="xs" variant="ghost" onClick={() => { setShowCustom(false); setCustomAmount(""); }}>✕</Button>
+                <Button size="xs" className="h-10 px-3" onClick={submitCustom} disabled={!!customError || !customAmount || logWater.isPending}>Add</Button>
+                <Button size="xs" variant="ghost" className="h-10 px-3" aria-label="Cancel custom amount" onClick={() => { setShowCustom(false); setCustomAmount(""); }}>✕</Button>
               </div>
             )}
             <button
               onClick={() => setShowEntries(true)}
-              className="ml-auto text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+              className="ml-auto flex h-10 items-center px-1 text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
             >
               {entries.length > 0 ? `${entries.length} entries` : "No entries"}
             </button>
@@ -190,7 +199,7 @@ export function HydrationCard({ water, caffeine, date }: Props) {
             <EmptyState message="No water logged for this day yet" className="py-2" />
           ) : (
             <div className="max-h-[50vh] overflow-y-auto thin-scrollbar divide-y divide-border">
-              {entries.map((entry) => <WaterEntryRow key={entry.id} entry={entry} />)}
+              {entries.map((entry) => <WaterEntryRow key={entry.id} entry={entry} date={date} />)}
             </div>
           )}
         </DialogContent>

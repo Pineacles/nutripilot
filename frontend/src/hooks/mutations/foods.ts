@@ -3,13 +3,20 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { queryKeys } from "@/hooks/queries";
+import { invalidateDaySummaries } from "./shared";
 import type { FoodCloneInput, FoodCreateInput, FoodDetail, FoodUpdateInput } from "@/lib/types";
 
-function invalidateFoods(queryClient: ReturnType<typeof useQueryClient>, id?: string) {
+export function invalidateFoods(queryClient: ReturnType<typeof useQueryClient>, id?: string) {
   // Prefix invalidation: matches every ["foods", "search", ...] query regardless of
   // the current search term/page/limit.
   queryClient.invalidateQueries({ queryKey: ["foods", "search"] });
-  if (id) queryClient.invalidateQueries({ queryKey: queryKeys.foodDetail(id) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.recentFoods() });
+  if (id) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.foodDetail(id) });
+    // A changed name or per 100 g value changes every day the food was logged on.
+    queryClient.invalidateQueries({ queryKey: queryKeys.foodLogDayAll() });
+    invalidateDaySummaries(queryClient);
+  }
 }
 
 export function useCreateFood() {

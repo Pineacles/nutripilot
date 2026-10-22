@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import { SectionCard } from "@/components/charts/section-card";
 import { MultiLineTooltip } from "./chart-tooltip";
-import { fmtDateAxis, computeAxisInterval, type DailyNutritionLike } from "@/lib/chart-utils";
+import { fmtDateAxis, type DailyNutritionLike, AXIS_TICK_PROPS } from "@/lib/chart-utils";
 import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
 
 interface Props {
@@ -26,12 +26,12 @@ export function MacroTrendsCard({ nutritionLength, rollingNutrition, targetProte
         <p className="text-sm text-muted-foreground py-8 text-center">No macro data</p>
       ) : (
         <>
-          <div className="flex gap-1.5 mb-4">
+          <div className="flex flex-wrap gap-1.5 mb-4">
             {(["all", "protein", "carbs", "fat"] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setMacroTab(tab)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+                className={`h-10 px-3.5 rounded-full text-xs font-medium transition-all duration-200 ${
                   macroTab === tab
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "bg-muted/50 text-muted-foreground hover:bg-muted"
@@ -41,7 +41,7 @@ export function MacroTrendsCard({ nutritionLength, rollingNutrition, targetProte
               </button>
             ))}
           </div>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer minWidth={0} width="100%" height={220}>
             <ComposedChart data={rollingNutrition} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
               <defs>
                 <linearGradient id="proteinGrad" x1="0" y1="0" x2="0" y2="1">
@@ -63,7 +63,7 @@ export function MacroTrendsCard({ nutritionLength, rollingNutrition, targetProte
                 tick={CHART_TICK_X}
                 axisLine={false}
                 tickLine={false}
-                interval={computeAxisInterval(rollingNutrition.length)}
+                {...AXIS_TICK_PROPS}
                 tickFormatter={(v: string) => fmtDateAxis(v, rollingNutrition.length)}
               />
               <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} width={40} />

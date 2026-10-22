@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { clearTokens } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
 
 const navItems = [
   {
@@ -75,13 +75,6 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
 
-  function handleLogout() {
-    clearTokens();
-    // Full reload, so nothing from this account stays in memory for the next one.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.href = "/login";
-  }
-
   return (
     <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-56 flex-col bg-card" style={{ borderRight: '1px solid rgba(255,255,255,0.04)', boxShadow: 'inset -1px 0 0 0 rgba(255,255,255,0.03), 4px 0 16px -4px rgba(0,0,0,0.3)' }}>
       <div className="px-5 py-6">
@@ -115,7 +108,7 @@ export function Sidebar() {
 
       <div className="px-3 pb-5">
         <button
-          onClick={handleLogout}
+          onClick={signOut}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/50 transition-colors duration-150 hover:bg-secondary hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

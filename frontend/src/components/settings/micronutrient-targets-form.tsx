@@ -89,7 +89,7 @@ export function MicronutrientTargetsForm({ initial }: Props) {
         className="mt-3 w-full"
         size="lg"
       >
-        {updateMicroTargets.isPending ? "Saving..." : "Save Targets"}
+        {updateMicroTargets.isPending ? "Saving..." : "Save micronutrient targets"}
       </Button>
     </div>
   );

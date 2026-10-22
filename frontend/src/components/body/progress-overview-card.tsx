@@ -3,7 +3,7 @@ import {
 } from "recharts";
 import { SectionCard } from "@/components/charts/section-card";
 import { MultiLineTooltip } from "./chart-tooltip";
-import { nthTickFormatter } from "@/lib/chart-utils";
+import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
 import { CHART_COLORS, CHART_GRID_SOLID, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
 
 type DataRow = Record<string, unknown>;
@@ -16,10 +16,10 @@ export function ProgressOverviewCard({ enrichedData }: Props) {
   return (
     <SectionCard title="Progress Overview" span="lg:col-span-3">
       {enrichedData.length > 0 ? (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer minWidth={0} width="100%" height={300}>
           <ComposedChart data={enrichedData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid stroke={CHART_GRID_SOLID} strokeDasharray={CHART_GRID_DASH} />
-            <XAxis dataKey="date" tickFormatter={nthTickFormatter(enrichedData as { date: string }[])} tick={CHART_TICK_X} axisLine={false} tickLine={false} />
+            <XAxis dataKey="date" tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} tick={CHART_TICK_X} axisLine={false} tickLine={false} />
             <YAxis yAxisId="weight" orientation="left" domain={["dataMin - 2", "dataMax + 2"]} tick={CHART_TICK_Y} axisLine={false} tickLine={false} label={{ value: "kg", position: "insideTopLeft", fill: "#666", fontSize: 10 }} />
             <YAxis yAxisId="pct" orientation="right" domain={["dataMin - 2", "dataMax + 2"]} tick={CHART_TICK_Y} axisLine={false} tickLine={false} label={{ value: "%", position: "insideTopRight", fill: "#666", fontSize: 10 }} />
             <Tooltip content={<MultiLineTooltip />} />

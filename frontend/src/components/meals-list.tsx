@@ -33,9 +33,10 @@ interface Props {
    *  totals, since editing/deleting a log entry needs its id, which the aggregate
    *  summary endpoint doesn't carry). */
   date: string;
+  className?: string;
 }
 
-export function MealsLogCard({ date }: Props) {
+export function MealsLogCard({ date, className }: Props) {
   const { data, isLoading, isError, error, refetch } = useFoodLogDay(date);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [editingEntry, setEditingEntry] = useState<FoodLogDetailEntry | null>(null);
@@ -63,7 +64,7 @@ export function MealsLogCard({ date }: Props) {
   }
 
   return (
-    <DashboardCard title="Meals" span="lg:col-span-2">
+    <DashboardCard title="Meals" span="lg:col-span-2" className={className}>
       {isError ? (
         <p className="text-sm text-destructive">{getErrorMessage(error, "Couldn't load meals.")}{" "}
           <button onClick={() => refetch()} className="underline">Retry</button>

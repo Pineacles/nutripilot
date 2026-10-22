@@ -101,7 +101,7 @@ export function CopyMealDialog({ source, onClose }: Props) {
                 <select
                   value={toMeal}
                   onChange={(e) => setToMeal(e.target.value as MealType)}
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                  className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
                 >
                   {MEAL_TYPES.map((mt) => (
                     <option key={mt} value={mt} className="bg-card">{MEAL_TYPE_LABELS[mt]}</option>

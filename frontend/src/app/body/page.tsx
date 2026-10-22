@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { useStats, useSettings } from "@/hooks/queries";
+import { useStats, useSettings, useWeightLogList } from "@/hooks/queries";
 import { useBodyDerived } from "@/hooks/use-body-derived";
 import { getErrorMessage } from "@/lib/api";
 import { ErrorState } from "@/components/ui/error-state";
@@ -26,9 +26,18 @@ export default function BodyCompositionPage() {
 
   const { data, isLoading: loading, isError, error, refetch } = useStats(days);
   const { data: settings } = useSettings();
+  // Goal progress is measured from the earliest entries on record, not the chart period.
+  const { data: allLogs } = useWeightLogList();
+  const { startingWeightAll, startingBfAll } = useMemo(() => {
+    const sorted = [...(allLogs ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+    return {
+      startingWeightAll: sorted[0]?.weight_kg ?? null,
+      startingBfAll: sorted.find((r) => r.body_fat_pct != null)?.body_fat_pct ?? null,
+    };
+  }, [allLogs]);
 
   const {
-    enrichedData, validBf,
+    enrichedData,
     currentWeight, startingWeight, weightChange, lowestWeight, highestWeight,
     currentBf, currentFatKg, fatKgChange,
     currentMuscle, currentMuscleKg, muscleKgChange,
@@ -139,9 +148,9 @@ export default function BodyCompositionPage() {
             targetWeight={targetWeight}
             targetBf={targetBf}
             currentWeight={currentWeight}
-            startingWeight={startingWeight}
+            startingWeight={startingWeightAll}
             currentBf={currentBf}
-            validBf={validBf}
+            startingBf={startingBfAll}
           />
           <RateOfChangeCard weeklyRateData={weeklyRateData} weeklyAvgChange={weeklyAvgChange} />
         </div>

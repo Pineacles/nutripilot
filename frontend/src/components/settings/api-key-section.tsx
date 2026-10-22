@@ -51,7 +51,7 @@ export function ApiKeySection({ apiKeyMasked }: Props) {
           </div>
           {fullApiKey && (
             <p className="text-[10px] text-yellow-500 mt-1">
-              Save this key now -- it will not be shown again.
+              Save this key now, it will not be shown again.
             </p>
           )}
         </div>

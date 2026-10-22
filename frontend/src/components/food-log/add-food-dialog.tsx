@@ -19,8 +19,11 @@ import { useFoodsSearch, useFoodDetail, useBarcodeLookup, useRecentFoods, queryK
 import { useLogFood } from "@/hooks/mutations/food-log";
 import { getErrorMessage, ApiError } from "@/lib/api";
 import { FOOD_LOG_BOUNDS, validateBounds } from "@/lib/validation";
-import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/meal-types";
-import { convertAmount, defaultPortion, formatPortion, portionPayload, portionUnits, unitKeyFor } from "@/lib/portion";
+import { MEAL_TYPES, MEAL_TYPE_LABELS, mealForTime } from "@/lib/meal-types";
+import { todayStr } from "@/lib/dates";
+import { sourceLabel } from "@/lib/format";
+import { BARCODE_PROBLEM_TEXT, barcodeProblem } from "@/lib/barcode";
+import { convertAmount, defaultPortion, fmtGrams, formatPortion, portionPayload, portionUnits, unitKeyFor } from "@/lib/portion";
 import type { FoodDetail, MealType } from "@/lib/types";
 import { UnitPicker } from "./unit-picker";
 
@@ -29,9 +32,13 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** The day currently being viewed on the Today page: quantity step defaults to this date. */
   defaultDate: string;
+  /** Open straight on the amount step for this food (the Foods page and Scanner "Log food" buttons). */
+  initialFoodId?: string;
+  /** Called after an entry was saved, with the day it went to. */
+  onLogged?: (date: string) => void;
 }
 
-export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
+export function AddFoodDialog({ open, onOpenChange, defaultDate, initialFoodId, onLogged }: Props) {
   const [tab, setTab] = useState<"search" | "barcode">("search");
 
   // --- Search tab state ---
@@ -67,7 +74,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
 
   const [unitKey, setUnitKey] = useState("g");
   const [quantityValue, setQuantityValue] = useState("100");
-  const [mealType, setMealType] = useState<MealType>("snack");
+  const [mealType, setMealType] = useState<MealType>(() => mealForTime());
   const [date, setDate] = useState(defaultDate);
   const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
   const units = portionUnits(activeFood);
@@ -86,9 +93,24 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
     setMissingBarcode("");
     setUnitKey("g");
     setQuantityValue("100");
-    setMealType("snack");
+    setMealType(mealForTime());
     setDate(defaultDate);
     setPrefilledFor(null);
+  }
+
+  // Each time it opens: the day being viewed (it may have changed since the last open), and the
+  // food it was opened for. Set during render, so the first frame already shows the right date.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setDate(defaultDate);
+      if (initialFoodId) {
+        setTab("search");
+        setSelectedSearchId(initialFoodId);
+        setPrefilledFor(null);
+      }
+    }
   }
 
   // Start the amount step once the food (with its units) has loaded: the amount used last time for
@@ -100,18 +122,17 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
     if (last && (last.last_unit === "g" || lastKey !== "g")) {
       setUnitKey(lastKey!);
       setQuantityValue(String(last.last_amount));
-      setMealType(last.last_meal_type);
     } else if (last) {
       // Last time's unit is gone (serving removed): offer the same weight in grams.
       setUnitKey("g");
-      setQuantityValue(String(Math.round(last.last_quantity_g)));
-      setMealType(last.last_meal_type);
+      setQuantityValue(fmtGrams(last.last_quantity_g));
     } else {
       const start = defaultPortion(activeFood.serving_size_g);
       setUnitKey(start.unitKey);
       setQuantityValue(String(start.amount));
-      setMealType("snack");
     }
+    // Logging now: the meal for the time of day. Another day: the meal it was logged in last time.
+    setMealType(date === todayStr() ? mealForTime() : last?.last_meal_type ?? mealForTime());
   }
 
   const unit = units.find((u) => u.key === unitKey) ?? units[units.length - 1];
@@ -154,7 +175,11 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
       setPrefilledFor(null);
       setBarcodeFoodId(food.id);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
+      const problem = barcodeProblem(code);
+      if (err instanceof ApiError && err.status === 404 && problem) {
+        // Saving a food under a counter label or a misread code would only catch the wrong pack later.
+        setBarcodeError(BARCODE_PROBLEM_TEXT[problem]);
+      } else if (err instanceof ApiError && err.status === 404) {
         setBarcodeError(`Barcode ${code} not found. Try search, or add it as a new food.`);
         setMissingBarcode(code);
       } else {
@@ -184,6 +209,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
       {
         onSuccess: () => {
           toast.success(`Logged ${activeFood.name}`);
+          onLogged?.(date);
           handleOpenChange(false);
         },
       }
@@ -338,7 +364,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
         {step === "quantity" && activeFood && (
           <div className="space-y-4 overflow-y-auto thin-scrollbar">
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-[10px]">{activeFood.source}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{sourceLabel(activeFood.source, activeFood.is_mine)}</Badge>
             </div>
 
             <UnitPicker

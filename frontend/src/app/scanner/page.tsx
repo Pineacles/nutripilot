@@ -3,12 +3,12 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { useBarcodeLookup } from "@/hooks/queries";
-import { useLogFoodByBarcode } from "@/hooks/mutations/food-log";
-import { ApiError, getErrorMessage } from "@/lib/api";
-import { FOOD_LOG_BOUNDS, validateBounds } from "@/lib/validation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys, useBarcodeLookup } from "@/hooks/queries";
+import { ApiError } from "@/lib/api";
 import { todayStr } from "@/lib/dates";
-import type { FoodDetail, MealType } from "@/lib/types";
+import type { FoodDetail } from "@/lib/types";
+import { AddFoodDialog } from "@/components/food-log/add-food-dialog";
 import { CameraViewfinder } from "@/components/scanner/camera-viewfinder";
 import { ResultPanel } from "@/components/scanner/result-panel";
 import { Button } from "@/components/ui/button";
@@ -27,44 +27,19 @@ export default function ScannerPage() {
   const [flashGreen, setFlashGreen] = useState(false);
 
   const barcodeLookup = useBarcodeLookup();
-  const logByBarcode = useLogFoodByBarcode();
   const loading = barcodeLookup.isPending;
 
-  // "Log this" quantity step, shown once a result comes back.
-  const [logMode, setLogMode] = useState<"grams" | "servings">("grams");
-  const [logQuantity, setLogQuantity] = useState("100");
-  const [logMealType, setLogMealType] = useState<MealType>("snack");
-  const [logDate, setLogDate] = useState(todayStr());
-  const [justLogged, setJustLogged] = useState(false);
+  // Logging opens the same amount step as Log food on the Today page.
+  const [logOpen, setLogOpen] = useState(false);
+  const [loggedOn, setLoggedOn] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   function clearState() {
     setResult(null);
     setError("");
     setErrorType(null);
     setScannedCode("");
-    setJustLogged(false);
-    setLogQuantity("100");
-    setLogMode("grams");
-    setLogMealType("snack");
-    setLogDate(todayStr());
-  }
-
-  function handleLogModeChange(m: "grams" | "servings") {
-    if (m === logMode) return;
-    const servingSize = result?.serving_size_g;
-    if (!servingSize) {
-      setLogMode(m);
-      return;
-    }
-    const current = Number(logQuantity) || 0;
-    if (m === "servings") {
-      const servings = Math.round((current / servingSize) * 10) / 10;
-      setLogQuantity(String(servings));
-    } else {
-      const grams = Math.round(current * servingSize * 10) / 10;
-      setLogQuantity(String(grams));
-    }
-    setLogMode(m);
+    setLoggedOn(null);
   }
 
   async function lookupBarcodeByCode(code: string) {
@@ -74,21 +49,16 @@ export default function ScannerPage() {
     setScannedCode(code);
     try {
       const data = await barcodeLookup.mutateAsync(code);
+      // The Log food step reads the food (with the user's units) from this cache entry.
+      queryClient.setQueryData(queryKeys.foodDetail(data.id), data);
       setResult(data);
-      setJustLogged(false);
-      if (data.serving_size_g) {
-        setLogMode("servings");
-        setLogQuantity("1");
-      } else {
-        setLogMode("grams");
-        setLogQuantity("100");
-      }
+      setLoggedOn(null);
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 404) {
         setError(`Barcode ${code} not found in our database`);
         setErrorType("not-found");
       } else {
-        setError("Connection error -- check your network and try again");
+        setError("Connection error, check your network and try again");
         setErrorType("network");
       }
     }
@@ -159,25 +129,6 @@ export default function ScannerPage() {
     startScanning();
   }
 
-  function submitLog() {
-    if (!result) return;
-    const bounds = logMode === "grams" ? FOOD_LOG_BOUNDS.quantity_g : FOOD_LOG_BOUNDS.servings;
-    const err = validateBounds(Number(logQuantity), bounds);
-    if (err) { toast.error(err); return; }
-    logByBarcode.mutate(
-      {
-        barcode: result.barcode || scannedCode,
-        ...(logMode === "grams" ? { quantity_g: Number(logQuantity) } : { servings: Number(logQuantity) }),
-        meal_type: logMealType,
-        date: logDate,
-      },
-      {
-        onSuccess: () => { toast.success(`Logged ${result.name}`); setJustLogged(true); },
-        onError: (err2) => toast.error(getErrorMessage(err2, "Couldn't log this food.")),
-      }
-    );
-  }
-
   const isCollapsed = result !== null;
 
   return (
@@ -224,19 +175,19 @@ export default function ScannerPage() {
           onRetryLookup={() => scannedCode && lookupBarcodeByCode(scannedCode)}
           onScanAnother={handleScanAnother}
           onCorrected={(f) => setResult(f)}
-          justLogged={justLogged}
-          logDate={logDate}
-          logMode={logMode}
-          onLogModeChange={handleLogModeChange}
-          logQuantity={logQuantity}
-          onLogQuantityChange={setLogQuantity}
-          logMealType={logMealType}
-          onLogMealTypeChange={setLogMealType}
-          onLogDateChange={setLogDate}
-          onSubmitLog={submitLog}
-          logPending={logByBarcode.isPending}
+          loggedOn={loggedOn}
+          onLog={() => setLogOpen(true)}
         />
       </div>
+      {result && (
+        <AddFoodDialog
+          open={logOpen}
+          onOpenChange={setLogOpen}
+          defaultDate={todayStr()}
+          initialFoodId={result.id}
+          onLogged={setLoggedOn}
+        />
+      )}
     </DashboardLayout>
   );
 }

@@ -37,6 +37,8 @@ export function UnitPicker({ foodId, units, value, onChange, onAdded, servingLab
   const deleteServing = useDeleteServing(foodId);
 
   const selected = units.find((u) => u.key === value);
+  // A pack label that is only the weight ("100g") adds nothing next to "= 100 g".
+  const labelIsWeight = !!servingLabel && servingLabel.replace(/\s/g, "").toLowerCase() === `${fmtGrams(selected?.grams ?? 0)}g`;
   const gramsNum = Number(grams);
   const trimmed = label.trim();
   const duplicate = units.some((u) => u.name?.toLowerCase() === trimmed.toLowerCase());
@@ -96,7 +98,7 @@ export function UnitPicker({ foodId, units, value, onChange, onAdded, servingLab
       {selected && selected.key !== "g" && !adding && (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
           <span>
-            {selected.key === "serving" ? servingLabel || "1 serving" : `1 ${selected.label}`} = {fmtGrams(selected.grams)} g
+            {selected.key === "serving" ? (!labelIsWeight && servingLabel) || "1 serving" : `1 ${selected.label}`} = {fmtGrams(selected.grams)} g
           </span>
           {selected.name && <span aria-hidden>·</span>}
           {selected.name && (

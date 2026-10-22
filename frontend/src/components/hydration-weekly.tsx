@@ -74,7 +74,7 @@ export function HydrationWeeklyCard({ dailyWater, dailyCaffeine, targetWater, ta
         {hasWater && (
           <div>
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Water</p>
-            <ResponsiveContainer width="100%" height={100}>
+            <ResponsiveContainer minWidth={0} width="100%" height={100}>
               <BarChart data={waterData} barCategoryGap="20%">
                 <defs>
                   <linearGradient id="waterBarToday" x1="0" y1="0" x2="0" y2="1">
@@ -103,7 +103,7 @@ export function HydrationWeeklyCard({ dailyWater, dailyCaffeine, targetWater, ta
         {hasCaff && (
           <div>
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Caffeine</p>
-            <ResponsiveContainer width="100%" height={100}>
+            <ResponsiveContainer minWidth={0} width="100%" height={100}>
               <BarChart data={caffData} barCategoryGap="20%">
                 <defs>
                   <linearGradient id="caffBarToday" x1="0" y1="0" x2="0" y2="1">

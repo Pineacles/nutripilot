@@ -58,7 +58,7 @@ function TodayPageInner() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => goToDate(addDays(selectedDate, -1))}
-            className="p-1.5 rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150"
+            className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150"
             aria-label="Previous day"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -76,7 +76,7 @@ function TodayPageInner() {
           <button
             onClick={() => goToDate(addDays(selectedDate, 1))}
             disabled={isFuture}
-            className={`p-1.5 rounded-lg transition-colors duration-150 ${
+            className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors duration-150 ${
               isFuture
                 ? "text-muted-foreground/30 cursor-not-allowed"
                 : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -94,12 +94,12 @@ function TodayPageInner() {
             value={selectedDate}
             max={todayDateStr}
             onChange={(e) => e.target.value && goToDate(e.target.value)}
-            className="bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="bg-muted/50 border border-border rounded-lg px-3 h-10 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           {!isToday && (
             <button
               onClick={() => goToDate(todayDateStr)}
-              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
+              className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
             >
               Today
             </button>
@@ -129,11 +129,12 @@ function TodayPageInner() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min">
-          <CalorieRingCard totals={data.totals} targets={data.targets} water={data.water} caffeine={data.caffeine} />
+          <CalorieRingCard span="col-span-1 max-md:order-[-2]" totals={data.totals} targets={data.targets} water={data.water} caffeine={data.caffeine} />
           <MacroBreakdownCard totals={data.totals} targets={data.targets} dateRange={{ from: data.date, to: data.date }} />
           <QuickStatsCard data={data} />
 
-          <MealsLogCard date={selectedDate} />
+          {/* On phones the meals sit right after the calorie ring; desktop keeps DOM order. */}
+          <MealsLogCard date={selectedDate} className="max-md:order-[-1]" />
 
           <SupplementsCard
             date={selectedDate}

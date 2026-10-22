@@ -19,6 +19,12 @@ export function clearTokens() {
   // The service worker caches only the app shell (no API data), so it stays for offline starts.
 }
 
+/** Clears the session and reloads at /login, so nothing from this account stays in memory for the next one. */
+export function signOut() {
+  clearTokens();
+  window.location.href = "/login";
+}
+
 export function isLoggedIn(): boolean {
   return !!getToken();
 }

@@ -113,7 +113,7 @@ export function BodyCompCard({ data }: Props) {
           )}
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={160}>
+      <ResponsiveContainer minWidth={0} width="100%" height={160}>
         <LineChart data={data} margin={{ top: 10, right: 8, bottom: 5, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRID} vertical={false} />
           <XAxis

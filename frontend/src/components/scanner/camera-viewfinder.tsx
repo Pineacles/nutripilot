@@ -22,8 +22,7 @@ export function CameraViewfinder({
   cameraError, showCameraError,
 }: Props) {
   return (
-    <div className="clay-card p-5">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Scan</h3>
+    <div>
       <div className="space-y-4">
         {/* Camera viewfinder */}
         <div className="relative rounded-xl overflow-hidden bg-black aspect-video border border-border">

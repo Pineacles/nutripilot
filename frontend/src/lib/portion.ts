@@ -74,3 +74,16 @@ export function atwaterMismatch(n: { kcal?: number | null; protein?: number | nu
   const diff = Math.abs(estimate - n.kcal);
   return diff > 15 && diff > 0.2 * Math.max(n.kcal, estimate) ? Math.round(estimate) : null;
 }
+
+/**
+ * Other soft label checks: a part bigger than its whole (sugar over carbs, saturated over total fat),
+ * or more grams of something than the 100 g it is in, which usually means a wrong serving size.
+ * Values are per 100 g. Returns a sentence to show, or null.
+ */
+export function labelProblem(n: { protein?: number | null; carbs?: number | null; sugar?: number | null; fat?: number | null; sat_fat?: number | null; fiber?: number | null }): string | null {
+  if (n.sugar != null && n.carbs != null && n.sugar > n.carbs + 0.5) return "Sugar is more than total carbs. It is part of the carbs, so check both numbers.";
+  if (n.sat_fat != null && n.fat != null && n.sat_fat > n.fat + 0.5) return "Saturated fat is more than total fat. It is part of the fat, so check both numbers.";
+  const main = (n.protein ?? 0) + (n.carbs ?? 0) + (n.fat ?? 0);
+  if (main > 105) return `Protein, carbs and fat come to ${Math.round(main)} g per 100 g, more than the food weighs. Check the serving size and the label.`;
+  return null;
+}

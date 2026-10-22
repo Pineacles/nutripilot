@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useLogWeight, useUpdateWeightLog } from "@/hooks/mutations/weight";
 import { WEIGHT_LOG_BOUNDS, validateBounds } from "@/lib/validation";
 import { todayStr } from "@/lib/dates";
+import { fmtDateFull } from "@/lib/chart-utils";
 import type { WeightLogRow } from "@/lib/types";
 
 interface Props {
@@ -134,7 +135,7 @@ export function MeasurementDialog({ open, onOpenChange, entry, defaultDate }: Pr
             </div>
           ) : (
             <p className="text-[11px] text-muted-foreground">
-              Synced from {entry?.source} on {entry?.date}. Date can&apos;t be changed for synced entries.
+              Synced from {entry?.source} on {entry?.date ? fmtDateFull(entry.date) : ""}. Date can&apos;t be changed for synced entries.
             </p>
           )}
           <div className="flex gap-2 pt-1">

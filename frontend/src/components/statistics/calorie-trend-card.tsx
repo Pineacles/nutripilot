@@ -3,7 +3,7 @@ import {
 } from "recharts";
 import { SectionCard } from "@/components/charts/section-card";
 import { ChartTooltip } from "./chart-tooltip";
-import { fmtDateAxis, computeAxisInterval, type DailyNutritionLike } from "@/lib/chart-utils";
+import { fmtDateAxis, type DailyNutritionLike, AXIS_TICK_PROPS } from "@/lib/chart-utils";
 import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
 
 interface Props {
@@ -18,7 +18,7 @@ export function CalorieTrendCard({ nutritionLength, rollingNutrition, targetKcal
       {nutritionLength === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No calorie data</p>
       ) : (
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer minWidth={0} width="100%" height={280}>
           <ComposedChart data={rollingNutrition} margin={{ top: 5, right: 10, bottom: 30, left: 0 }}>
             <defs>
               <linearGradient id="calAvgGrad" x1="0" y1="0" x2="0" y2="1">
@@ -32,7 +32,7 @@ export function CalorieTrendCard({ nutritionLength, rollingNutrition, targetKcal
               tick={CHART_TICK_X}
               axisLine={false}
               tickLine={false}
-              interval={computeAxisInterval(rollingNutrition.length)}
+              {...AXIS_TICK_PROPS}
               tickFormatter={(v: string) => fmtDateAxis(v, rollingNutrition.length)}
             />
             <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} width={45} />
@@ -42,7 +42,7 @@ export function CalorieTrendCard({ nutritionLength, rollingNutrition, targetKcal
               stroke={CHART_COLORS.amber}
               strokeDasharray="6 3"
               strokeWidth={1.5}
-              label={{ value: `Target ${targetKcal}`, fill: "#888", fontSize: 10, position: "right" }}
+              label={{ value: `Target ${targetKcal}`, fill: "#888", fontSize: 10, position: "insideTopRight" }}
             />
             <Area
               type="monotone"

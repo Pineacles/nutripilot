@@ -12,4 +12,5 @@ export function invalidateDaySummaries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: queryKeys.todayAll() });
   queryClient.invalidateQueries({ queryKey: queryKeys.weeklyAll() });
   queryClient.invalidateQueries({ queryKey: queryKeys.statsAll() });
+  queryClient.invalidateQueries({ queryKey: ["nutrient-sources"] });
 }

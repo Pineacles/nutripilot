@@ -10,6 +10,7 @@ import { MeasurementDialog } from "./measurement-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getErrorMessage } from "@/lib/api";
 import { fmt } from "@/lib/utils";
+import { fmtDate } from "@/lib/chart-utils";
 import type { WeightLogRow } from "@/lib/types";
 
 export function MeasurementsList() {
@@ -49,15 +50,15 @@ export function MeasurementsList() {
       ) : (
         <div className="space-y-1 max-h-[360px] overflow-y-auto thin-scrollbar">
           {recent.map((entry) => (
-            <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2.5">
-              <div className="min-w-0 flex-1">
+            <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-muted/30 border border-border px-3 py-1">
+              <div className="min-w-0 flex-1 py-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-foreground/90 tabular-nums">{fmt(entry.weight_kg)} kg</span>
                   {entry.body_fat_pct != null && <span className="text-xs text-muted-foreground tabular-nums">{fmt(entry.body_fat_pct)}% fat</span>}
                   {entry.muscle_mass_pct != null && <span className="text-xs text-muted-foreground tabular-nums">{fmt(entry.muscle_mass_pct)}% muscle</span>}
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] text-muted-foreground">{entry.date}</span>
+                  <span className="text-[10px] text-muted-foreground">{fmtDate(entry.date)}</span>
                   {entry.source !== "manual" && (
                     <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{entry.source}</Badge>
                   )}
@@ -65,15 +66,15 @@ export function MeasurementsList() {
               </div>
               {confirmDeleteId === entry.id ? (
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Button size="xs" variant="destructive" onClick={() => handleDelete(entry.id)} disabled={deleteLog.isPending}>
+                  <Button size="xs" variant="destructive" className="h-10 px-3" onClick={() => handleDelete(entry.id)} disabled={deleteLog.isPending}>
                     Confirm
                   </Button>
-                  <Button size="xs" variant="ghost" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+                  <Button size="xs" variant="ghost" className="h-10 px-3" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => setEditEntry(entry)} className="text-xs text-muted-foreground hover:text-foreground px-1.5">Edit</button>
-                  <button onClick={() => setConfirmDeleteId(entry.id)} className="text-xs text-muted-foreground hover:text-destructive px-1.5">Delete</button>
+                <div className="flex items-center shrink-0">
+                  <button onClick={() => setEditEntry(entry)} className="h-10 text-xs text-muted-foreground hover:text-foreground px-3">Edit</button>
+                  <button onClick={() => setConfirmDeleteId(entry.id)} className="h-10 text-xs text-muted-foreground hover:text-destructive px-3">Delete</button>
                 </div>
               )}
             </div>

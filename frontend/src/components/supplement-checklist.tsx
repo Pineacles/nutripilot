@@ -102,39 +102,44 @@ export function SupplementsCard({ date, definitions = [], microTargets = [] }: P
                     onClick={() => (isTaken ? undoTaken(taken[0].id, def.name) : markTaken(def))}
                     disabled={logIntake.isPending || deleteIntake.isPending}
                     aria-label={isTaken ? `Undo ${def.name}` : `Mark ${def.name} taken`}
-                    className={`h-5 w-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
-                      isTaken ? "border-primary/40 bg-primary/10" : "border-border bg-muted/50 hover:bg-muted"
-                    }`}
+                    aria-pressed={isTaken}
+                    className="flex min-h-10 flex-1 min-w-0 items-center gap-3 text-left"
                   >
-                    {isTaken && (
-                      <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className={`text-sm truncate ${isTaken ? "text-foreground/90" : "text-muted-foreground"}`}>
-                        {def.name}
-                      </p>
-                      {def.time_of_day && (
-                        <Badge variant="secondary" className="text-[10px] shrink-0">
-                          {def.time_of_day}
-                        </Badge>
+                    <span
+                      className={`h-5 w-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                        isTaken ? "border-primary/40 bg-primary/10" : "border-border bg-muted/50"
+                      }`}
+                    >
+                      {isTaken && (
+                        <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
                       )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {def.dose_amount} {def.dose_unit}
-                      {taken.length > 1 && ` · taken ${taken.length}x`}
-                    </p>
-                  </div>
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="flex items-center gap-2">
+                        <span className={`text-sm truncate ${isTaken ? "text-foreground/90" : "text-muted-foreground"}`}>
+                          {def.name}
+                        </span>
+                        {def.time_of_day && (
+                          <Badge variant="secondary" className="text-[10px] shrink-0">
+                            {def.time_of_day}
+                          </Badge>
+                        )}
+                      </span>
+                      <span className="block text-xs text-muted-foreground mt-0.5">
+                        {def.dose_amount} {def.dose_unit}
+                        {taken.length > 1 && ` · taken ${taken.length}x`}
+                      </span>
+                    </span>
+                  </button>
                   {!isTaken && (
                     <Button
                       onClick={() => markTaken(def)}
                       disabled={logIntake.isPending}
                       variant="outline"
                       size="xs"
-                      className="shrink-0"
+                      className="h-10 shrink-0 px-3"
                     >
                       Take
                     </Button>
