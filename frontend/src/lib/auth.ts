@@ -16,14 +16,7 @@ export function setTokens(access: string, refresh: string) {
 export function clearTokens() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
-  // Clear service worker cache
-  if (typeof navigator !== "undefined" && navigator.serviceWorker?.controller) {
-    navigator.serviceWorker.controller.postMessage("CLEAR_CACHE");
-  }
-  // Clear caches directly via the Cache API
-  if (typeof caches !== "undefined") {
-    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
-  }
+  // The service worker caches only the app shell (no API data), so it stays for offline starts.
 }
 
 export function isLoggedIn(): boolean {

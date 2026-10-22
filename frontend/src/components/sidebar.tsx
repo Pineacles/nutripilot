@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { clearTokens } from "@/lib/auth";
 
 const navItems = [
@@ -74,11 +74,12 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
 
   function handleLogout() {
     clearTokens();
-    router.push("/login");
+    // Full reload, so nothing from this account stays in memory for the next one.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = "/login";
   }
 
   return (

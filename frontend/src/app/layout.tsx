@@ -16,18 +16,23 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "NutriPilot",
   description: "Agent-first nutrition and weight tracking",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "black",
     title: "NutriPilot",
+  },
+  icons: {
+    icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }, { url: "/icons/icon-192.png", sizes: "192x192" }],
+    apple: "/apple-touch-icon.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#22c55e",
+  themeColor: "#111114",
   width: "device-width",
   initialScale: 1,
+  // Lets the bottom tab bar pad itself for the iPhone home indicator (env(safe-area-inset-bottom)).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -40,23 +45,8 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <head>
-        <link rel="icon" href="/icons/icon-192.png" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Providers>{children}</Providers>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js');
-                });
-              }
-            `,
-          }}
-        />
       </body>
     </html>
   );

@@ -13,6 +13,7 @@ import { QuickStatsCard } from "@/components/quick-stats";
 import { MealsLogCard } from "@/components/meals-list";
 import { SupplementsCard } from "@/components/supplement-checklist";
 import { HydrationCard } from "@/components/hydration-card";
+import { InstallCard } from "@/components/install-card";
 import { AddFoodDialog } from "@/components/food-log/add-food-dialog";
 import { todayStr, addDays, parseLocal } from "@/lib/dates";
 
@@ -143,6 +144,8 @@ function TodayPageInner() {
           <HydrationCard water={data.water} caffeine={data.caffeine} date={selectedDate} />
         </div>
       )}
+
+      <InstallCard dismissible className="mt-4 lg:hidden" />
     </DashboardLayout>
   );
 }

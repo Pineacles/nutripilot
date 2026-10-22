@@ -2,8 +2,15 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Changes on every build, so the service worker URL changes and phones pick up the new version.
+  env: { NEXT_PUBLIC_BUILD_STAMP: String(Date.now()) },
   async headers() {
     return [
+      {
+        // The browser must always see a new service worker right after a deploy.
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
       {
         source: "/:path*",
         headers: [

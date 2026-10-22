@@ -6,6 +6,7 @@ import { login } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { InstallCard } from "@/components/install-card";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -121,6 +122,8 @@ export default function LoginPage() {
         <p className="text-center text-xs text-muted-foreground">
           Explore with 90 days of sample data
         </p>
+
+        <InstallCard dismissible className="lg:hidden" />
       </div>
     </div>
   );

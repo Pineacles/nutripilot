@@ -8,6 +8,9 @@ import {
 } from "@tanstack/react-query";
 import { Toaster, toast } from "sonner";
 import { getErrorMessage } from "@/lib/api";
+import { ServiceWorker } from "@/components/service-worker";
+// Catches Chrome's one-time install event on whichever page the visit starts.
+import "@/lib/install";
 
 declare module "@tanstack/react-query" {
   interface Register {
@@ -43,6 +46,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {children}
       <Toaster richColors position="top-right" />
+      <ServiceWorker />
     </QueryClientProvider>
   );
 }

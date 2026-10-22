@@ -8,6 +8,7 @@ import { NutritionTargetsForm } from "@/components/settings/nutrition-targets-fo
 import { SupplementsSection } from "@/components/settings/supplements-section";
 import { MicronutrientTargetsForm } from "@/components/settings/micronutrient-targets-form";
 import { ApiKeySection } from "@/components/settings/api-key-section";
+import { InstallCard } from "@/components/install-card";
 import { IntegrationsPanel } from "@/components/settings/integrations-panel";
 
 export default function SettingsPage() {
@@ -52,6 +53,7 @@ export default function SettingsPage() {
         <MicronutrientTargetsForm initial={settings?.micronutrient_targets} />
         <ApiKeySection apiKeyMasked={apiKeyMasked} />
         <IntegrationsPanel integrations={integrations} />
+        <InstallCard className="md:col-span-2" />
       </div>
     </DashboardLayout>
   );
