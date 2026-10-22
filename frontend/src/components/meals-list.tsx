@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useFoodLogDay } from "@/hooks/queries";
 import { getErrorMessage } from "@/lib/api";
 import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/meal-types";
+import { formatPortion } from "@/lib/portion";
 
 interface Props {
   /** The currently viewed day (drives its own fetch, decoupled from the today-summary
@@ -89,9 +90,9 @@ export function MealsLogCard({ date }: Props) {
                       onClick={() => setEditingEntry(item)}
                       className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-all duration-150 border-l-2 border-transparent hover:bg-muted/20 hover:border-primary/20"
                     >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-foreground/80 truncate">{item.food_name}</span>
-                        <span className="text-xs text-muted-foreground/50 shrink-0">{item.quantity_g}g</span>
+                      <div className="min-w-0 text-left">
+                        <p className="text-foreground/80 truncate">{item.food_name}</p>
+                        <p className="text-xs text-muted-foreground">{formatPortion(item.amount, item.unit, item.quantity_g)}</p>
                       </div>
                       <span className="tabular-nums text-muted-foreground shrink-0 ml-2">
                         {item.nutrients_consumed.kcal != null ? `${Math.round(item.nutrients_consumed.kcal)} kcal` : "--"}

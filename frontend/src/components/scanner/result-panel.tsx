@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { atwaterMismatch } from "@/lib/portion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -136,6 +137,7 @@ export function ResultPanel({
     }
   };
 
+  const kcalEstimate = result?.nutrients ? atwaterMismatch(result.nutrients) : null;
   const displayGrams = getDisplayGrams();
   const scaleFactor = displayGrams / 100;
 
@@ -189,11 +191,16 @@ export function ResultPanel({
                 <span className="font-mono text-foreground/70">{scannedCode}</span> is not in our database.
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Try searching by name instead.
+                Add it from the package label, or search by name instead.
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/foods?new=1&barcode=${encodeURIComponent(scannedCode)}`}>
+              <Button size="sm" className="h-7 text-xs">
+                Add as new food
+              </Button>
+            </Link>
             <Link href="/foods">
               <Button variant="secondary" size="sm" className="h-7 text-xs">
                 Browse foods
@@ -244,6 +251,14 @@ export function ResultPanel({
               </div>
             </div>
           </div>
+
+          {!isEditing && kcalEstimate != null && (
+            <p className="pill pill-amber flex items-start gap-2 px-3 py-2 text-[11px] text-amber-300">
+              <svg className="h-4 w-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+              <span>These values may be wrong: protein, carbs and fat add up to about {kcalEstimate} kcal per 100 g, not{" "}
+              {Math.round(result.nutrients?.kcal ?? 0)}. Compare with the package and edit them if needed.</span>
+            </p>
+          )}
 
           {/* Edit Mode Controls */}
           {isEditing ? (

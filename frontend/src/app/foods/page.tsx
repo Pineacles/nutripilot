@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Input } from "@/components/ui/input";
@@ -23,11 +24,22 @@ import { NUTRIENT_LABELS } from "@/lib/nutrient-labels";
 import type { FoodDetail } from "@/lib/types";
 
 export default function FoodsPage() {
+  return (
+    <Suspense>
+      <FoodsPageInner />
+    </Suspense>
+  );
+}
+
+function FoodsPageInner() {
+  // /foods?new=1&barcode=... comes from a scan that found nothing: open "Add food" with the barcode filled in.
+  const searchParams = useSearchParams();
+  const [prefillBarcode] = useState(() => searchParams.get("barcode") ?? "");
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(() => searchParams.get("new") === "1");
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [formInitial, setFormInitial] = useState<FoodDetail | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -284,6 +296,7 @@ export default function FoodsPage() {
             key={formInitial?.id ?? "new"}
             mode={formMode}
             initial={formInitial}
+            defaultBarcode={formMode === "create" ? prefillBarcode : undefined}
             onSuccess={handleFormSuccess}
             onCancel={() => setFormOpen(false)}
           />

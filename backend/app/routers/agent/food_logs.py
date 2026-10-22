@@ -22,19 +22,28 @@ from app.services.clock import today_for
 
 router = APIRouter()
 
+MAX_QUANTITY_G = 10000  # same ceiling as FoodLogCreate.quantity_g
 
-def _resolve_quantity(quantity_g, servings, serving_size_g) -> float:
-    """Resolve the quantity (in grams) from the provided log request fields.
+
+def _resolve_quantity(quantity_g, servings, serving_size_g) -> tuple[float, float, str]:
+    """Resolve (grams, amount, unit) from the provided log request fields.
 
     Priority: quantity_g → servings × serving_size_g → servings × 100 → 100g fallback.
+    amount/unit record what was asked for, so the entry can be shown back as "1.5 servings".
     """
     if quantity_g is not None:
-        return quantity_g
+        return quantity_g, quantity_g, "g"
     if servings is not None and serving_size_g:
-        return servings * serving_size_g
+        grams = servings * serving_size_g
+        if grams > MAX_QUANTITY_G:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "QUANTITY_TOO_LARGE", "detail": f"{servings} servings is {grams:g} g, more than {MAX_QUANTITY_G} g"},
+            )
+        return grams, servings, "serving"
     if servings is not None:
-        return servings * 100
-    return 100
+        return servings * 100, servings * 100, "g"
+    return 100, 100, "g"
 
 
 def food_log_response(entry: FoodLog, food) -> FoodLogResponse:
@@ -49,6 +58,8 @@ def food_log_response(entry: FoodLog, food) -> FoodLogResponse:
         id=entry.id,
         food_name=food.name if food else "Unknown",
         quantity_g=entry.quantity_g,
+        amount=entry.amount if entry.amount is not None else entry.quantity_g,
+        unit=entry.unit or "g",
         meal_type=entry.meal_type,
         date=entry.date,
         kcal=round((n.kcal or 0) * ratio, 1) if n else None,
@@ -84,8 +95,10 @@ async def log_food(
             detail={"detail": "Food not found", "code": "FOOD_NOT_FOUND"},
         )
 
-    quantity_g = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
-    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user))
+    quantity_g, amount, unit = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
+    entry = await logging_service.log_food(
+        db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user), amount=amount, unit=unit
+    )
     return food_log_response(entry, food)
 
 
@@ -113,8 +126,10 @@ async def log_food_by_barcode(
             detail={"detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": body.barcode},
         )
 
-    quantity_g = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
-    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user))
+    quantity_g, amount, unit = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
+    entry = await logging_service.log_food(
+        db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user), amount=amount, unit=unit
+    )
     return food_log_response(entry, food)
 
 
@@ -155,8 +170,10 @@ async def log_food_by_name(
             detail={"code": "FOOD_NOT_FOUND"},
         )
 
-    quantity_g = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
-    entry = await logging_service.log_food(db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user))
+    quantity_g, amount, unit = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
+    entry = await logging_service.log_food(
+        db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user), amount=amount, unit=unit
+    )
     return food_log_response(entry, food)
 
 
@@ -236,6 +253,8 @@ async def list_food_logs(
             serving_size_g=food.serving_size_g,
             serving_label=food.serving_label,
             quantity_g=log.quantity_g,
+            amount=log.amount if log.amount is not None else log.quantity_g,
+            unit=log.unit or "g",
             meal_type=log.meal_type,
             date=log.date,
             logged_at=log.logged_at,
@@ -255,7 +274,11 @@ async def list_food_logs(
     "/log/food/{log_id}",
     response_model=FoodLogResponse,
     summary="Update a food log entry",
-    description="Change quantity, meal type, or date on an existing food log. Only send the fields you want to change.",
+    description=(
+        "Change quantity, meal type, or date on an existing food log. Only send the fields you want to change.\n\n"
+        "Send `quantity_g` for grams or `servings` for a number of servings (uses the food's serving size; "
+        "for a food without one, each serving counts as 100 g and the entry is stored in grams)."
+    ),
 )
 async def update_food_log(
     log_id: UUID,
@@ -267,11 +290,17 @@ async def update_food_log(
     log = result.scalar_one_or_none()
     if not log:
         raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
-    for field, value in body.model_dump(exclude_unset=True).items():
+    food = await food_service.get_food_by_id(db, log.food_id)
+    data = body.model_dump(exclude_unset=True)
+    servings = data.pop("servings", None)
+    if servings is not None and data.get("quantity_g") is None:
+        log.quantity_g, log.amount, log.unit = _resolve_quantity(None, servings, food.serving_size_g if food else None)
+    elif data.get("quantity_g") is not None:
+        log.amount, log.unit = data["quantity_g"], "g"
+    for field, value in data.items():
         setattr(log, field, value)
     await db.commit()
     await db.refresh(log)
-    food = await food_service.get_food_by_id(db, log.food_id)
     return food_log_response(log, food)
 
 

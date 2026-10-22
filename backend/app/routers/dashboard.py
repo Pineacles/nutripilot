@@ -2,12 +2,13 @@ from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_jwt
 from app.database import get_db
 from app.models.food import Food
+from app.models.food_log import FoodLog
 from app.models.nutrient import Nutrient
 from app.models.user import User
 from app.models.weight_log import WeightLog
@@ -89,20 +90,34 @@ async def dashboard_foods(
     user: User = Depends(get_current_user_jwt),
 ):
     offset = (page - 1) * limit
+    # Foods this user has logged before rank above lookalikes they never ate.
+    uses = (
+        select(FoodLog.food_id, func.count().label("uses"))
+        .where(FoodLog.user_id == user.id)
+        .group_by(FoodLog.food_id)
+        .subquery()
+    )
+    columns = (
+        Food.id, Food.name, Food.barcode, Food.source, Nutrient.kcal, Nutrient.protein,
+        Food.serving_size_g, Food.serving_label, func.coalesce(uses.c.uses, 0).label("uses"),
+    )
 
     if q:
+        similarity = func.similarity(Food.name, q)
         stmt = (
-            select(Food.id, Food.name, Food.barcode, Food.source, Nutrient.kcal, Nutrient.protein)
+            select(*columns)
             .outerjoin(Nutrient, Food.id == Nutrient.food_id)
-            .where(func.similarity(Food.name, q) > 0.1)
-            .order_by(func.similarity(Food.name, q).desc())
+            .outerjoin(uses, uses.c.food_id == Food.id)
+            .where(similarity > 0.1)
+            .order_by((similarity + case((uses.c.uses > 0, 0.25), else_=0)).desc(), func.coalesce(uses.c.uses, 0).desc())
             .offset(offset).limit(limit)
         )
         count_stmt = select(func.count()).select_from(Food).where(func.similarity(Food.name, q) > 0.1)
     else:
         stmt = (
-            select(Food.id, Food.name, Food.barcode, Food.source, Nutrient.kcal, Nutrient.protein)
+            select(*columns)
             .outerjoin(Nutrient, Food.id == Nutrient.food_id)
+            .outerjoin(uses, uses.c.food_id == Food.id)
             .order_by(Food.name.asc())
             .offset(offset).limit(limit)
         )
@@ -113,7 +128,8 @@ async def dashboard_foods(
     total = (await db.execute(count_stmt)).scalar() or 0
 
     items = [
-        {"id": str(r.id), "name": r.name, "barcode": r.barcode, "source": r.source, "kcal": r.kcal, "protein": r.protein}
+        {"id": str(r.id), "name": r.name, "barcode": r.barcode, "source": r.source, "kcal": r.kcal, "protein": r.protein,
+         "serving_size_g": r.serving_size_g, "serving_label": r.serving_label, "uses": r.uses}
         for r in rows
     ]
 
@@ -132,6 +148,9 @@ async def dashboard_foods(
                     "source": "openfoodfacts",
                     "kcal": off_item.get("kcal"),
                     "protein": off_item.get("protein"),
+                    "serving_size_g": off_item.get("serving_size_g"),
+                    "serving_label": off_item.get("serving_label"),
+                    "uses": 0,
                 })
 
     return {
@@ -140,6 +159,59 @@ async def dashboard_foods(
         "page": page,
         "pages": (total + limit - 1) // limit,
     }
+
+
+@router.get("/foods/recent")
+async def dashboard_recent_foods(
+    limit: int = Query(12, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt),
+):
+    """Foods this user logged lately, newest first, with the amount they used last time,
+    so the Log food dialog can offer them before any typing."""
+    ranked = (
+        select(
+            FoodLog.food_id,
+            FoodLog.quantity_g,
+            FoodLog.amount,
+            FoodLog.unit,
+            FoodLog.meal_type,
+            FoodLog.logged_at,
+            func.row_number().over(partition_by=FoodLog.food_id, order_by=FoodLog.logged_at.desc()).label("rn"),
+            func.count().over(partition_by=FoodLog.food_id).label("uses"),
+        )
+        .where(FoodLog.user_id == user.id)
+        .subquery()
+    )
+    stmt = (
+        select(
+            ranked.c.food_id, ranked.c.quantity_g, ranked.c.amount, ranked.c.unit, ranked.c.meal_type, ranked.c.uses,
+            Food.name, Food.serving_size_g, Food.serving_label, Nutrient.kcal, Nutrient.protein,
+        )
+        .join(Food, Food.id == ranked.c.food_id)
+        .outerjoin(Nutrient, Nutrient.food_id == Food.id)
+        .where(ranked.c.rn == 1)
+        .order_by(ranked.c.logged_at.desc())
+        .limit(limit)
+    )
+    rows = (await db.execute(stmt)).all()
+    return [
+        {
+            "id": str(r.food_id),
+            "name": r.name,
+            "kcal": r.kcal,
+            "protein": r.protein,
+            "serving_size_g": r.serving_size_g,
+            "serving_label": r.serving_label,
+            "uses": r.uses,
+            "last_quantity_g": r.quantity_g,
+            # Older logs have no unit: they were grams.
+            "last_amount": r.amount if r.amount is not None else r.quantity_g,
+            "last_unit": r.unit or "g",
+            "last_meal_type": r.meal_type,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/foods/{food_id}")

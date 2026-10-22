@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -19,13 +19,19 @@ async def log_food(
     quantity_g: float,
     meal_type: str,
     log_date: date | None = None,
+    amount: float | None = None,
+    unit: str | None = None,
 ) -> FoodLog:
     entry = FoodLog(
         user_id=user_id,
         food_id=food_id,
         quantity_g=quantity_g,
+        amount=amount if amount is not None else quantity_g,
+        unit=unit or "g",
         meal_type=meal_type,
         date=log_date or today_utc(),
+        # Microseconds, so "last time" stays right for two logs in the same second.
+        logged_at=datetime.now(UTC),
     )
     db.add(entry)
     await db.commit()

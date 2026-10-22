@@ -10,6 +10,7 @@ import type {
   MicronutrientTargetItem,
   NutritionTargets,
   NutrientSourcesResponse,
+  RecentFood,
   StatsSummary,
   SupplementDefinition,
   SupplementDefinitionUpdateInput,
@@ -32,6 +33,7 @@ export const queryKeys = {
   stats: (days: number) => ["stats", days] as const,
   foodsSearch: (q: string, page: number, limit: number) => ["foods", "search", q, page, limit] as const,
   foodDetail: (id: string | null) => ["foods", "detail", id] as const,
+  recentFoods: () => ["foods", "recent"] as const,
   nutrientSources: (nutrient: string | null, from: string, to: string) =>
     ["nutrient-sources", nutrient, from, to] as const,
   settings: () => ["settings"] as const,
@@ -121,11 +123,21 @@ export function useSupplementLogDay(date: string) {
 
 /* ────────────────────────────────── Foods ─────────────────────────────────── */
 
-export function useFoodsSearch(query: string, page: number, limit: number = 20) {
+export function useFoodsSearch(query: string, page: number, limit: number = 20, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: queryKeys.foodsSearch(query, page, limit),
     queryFn: () =>
       apiFetch<FoodsSearchPage>(`/api/dashboard/foods?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
+  });
+}
+
+/** Foods the user logged lately, offered before any typing in the Log food dialog. */
+export function useRecentFoods(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.recentFoods(),
+    queryFn: () => apiFetch<RecentFood[]>("/api/dashboard/foods/recent?limit=12"),
+    enabled,
   });
 }
 

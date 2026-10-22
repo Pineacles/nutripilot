@@ -13,6 +13,7 @@ import type {
 
 function invalidateFoodLog(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: queryKeys.foodLogDayAll() });
+  queryClient.invalidateQueries({ queryKey: queryKeys.recentFoods() });
   invalidateDaySummaries(queryClient);
 }
 

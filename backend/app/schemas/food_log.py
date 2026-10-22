@@ -44,6 +44,8 @@ class FoodLogByNameCreate(BaseModel):
 
 class FoodLogUpdate(BaseModel):
     quantity_g: Optional[float] = Field(None, gt=0, le=10000)
+    # Alternative to quantity_g: number of servings, converted with the food's serving size.
+    servings: Optional[float] = Field(None, gt=0, le=100)
     meal_type: Optional[Literal["breakfast", "lunch", "dinner", "snack"]] = None
     date: Optional[datetime.date] = None
 
@@ -52,6 +54,8 @@ class FoodLogResponse(BaseModel):
     id: UUID
     food_name: str
     quantity_g: float
+    amount: Optional[float] = None
+    unit: Optional[str] = None
     meal_type: str
     date: datetime.date
     kcal: Optional[float] = None
@@ -96,6 +100,9 @@ class FoodLogDetail(BaseModel):
     serving_size_g: Optional[float] = None
     serving_label: Optional[str] = None
     quantity_g: float
+    # What the user typed: amount in unit ("g" or "serving"); older entries are grams.
+    amount: Optional[float] = None
+    unit: Optional[str] = None
     meal_type: str
     date: datetime.date
     logged_at: Optional[datetime.datetime] = None

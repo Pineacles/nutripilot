@@ -166,7 +166,29 @@ export interface FoodListItem {
   source: string;
   kcal: number | null;
   protein: number | null;
+  serving_size_g?: number | null;
+  serving_label?: string | null;
+  /** How often the current user logged it (search ranks these first). */
+  uses?: number;
 }
+
+/** GET /api/dashboard/foods/recent: foods the user logged lately, with the amount used last time. */
+export interface RecentFood {
+  id: string;
+  name: string;
+  kcal: number | null;
+  protein: number | null;
+  serving_size_g: number | null;
+  serving_label: string | null;
+  uses: number;
+  last_quantity_g: number;
+  last_amount: number;
+  last_unit: LogUnit;
+  last_meal_type: MealType;
+}
+
+/** How a log amount was entered: grams, or servings of the food's serving size. */
+export type LogUnit = "g" | "serving";
 
 export interface FoodsSearchPage {
   items: FoodListItem[];
@@ -256,6 +278,7 @@ export interface FoodLogByBarcodeCreateInput {
 
 export interface FoodLogUpdateInput {
   quantity_g?: number;
+  servings?: number;
   meal_type?: MealType;
   date?: string;
 }
@@ -285,6 +308,9 @@ export interface FoodLogDetailEntry {
   serving_size_g: number | null;
   serving_label: string | null;
   quantity_g: number;
+  /** What was typed, in `unit`; older entries are grams. */
+  amount?: number | null;
+  unit?: LogUnit | null;
   meal_type: string;
   date: string;
   logged_at: string | null;
