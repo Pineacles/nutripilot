@@ -21,6 +21,7 @@ async def log_food(
     log_date: date | None = None,
     amount: float | None = None,
     unit: str | None = None,
+    unit_label: str | None = None,
 ) -> FoodLog:
     entry = FoodLog(
         user_id=user_id,
@@ -28,6 +29,7 @@ async def log_food(
         quantity_g=quantity_g,
         amount=amount if amount is not None else quantity_g,
         unit=unit or "g",
+        unit_label=unit_label,
         meal_type=meal_type,
         date=log_date or today_utc(),
         # Microseconds, so "last time" stays right for two logs in the same second.

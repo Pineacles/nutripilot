@@ -184,7 +184,16 @@ export interface RecentFood {
   last_quantity_g: number;
   last_amount: number;
   last_unit: LogUnit;
+  /** Named serving used last time ("slice"), null for the food's own serving size or grams. */
+  last_unit_label?: string | null;
   last_meal_type: MealType;
+}
+
+/** A personal named portion on a food ("slice" = 30 g); mirrors ServingResponse. */
+export interface Serving {
+  id: string;
+  label: string;
+  grams: number;
 }
 
 /** How a log amount was entered: grams, or servings of the food's serving size. */
@@ -209,6 +218,8 @@ export interface FoodDetail {
   is_mine?: boolean;
   /** True for is_mine foods; false for official/curated (read-only) foods. */
   editable?: boolean;
+  /** The current user's named servings for this food. */
+  servings?: Serving[];
 }
 
 // Per-100g nutrient fields: mirrors backend/app/schemas/food.py NutrientData
@@ -264,6 +275,7 @@ export interface FoodLogCreateInput {
   food_id: string;
   quantity_g?: number;
   servings?: number;
+  serving_id?: string;
   meal_type: MealType;
   date?: string;
 }
@@ -279,6 +291,7 @@ export interface FoodLogByBarcodeCreateInput {
 export interface FoodLogUpdateInput {
   quantity_g?: number;
   servings?: number;
+  serving_id?: string;
   meal_type?: MealType;
   date?: string;
 }
@@ -288,6 +301,9 @@ export interface FoodLogCreateResponse {
   id: string;
   food_name: string;
   quantity_g: number;
+  amount?: number | null;
+  unit?: LogUnit | null;
+  unit_label?: string | null;
   meal_type: string;
   date: string;
   kcal: number | null;
@@ -311,6 +327,7 @@ export interface FoodLogDetailEntry {
   /** What was typed, in `unit`; older entries are grams. */
   amount?: number | null;
   unit?: LogUnit | null;
+  unit_label?: string | null;
   meal_type: string;
   date: string;
   logged_at: string | null;
@@ -516,4 +533,12 @@ export interface Integration {
   last_synced_at: string | null;
   status: "active" | "error" | "paused";
   created_at: string;
+}
+
+/** POST /api/agent/log/food/copy: one meal (or the whole day without meal_type) onto another day or meal. */
+export interface FoodLogCopyInput {
+  from_date: string;
+  to_date: string;
+  meal_type?: MealType;
+  to_meal_type?: MealType;
 }

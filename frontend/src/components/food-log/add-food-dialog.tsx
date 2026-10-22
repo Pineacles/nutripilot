@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -14,13 +15,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useFoodsSearch, useFoodDetail, useBarcodeLookup, useRecentFoods } from "@/hooks/queries";
+import { useFoodsSearch, useFoodDetail, useBarcodeLookup, useRecentFoods, queryKeys } from "@/hooks/queries";
 import { useLogFood } from "@/hooks/mutations/food-log";
 import { getErrorMessage, ApiError } from "@/lib/api";
 import { FOOD_LOG_BOUNDS, validateBounds } from "@/lib/validation";
 import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/meal-types";
-import { convertAmount, defaultPortion, formatPortion, toGrams } from "@/lib/portion";
-import type { FoodDetail, LogUnit, MealType, RecentFood } from "@/lib/types";
+import { convertAmount, defaultPortion, formatPortion, portionPayload, portionUnits, unitKeyFor } from "@/lib/portion";
+import type { FoodDetail, MealType } from "@/lib/types";
+import { UnitPicker } from "./unit-picker";
 
 interface Props {
   open: boolean;
@@ -44,25 +46,31 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
   }, [query]);
 
   const { data: searchPage, isFetching: searching } = useFoodsSearch(debouncedQuery, page, 20);
-  const { data: searchedFood } = useFoodDetail(selectedSearchId);
   const { data: recents } = useRecentFoods(open);
   const showRecents = tab === "search" && debouncedQuery.trim() === "" && query.trim() === "" && !!recents?.length;
 
   // --- Barcode tab state ---
   const [barcodeInput, setBarcodeInput] = useState("");
-  const [barcodeFood, setBarcodeFood] = useState<FoodDetail | null>(null);
+  const [barcodeFoodId, setBarcodeFoodId] = useState<string | null>(null);
   const [barcodeError, setBarcodeError] = useState("");
   const [missingBarcode, setMissingBarcode] = useState("");
   const barcodeLookup = useBarcodeLookup();
+  const queryClient = useQueryClient();
 
   // --- Quantity step ---
-  const activeFood = tab === "search" ? searchedFood ?? null : barcodeFood;
-  const step: "browse" | "quantity" = activeFood ? "quantity" : "browse";
+  // Both tabs read the picked food through the detail query, so a unit added here shows up at once.
+  const pickedId = tab === "search" ? selectedSearchId : barcodeFoodId;
+  const { data: detail, isError: detailError, refetch: refetchDetail } = useFoodDetail(pickedId);
+  // Placeholder data from the previous pick must not stand in for the new one.
+  const activeFood: FoodDetail | null = pickedId && detail?.id === pickedId ? detail : null;
+  const step: "browse" | "loading" | "quantity" = activeFood ? "quantity" : pickedId ? "loading" : "browse";
 
-  const [unit, setUnit] = useState<LogUnit>("g");
+  const [unitKey, setUnitKey] = useState("g");
   const [quantityValue, setQuantityValue] = useState("100");
   const [mealType, setMealType] = useState<MealType>("snack");
   const [date, setDate] = useState(defaultDate);
+  const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
+  const units = portionUnits(activeFood);
 
   const logFood = useLogFood();
 
@@ -73,42 +81,54 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
     setPage(1);
     setSelectedSearchId(null);
     setBarcodeInput("");
-    setBarcodeFood(null);
+    setBarcodeFoodId(null);
     setBarcodeError("");
     setMissingBarcode("");
-    setUnit("g");
+    setUnitKey("g");
     setQuantityValue("100");
     setMealType("snack");
     setDate(defaultDate);
+    setPrefilledFor(null);
   }
 
-  /** Start the amount step: the amount used last time for this food, else one serving (or 100 g). */
-  function prefill(food: { id: string; serving_size_g?: number | null }) {
-    const last: RecentFood | undefined = recents?.find((r) => r.id === food.id);
-    if (last && (last.last_unit === "g" || food.serving_size_g)) {
-      setUnit(last.last_unit);
+  // Start the amount step once the food (with its units) has loaded: the amount used last time for
+  // this food, else one serving (or 100 g). Set during render so there is no flash of the old amount.
+  if (activeFood && prefilledFor !== activeFood.id) {
+    setPrefilledFor(activeFood.id);
+    const last = recents?.find((r) => r.id === activeFood.id);
+    const lastKey = last ? unitKeyFor(units, last.last_unit, last.last_unit_label) : null;
+    if (last && (last.last_unit === "g" || lastKey !== "g")) {
+      setUnitKey(lastKey!);
       setQuantityValue(String(last.last_amount));
       setMealType(last.last_meal_type);
-      return;
+    } else if (last) {
+      // Last time's unit is gone (serving removed): offer the same weight in grams.
+      setUnitKey("g");
+      setQuantityValue(String(Math.round(last.last_quantity_g)));
+      setMealType(last.last_meal_type);
+    } else {
+      const start = defaultPortion(activeFood.serving_size_g);
+      setUnitKey(start.unitKey);
+      setQuantityValue(String(start.amount));
+      setMealType("snack");
     }
-    const start = defaultPortion(food.serving_size_g);
-    setUnit(start.unit);
-    setQuantityValue(String(start.amount));
-    setMealType("snack");
   }
 
-  function pick(food: { id: string; serving_size_g?: number | null }) {
-    prefill(food);
+  const unit = units.find((u) => u.key === unitKey) ?? units[units.length - 1];
+
+  function pick(food: { id: string }) {
+    setPrefilledFor(null);
     setSelectedSearchId(food.id);
   }
 
-  function switchUnit(next: LogUnit) {
-    if (next === unit || !activeFood) return;
+  function switchUnit(next: string) {
+    const to = units.find((u) => u.key === next);
+    if (!to || next === unit.key) return;
     const current = Number(quantityValue);
     if (Number.isFinite(current) && current > 0) {
-      setQuantityValue(String(convertAmount(current, unit, next, activeFood.serving_size_g)));
+      setQuantityValue(String(convertAmount(current, unit, to)));
     }
-    setUnit(next);
+    setUnitKey(next);
   }
 
   function handleOpenChange(next: boolean) {
@@ -118,8 +138,9 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
 
   function backToBrowse() {
     setSelectedSearchId(null);
-    setBarcodeFood(null);
+    setBarcodeFoodId(null);
     setBarcodeError("");
+    setPrefilledFor(null);
   }
 
   async function handleBarcodeLookup(e: React.FormEvent) {
@@ -129,8 +150,9 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
     setBarcodeError("");
     try {
       const food = await barcodeLookup.mutateAsync(code);
-      prefill(food);
-      setBarcodeFood(food);
+      queryClient.setQueryData(queryKeys.foodDetail(food.id), food);
+      setPrefilledFor(null);
+      setBarcodeFoodId(food.id);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         setBarcodeError(`Barcode ${code} not found. Try search, or add it as a new food.`);
@@ -142,11 +164,11 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
   }
 
   const quantityNum = Number(quantityValue);
-  // A serving amount only makes sense for a food that has a serving size.
-  const effectiveUnit: LogUnit = unit === "serving" && activeFood?.serving_size_g ? "serving" : "g";
-  const bounds = effectiveUnit === "g" ? FOOD_LOG_BOUNDS.quantity_g : FOOD_LOG_BOUNDS.servings;
-  const quantityError = validateBounds(quantityNum, bounds);
-  const grams = toGrams(quantityNum || 0, effectiveUnit, activeFood?.serving_size_g);
+  const inGrams = unit.key === "g";
+  const bounds = inGrams ? FOOD_LOG_BOUNDS.quantity_g : FOOD_LOG_BOUNDS.servings;
+  const grams = (quantityNum || 0) * unit.grams;
+  const quantityError =
+    validateBounds(quantityNum, bounds) ?? (grams > FOOD_LOG_BOUNDS.quantity_g.max ? `That is ${Math.round(grams)} g, more than ${FOOD_LOG_BOUNDS.quantity_g.max} g` : null);
   const per100 = activeFood?.nutrients;
   const scaled = (key: string) => (per100?.[key] != null ? (per100[key]! * grams) / 100 : null);
 
@@ -155,7 +177,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
     logFood.mutate(
       {
         food_id: activeFood.id,
-        ...(effectiveUnit === "g" ? { quantity_g: quantityNum } : { servings: quantityNum }),
+        ...portionPayload(quantityNum, unit),
         meal_type: mealType,
         date,
       },
@@ -205,7 +227,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
                         <div className="min-w-0">
                           <p className="truncate text-foreground/90">{food.name}</p>
                           <p className="text-[11px] text-muted-foreground">
-                            Last time {formatPortion(food.last_amount, food.last_unit, food.last_quantity_g)}
+                            Last time {formatPortion(food.last_amount, food.last_unit, food.last_quantity_g, food.last_unit_label)}
                           </p>
                         </div>
                         <span className="tabular-nums text-muted-foreground text-xs shrink-0 ml-2">
@@ -226,7 +248,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
                         key={food.id ?? food.name}
                         type="button"
                         disabled={disabled}
-                        onClick={() => food.id && pick({ id: food.id, serving_size_g: food.serving_size_g })}
+                        onClick={() => food.id && pick({ id: food.id })}
                         className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-left transition-colors ${
                           disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"
                         }`}
@@ -293,38 +315,47 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
           </Tabs>
         )}
 
+        {step === "loading" && (
+          detailError ? (
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-destructive">Couldn&apos;t load this food. Check your connection and try again.</p>
+              <div className="flex gap-2">
+                <Button onClick={() => refetchDetail()} size="lg" className="flex-1">Try again</Button>
+                <Button onClick={backToBrowse} variant="outline" size="lg">Back</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 py-1" aria-busy="true" aria-label="Loading food">
+              <div className="flex gap-1.5">
+                {[1, 2, 3].map((i) => <div key={i} className="h-10 w-20 rounded-full bg-muted/40 animate-pulse" />)}
+              </div>
+              <div className="h-9 rounded-lg bg-muted/40 animate-pulse" />
+              <div className="h-3 w-2/3 rounded bg-muted/40 animate-pulse" />
+            </div>
+          )
+        )}
+
         {step === "quantity" && activeFood && (
           <div className="space-y-4 overflow-y-auto thin-scrollbar">
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-[10px]">{activeFood.source}</Badge>
-              {activeFood.serving_size_g && (
-                <span className="text-xs text-muted-foreground">
-                  {activeFood.serving_label || "1 serving"} = {activeFood.serving_size_g} g
-                </span>
-              )}
             </div>
 
-            {activeFood.serving_size_g && (
-              <div className="flex gap-1.5">
-                {(["serving", "g"] as LogUnit[]).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => switchUnit(m)}
-                    aria-pressed={effectiveUnit === m}
-                    className={`h-9 px-3.5 rounded-full text-xs font-medium transition-colors duration-100 ${
-                      effectiveUnit === m ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {m === "g" ? "Grams" : "Servings"}
-                  </button>
-                ))}
-              </div>
-            )}
+            <UnitPicker
+              foodId={activeFood.id}
+              units={units}
+              value={unit.key}
+              onChange={switchUnit}
+              onAdded={(serving) => {
+                setUnitKey(serving.id);
+                setQuantityValue("1");
+              }}
+              servingLabel={activeFood.serving_label}
+            />
 
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
-                {effectiveUnit === "g" ? "Quantity (g)" : "Servings"}
+                {inGrams ? "Quantity (g)" : unit.key === "serving" ? "Servings" : `Amount (${unit.label})`}
               </Label>
               <Input
                 type="number"
@@ -332,7 +363,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
                 onChange={(e) => setQuantityValue(e.target.value)}
                 min={bounds.min}
                 max={bounds.max}
-                step={effectiveUnit === "g" ? 1 : 0.25}
+                step={inGrams ? 1 : 0.25}
                 inputMode="decimal"
                 aria-invalid={!!quantityError}
                 className="tabular-nums"
@@ -341,7 +372,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate }: Props) {
                 <p className="text-[11px] text-destructive">{quantityError}</p>
               ) : (
                 <p className="text-[11px] text-muted-foreground tabular-nums">
-                  {effectiveUnit === "serving" && <>{Math.round(grams * 10) / 10} g · </>}
+                  {!inGrams && <>{Math.round(grams * 10) / 10} g · </>}
                   <span className="font-medium text-foreground">
                     {scaled("kcal") != null ? `${Math.round(scaled("kcal")!)} kcal` : "kcal unknown"}
                   </span>

@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.food import Food
+from app.models.food_serving import FoodServing
 from app.models.nutrient import Nutrient
 from app.schemas.food import FoodCorrectionUpdate, FoodCreate, NutrientData
 
@@ -197,3 +198,13 @@ async def correct_food_by_barcode(
     await db.commit()
     await db.refresh(food)
     return food
+
+
+async def user_servings(db: AsyncSession, user_id: UUID, food_id: UUID) -> list[FoodServing]:
+    """Extra named servings this user added to a food, smallest first."""
+    result = await db.execute(
+        select(FoodServing)
+        .where(FoodServing.user_id == user_id, FoodServing.food_id == food_id)
+        .order_by(FoodServing.grams, FoodServing.label)
+    )
+    return list(result.scalars().all())

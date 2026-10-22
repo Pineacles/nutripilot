@@ -12,9 +12,9 @@ from app.models.food_log import FoodLog
 from app.models.nutrient import Nutrient
 from app.models.user import User
 from app.models.weight_log import WeightLog
-from app.schemas.food import FoodResponse, NutrientData
+from app.schemas.food import FoodResponse, NutrientData, ServingResponse
 from app.schemas.summary import StatsSummary, TodaySummary, WeekSummary
-from app.services import summary_service
+from app.services import food_service, summary_service
 from app.services.clock import today_for
 from app.services.nutrient_sources import get_nutrient_sources
 
@@ -175,6 +175,7 @@ async def dashboard_recent_foods(
             FoodLog.quantity_g,
             FoodLog.amount,
             FoodLog.unit,
+            FoodLog.unit_label,
             FoodLog.meal_type,
             FoodLog.logged_at,
             func.row_number().over(partition_by=FoodLog.food_id, order_by=FoodLog.logged_at.desc()).label("rn"),
@@ -185,7 +186,7 @@ async def dashboard_recent_foods(
     )
     stmt = (
         select(
-            ranked.c.food_id, ranked.c.quantity_g, ranked.c.amount, ranked.c.unit, ranked.c.meal_type, ranked.c.uses,
+            ranked.c.food_id, ranked.c.quantity_g, ranked.c.amount, ranked.c.unit, ranked.c.unit_label, ranked.c.meal_type, ranked.c.uses,
             Food.name, Food.serving_size_g, Food.serving_label, Nutrient.kcal, Nutrient.protein,
         )
         .join(Food, Food.id == ranked.c.food_id)
@@ -208,6 +209,7 @@ async def dashboard_recent_foods(
             # Older logs have no unit: they were grams.
             "last_amount": r.amount if r.amount is not None else r.quantity_g,
             "last_unit": r.unit or "g",
+            "last_unit_label": r.unit_label,
             "last_meal_type": r.meal_type,
         }
         for r in rows
@@ -231,6 +233,7 @@ async def dashboard_food_detail(
     if food.nutrients:
         nutrients = NutrientData.model_validate(food.nutrients, from_attributes=True)
     is_mine = food.created_by is not None and food.created_by == user.id
+    servings = await food_service.user_servings(db, user.id, food.id)
     return FoodResponse(
         id=food.id,
         name=food.name,
@@ -241,6 +244,7 @@ async def dashboard_food_detail(
         nutrients=nutrients,
         is_mine=is_mine,
         editable=is_mine,
+        servings=[ServingResponse.model_validate(sv) for sv in servings],
     )
 
 

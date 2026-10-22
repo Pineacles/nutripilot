@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -8,11 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user_jwt_or_api_key
 from app.database import get_db
 from app.models.food_log import FoodLog
+from app.models.food_serving import FoodServing
 from app.models.user import User
 from app.schemas.food_log import (
     DailyLogResponse,
     FoodLogByBarcodeCreate,
     FoodLogByNameCreate,
+    FoodLogCopy,
     FoodLogCreate,
     FoodLogResponse,
     FoodLogUpdate,
@@ -46,6 +48,27 @@ def _resolve_quantity(quantity_g, servings, serving_size_g) -> tuple[float, floa
     return 100, 100, "g"
 
 
+async def _named_serving(db: AsyncSession, user: User, food_id, serving_id) -> FoodServing:
+    result = await db.execute(
+        select(FoodServing).where(
+            FoodServing.id == serving_id, FoodServing.food_id == food_id, FoodServing.user_id == user.id
+        )
+    )
+    serving = result.scalar_one_or_none()
+    if serving is None:
+        raise HTTPException(status_code=404, detail={"code": "SERVING_NOT_FOUND", "serving_id": str(serving_id)})
+    return serving
+
+
+async def _resolve_portion(db, user, food, quantity_g, servings, serving_id) -> tuple[float, float, str, str | None]:
+    """(grams, amount, unit, unit_label): like _resolve_quantity, but servings can be counted in one
+    of the user's named servings when serving_id is given (quantity_g still wins)."""
+    if quantity_g is None and servings is not None and serving_id is not None:
+        serving = await _named_serving(db, user, food.id, serving_id)
+        return (*_resolve_quantity(None, servings, serving.grams), serving.label)
+    return (*_resolve_quantity(quantity_g, servings, food.serving_size_g), None)
+
+
 def food_log_response(entry: FoodLog, food) -> FoodLogResponse:
     """Build a FoodLogResponse for a food log entry and its (possibly None) food.
 
@@ -60,6 +83,7 @@ def food_log_response(entry: FoodLog, food) -> FoodLogResponse:
         quantity_g=entry.quantity_g,
         amount=entry.amount if entry.amount is not None else entry.quantity_g,
         unit=entry.unit or "g",
+        unit_label=entry.unit_label,
         meal_type=entry.meal_type,
         date=entry.date,
         kcal=round((n.kcal or 0) * ratio, 1) if n else None,
@@ -78,9 +102,10 @@ def food_log_response(entry: FoodLog, food) -> FoodLogResponse:
     summary="Log food by ID",
     description=(
         "Log a food entry by its UUID. Use this when you already have the food_id from a prior search or barcode lookup.\n\n"
-        "**Quantity resolution:** `quantity_g` wins → else `servings × serving_size_g` → else `servings × 100` → else `100g`.\n\n"
+        "**Quantity resolution:** `quantity_g` wins → else `servings × serving_size_g` → else `servings × 100` → else `100g`. "
+        "Pass `serving_id` with `servings` to count in one of the user's named servings (see `POST /api/foods/{id}/servings`).\n\n"
         "**Returns:** the created log with calculated kcal, protein, carbs, and fat for the actual quantity consumed.\n\n"
-        "**Errors:** `404 FOOD_NOT_FOUND` if the food_id doesn't exist."
+        "**Errors:** `404 FOOD_NOT_FOUND` if the food_id doesn't exist, `404 SERVING_NOT_FOUND` for an unknown serving_id."
     ),
 )
 async def log_food(
@@ -95,9 +120,12 @@ async def log_food(
             detail={"detail": "Food not found", "code": "FOOD_NOT_FOUND"},
         )
 
-    quantity_g, amount, unit = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
+    quantity_g, amount, unit, label = await _resolve_portion(
+        db, user, food, body.quantity_g, body.servings, body.serving_id
+    )
     entry = await logging_service.log_food(
-        db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user), amount=amount, unit=unit
+        db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user),
+        amount=amount, unit=unit, unit_label=label,
     )
     return food_log_response(entry, food)
 
@@ -255,6 +283,7 @@ async def list_food_logs(
             quantity_g=log.quantity_g,
             amount=log.amount if log.amount is not None else log.quantity_g,
             unit=log.unit or "g",
+            unit_label=log.unit_label,
             meal_type=log.meal_type,
             date=log.date,
             logged_at=log.logged_at,
@@ -276,8 +305,9 @@ async def list_food_logs(
     summary="Update a food log entry",
     description=(
         "Change quantity, meal type, or date on an existing food log. Only send the fields you want to change.\n\n"
-        "Send `quantity_g` for grams or `servings` for a number of servings (uses the food's serving size; "
-        "for a food without one, each serving counts as 100 g and the entry is stored in grams)."
+        "Send `quantity_g` for grams or `servings` for a number of servings (uses the food's serving size, "
+        "or the named serving given as `serving_id`; for a food without a serving size, each serving counts as 100 g "
+        "and the entry is stored in grams)."
     ),
 )
 async def update_food_log(
@@ -293,10 +323,17 @@ async def update_food_log(
     food = await food_service.get_food_by_id(db, log.food_id)
     data = body.model_dump(exclude_unset=True)
     servings = data.pop("servings", None)
+    serving_id = data.pop("serving_id", None)
     if servings is not None and data.get("quantity_g") is None:
-        log.quantity_g, log.amount, log.unit = _resolve_quantity(None, servings, food.serving_size_g if food else None)
+        if serving_id is not None:
+            serving = await _named_serving(db, user, log.food_id, serving_id)
+            log.quantity_g, log.amount, log.unit = _resolve_quantity(None, servings, serving.grams)
+            log.unit_label = serving.label
+        else:
+            log.quantity_g, log.amount, log.unit = _resolve_quantity(None, servings, food.serving_size_g if food else None)
+            log.unit_label = None
     elif data.get("quantity_g") is not None:
-        log.amount, log.unit = data["quantity_g"], "g"
+        log.amount, log.unit, log.unit_label = data["quantity_g"], "g", None
     for field, value in data.items():
         setattr(log, field, value)
     await db.commit()
@@ -321,3 +358,49 @@ async def delete_food_log(
         raise HTTPException(status_code=404, detail={"code": "LOG_NOT_FOUND"})
     await db.delete(log)
     await db.commit()
+
+
+@router.post(
+    "/log/food/copy",
+    response_model=list[FoodLogResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Copy a meal or a whole day",
+    description=(
+        "Log everything from one meal (or the whole day when `meal_type` is left out) again on `to_date`, "
+        "optionally into another meal with `to_meal_type`. Amounts and units are copied as logged.\n\n"
+        "**Use this for** \"same breakfast as yesterday\".\n\n"
+        "**Errors:** `404 NOTHING_TO_COPY` if the source meal or day has no entries."
+    ),
+)
+async def copy_food_logs(
+    body: FoodLogCopy,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt_or_api_key),
+):
+    stmt = select(FoodLog).where(FoodLog.user_id == user.id, FoodLog.date == body.from_date)
+    if body.meal_type:
+        stmt = stmt.where(FoodLog.meal_type == body.meal_type)
+    source = (await db.execute(stmt.order_by(FoodLog.logged_at.asc()))).unique().scalars().all()
+    if not source:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "NOTHING_TO_COPY", "date": str(body.from_date), "meal_type": body.meal_type},
+        )
+    copies = [
+        FoodLog(
+            user_id=user.id,
+            food_id=log.food_id,
+            date=body.to_date,
+            quantity_g=log.quantity_g,
+            amount=log.amount,
+            unit=log.unit,
+            unit_label=log.unit_label,
+            meal_type=body.to_meal_type or log.meal_type,
+            # Keeps the original order (and "last time" in recents) apart by microseconds.
+            logged_at=datetime.now(UTC),
+        )
+        for log in source
+    ]
+    db.add_all(copies)
+    await db.commit()
+    return [food_log_response(c, log.food) for c, log in zip(copies, source, strict=True)]

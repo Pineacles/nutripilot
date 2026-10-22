@@ -83,10 +83,11 @@ export function useStats(days: number) {
 }
 
 /** Full food-log detail (with log ids) for a single day; powers edit/delete in the meals list. */
-export function useFoodLogDay(date: string) {
+export function useFoodLogDay(date: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.foodLogDay(date),
     queryFn: () => apiFetch<DailyFoodLogResponse>(`/api/agent/log/food?day=${date}`),
+    enabled,
   });
 }
 

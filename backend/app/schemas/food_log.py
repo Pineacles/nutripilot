@@ -12,14 +12,24 @@ def _check_quantity_or_servings(model):
     return model
 
 
+def _check_serving_id(model):
+    """serving_id names the unit for servings, so it means nothing without them."""
+    if getattr(model, "serving_id", None) is not None and (model.servings is None or model.quantity_g is not None):
+        raise ValueError("serving_id needs servings and no quantity_g")
+    return model
+
+
 class FoodLogCreate(BaseModel):
     food_id: UUID
     quantity_g: Optional[float] = Field(None, gt=0, le=10000)
     servings: Optional[float] = Field(None, gt=0, le=100)
+    # With servings: count them in one of the user's named servings instead of the food's own size.
+    serving_id: Optional[UUID] = None
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
     date: Optional[datetime.date] = None
 
     _check_quantity_or_servings = model_validator(mode="after")(_check_quantity_or_servings)
+    _check_serving_id = model_validator(mode="after")(_check_serving_id)
 
 
 class FoodLogByBarcodeCreate(BaseModel):
@@ -46,8 +56,31 @@ class FoodLogUpdate(BaseModel):
     quantity_g: Optional[float] = Field(None, gt=0, le=10000)
     # Alternative to quantity_g: number of servings, converted with the food's serving size.
     servings: Optional[float] = Field(None, gt=0, le=100)
+    serving_id: Optional[UUID] = None
     meal_type: Optional[Literal["breakfast", "lunch", "dinner", "snack"]] = None
     date: Optional[datetime.date] = None
+
+    _check_serving_id = model_validator(mode="after")(_check_serving_id)
+
+
+MealType = Literal["breakfast", "lunch", "dinner", "snack"]
+
+
+class FoodLogCopy(BaseModel):
+    """Copy one meal (or a whole day when meal_type is left out) to another day or meal."""
+    from_date: datetime.date
+    to_date: datetime.date
+    meal_type: Optional[MealType] = None
+    # Defaults to the same meal. Only allowed together with meal_type.
+    to_meal_type: Optional[MealType] = None
+
+    @model_validator(mode="after")
+    def _check(self):
+        if self.to_meal_type and not self.meal_type:
+            raise ValueError("to_meal_type needs meal_type")
+        if self.from_date == self.to_date and (self.to_meal_type or self.meal_type) == self.meal_type:
+            raise ValueError("Copying onto the same day and meal would only duplicate it")
+        return self
 
 
 class FoodLogResponse(BaseModel):
@@ -56,6 +89,7 @@ class FoodLogResponse(BaseModel):
     quantity_g: float
     amount: Optional[float] = None
     unit: Optional[str] = None
+    unit_label: Optional[str] = None
     meal_type: str
     date: datetime.date
     kcal: Optional[float] = None
@@ -103,6 +137,8 @@ class FoodLogDetail(BaseModel):
     # What the user typed: amount in unit ("g" or "serving"); older entries are grams.
     amount: Optional[float] = None
     unit: Optional[str] = None
+    # Named serving used ("slice"); None for the food's own serving size or grams.
+    unit_label: Optional[str] = None
     meal_type: str
     date: datetime.date
     logged_at: Optional[datetime.datetime] = None

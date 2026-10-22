@@ -2,12 +2,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_jwt_or_api_key
 from app.database import get_db
 from app.models.food import Food
 from app.models.food_log import FoodLog
+from app.models.food_serving import FoodServing
 from app.models.user import User
 from app.schemas.food import (
     FoodClone,
@@ -17,13 +19,15 @@ from app.schemas.food import (
     FoodSearchResult,
     FoodUpdate,
     NutrientData,
+    ServingCreate,
+    ServingResponse,
 )
 from app.services import barcode_service, food_service
 
 router = APIRouter(prefix="/api/foods", tags=["foods"])
 
 
-def _food_to_response(food, user: User) -> FoodResponse:
+def _food_to_response(food, user: User, servings: list | None = None) -> FoodResponse:
     nutrients = None
     if food.nutrients:
         nutrients = NutrientData.model_validate(food.nutrients, from_attributes=True)
@@ -38,6 +42,7 @@ def _food_to_response(food, user: User) -> FoodResponse:
         nutrients=nutrients,
         is_mine=is_mine,
         editable=is_mine,
+        servings=None if servings is None else [ServingResponse.model_validate(sv) for sv in servings],
     )
 
 
@@ -85,7 +90,7 @@ async def get_by_barcode(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": code},
         )
-    return _food_to_response(food, user)
+    return _food_to_response(food, user, await food_service.user_servings(db, user.id, food.id))
 
 
 @router.post(
@@ -253,4 +258,62 @@ async def delete_food(
             detail={"code": "FOOD_IN_USE", "detail": "Cannot delete food that is referenced by food logs"},
         )
     await db.delete(food)
+    await db.commit()
+
+
+@router.post(
+    "/{food_id}/servings",
+    response_model=ServingResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a named serving to a food",
+    description=(
+        "Add a personal portion such as `slice` = 30 g to any food (official foods too, nothing global changes). "
+        "Log with it by passing `serving_id` and `servings` to `POST /api/agent/log/food`.\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND`, `409 SERVING_EXISTS` if this food already has a serving with that name."
+    ),
+)
+async def add_serving(
+    food_id: UUID,
+    body: ServingCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt_or_api_key),
+):
+    food = await food_service.get_food_by_id(db, food_id)
+    if food is None:
+        raise HTTPException(status_code=404, detail={"code": "FOOD_NOT_FOUND"})
+    taken = {sv.label.lower() for sv in await food_service.user_servings(db, user.id, food_id)}
+    if body.label.lower() in taken:
+        raise HTTPException(status_code=409, detail={"code": "SERVING_EXISTS", "label": body.label})
+    serving = FoodServing(food_id=food_id, user_id=user.id, label=body.label, grams=body.grams)
+    db.add(serving)
+    try:
+        await db.commit()
+    except IntegrityError as err:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail={"code": "SERVING_EXISTS", "label": body.label}) from err
+    await db.refresh(serving)
+    return serving
+
+
+@router.delete(
+    "/{food_id}/servings/{serving_id}",
+    status_code=204,
+    summary="Remove a named serving",
+    description="Past logs keep their amount and name. **Errors:** `404 SERVING_NOT_FOUND`.",
+)
+async def delete_serving(
+    food_id: UUID,
+    serving_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt_or_api_key),
+):
+    result = await db.execute(
+        select(FoodServing).where(
+            FoodServing.id == serving_id, FoodServing.food_id == food_id, FoodServing.user_id == user.id
+        )
+    )
+    serving = result.scalar_one_or_none()
+    if serving is None:
+        raise HTTPException(status_code=404, detail={"code": "SERVING_NOT_FOUND"})
+    await db.delete(serving)
     await db.commit()

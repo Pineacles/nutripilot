@@ -24,6 +24,8 @@ class FoodLog(Base):
     # nutrients; these only show the entry back the way it was typed. NULL (older rows) = grams.
     amount: Mapped[float | None] = mapped_column(Float)
     unit: Mapped[str | None] = mapped_column(String(10))
+    # Name of the extra serving used ("slice"), NULL for the food's own serving size or grams.
+    unit_label: Mapped[str | None] = mapped_column(String(40))
     meal_type: Mapped[str] = mapped_column(String(20), nullable=False)
     logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

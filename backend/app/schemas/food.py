@@ -65,6 +65,26 @@ class FoodClone(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=500)
 
 
+class ServingCreate(BaseModel):
+    label: str = Field(min_length=1, max_length=40)
+    grams: float = Field(gt=0, le=5000)
+
+    @model_validator(mode="after")
+    def _strip(self):
+        self.label = self.label.strip()
+        if not self.label:
+            raise ValueError("label must not be blank")
+        return self
+
+
+class ServingResponse(BaseModel):
+    id: UUID
+    label: str
+    grams: float
+
+    model_config = {"from_attributes": True}
+
+
 class FoodResponse(BaseModel):
     id: UUID
     name: str
@@ -77,6 +97,9 @@ class FoodResponse(BaseModel):
     # PUT/DELETE it (owner-only; official curated foods are read-only).
     is_mine: bool = False
     editable: bool = False
+    # Extra named servings the current user added to this food ("slice" = 30 g). Filled by food detail
+    # and barcode lookup; None where they are not loaded (it does not mean "no servings").
+    servings: list[ServingResponse] | None = None
 
     model_config = {"from_attributes": True}
 

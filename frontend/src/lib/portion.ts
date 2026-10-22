@@ -1,31 +1,63 @@
-import type { LogUnit } from "@/lib/types";
+import type { LogUnit, Serving } from "@/lib/types";
 
-/** Grams eaten for an amount typed in grams or servings. */
-export function toGrams(amount: number, unit: LogUnit, servingSizeG?: number | null): number {
-  return unit === "serving" && servingSizeG ? amount * servingSizeG : amount;
+/**
+ * A unit an amount can be typed in. key is "g", "serving" (the food's own serving size) or the id of
+ * one of the user's named servings; grams is how much one unit weighs.
+ */
+export interface PortionUnit {
+  key: string;
+  /** Short chip label: "Servings", "Grams", or the serving's own name. */
+  label: string;
+  grams: number;
+  /** For named servings: the stored name ("slice"). */
+  name?: string;
 }
 
-const round = (n: number, step: number) => Math.round(n / step) * step;
+/** The units a food can be logged in: its own serving size, the user's named servings, then grams. */
+export function portionUnits(food: { serving_size_g?: number | null; servings?: Serving[] | null } | null | undefined): PortionUnit[] {
+  const units: PortionUnit[] = [];
+  if (food?.serving_size_g) units.push({ key: "serving", label: "Servings", grams: food.serving_size_g });
+  for (const s of food?.servings ?? []) units.push({ key: s.id, label: s.label, grams: s.grams, name: s.label });
+  units.push({ key: "g", label: "Grams", grams: 1 });
+  return units;
+}
 
-/** The same portion in the other unit (servings to 0.01, whole grams), so toggling back and forth doesn't drift. */
-export function convertAmount(amount: number, from: LogUnit, to: LogUnit, servingSizeG?: number | null): number {
-  if (from === to || !servingSizeG || !Number.isFinite(amount)) return amount;
-  if (to === "serving") return Math.max(0.1, round(amount / servingSizeG, 0.01));
-  return Math.max(1, Math.round(amount * servingSizeG));
+/** The unit key an existing entry (or last time's entry) was typed in, when that unit still exists. */
+export function unitKeyFor(units: PortionUnit[], unit: LogUnit | null | undefined, label: string | null | undefined): string {
+  if (unit !== "serving") return "g";
+  const key = label ? units.find((u) => u.name?.toLowerCase() === label.toLowerCase())?.key : "serving";
+  return key && units.some((u) => u.key === key) ? key : "g";
+}
+
+const round = (n: number, step: number) => Number((Math.round(n / step) * step).toFixed(2));
+
+/** The same portion in another unit (servings to 0.01, grams whole or to 0.1 under 10 g), so toggling doesn't drift. */
+export function convertAmount(amount: number, from: PortionUnit, to: PortionUnit): number {
+  if (from.key === to.key || !Number.isFinite(amount)) return amount;
+  const grams = amount * from.grams;
+  if (to.key === "g") return grams < 10 ? Math.max(0.1, round(grams, 0.1)) : Math.round(grams);
+  return Math.max(0.1, round(grams / to.grams, 0.01));
 }
 
 /** The amount a fresh entry starts at: one serving when the food has one, else 100 g. */
-export function defaultPortion(servingSizeG?: number | null): { amount: number; unit: LogUnit } {
-  return servingSizeG ? { amount: 1, unit: "serving" } : { amount: 100, unit: "g" };
+export function defaultPortion(servingSizeG?: number | null): { amount: number; unitKey: string } {
+  return servingSizeG ? { amount: 1, unitKey: "serving" } : { amount: 100, unitKey: "g" };
+}
+
+/** The request fields for an amount in a unit: grams, servings, or servings of a named serving. */
+export function portionPayload(amount: number, unit: PortionUnit): { quantity_g: number } | { servings: number; serving_id?: string } {
+  if (unit.key === "g") return { quantity_g: amount };
+  return unit.key === "serving" ? { servings: amount } : { servings: amount, serving_id: unit.key };
 }
 
 // Whole grams (one decimal for tiny amounts like spices), servings to two decimals at most.
-const fmtGrams = (g: number) => String(g < 10 ? Math.round(g * 10) / 10 : Math.round(g));
+export const fmtGrams = (g: number) => String(g < 10 ? Math.round(g * 10) / 10 : Math.round(g));
 const fmtServings = (n: number) => String(Math.round(n * 100) / 100);
 
-/** "1.5 servings · 75 g" or "120 g", for showing an entry back the way it was logged. */
-export function formatPortion(amount: number | null | undefined, unit: LogUnit | null | undefined, grams: number): string {
+/** "1.5 servings · 75 g", "2 × slice · 60 g" or "120 g", for showing an entry back the way it was logged. */
+export function formatPortion(amount: number | null | undefined, unit: LogUnit | null | undefined, grams: number, label?: string | null): string {
   if (unit === "serving" && amount != null) {
+    if (label) return `${fmtServings(amount)} × ${label} · ${fmtGrams(grams)} g`;
     return `${fmtServings(amount)} ${amount === 1 ? "serving" : "servings"} · ${fmtGrams(grams)} g`;
   }
   return `${fmtGrams(grams)} g`;
