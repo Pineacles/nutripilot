@@ -267,6 +267,8 @@ _SECRET_FM_KEYS: frozenset[str] = frozenset({
     "client_secret",
     "consumer_secret",
     "oauth_token_secret",
+    "oauth_token",
+    "consumer_key",
     "password",
     "api_key",
     "apikey",

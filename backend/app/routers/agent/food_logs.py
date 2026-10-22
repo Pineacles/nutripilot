@@ -151,7 +151,11 @@ async def log_food_by_barcode(
     if food is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": body.barcode},
+            detail={
+                "detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": body.barcode,
+                # "store_label" (a shop's weighed/price label), "misread" (bad check digit) or null
+                "reason": barcode_service.barcode_problem(body.barcode.strip()),
+            },
         )
 
     quantity_g, amount, unit = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)

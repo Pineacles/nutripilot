@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.food import Food
 from app.models.food_log import FoodLog
 from app.models.food_serving import FoodServing
+from app.models.nutrient import Nutrient
 from app.models.user import User
 from app.schemas.food import (
     FoodClone,
@@ -76,7 +77,9 @@ async def search_foods(
     summary="Look up food by barcode",
     description=(
         "Find a food by its barcode (EAN/UPC). Returns full food details with all nutrient data.\n\n"
-        "**Errors:** `404 BARCODE_NOT_FOUND` if no food matches."
+        "**Errors:** `404 BARCODE_NOT_FOUND` if no food matches. Its `reason` is `store_label` for a "
+        "shop's own weighed or price label (EAN-13 starting with 2), `misread` for a wrong check digit, "
+        "else null."
     ),
 )
 async def get_by_barcode(
@@ -88,7 +91,11 @@ async def get_by_barcode(
     if food is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": code},
+            detail={
+                "detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": code,
+                # "store_label" (a shop's weighed/price label), "misread" (bad check digit) or null
+                "reason": barcode_service.barcode_problem(code.strip()),
+            },
         )
     return _food_to_response(food, user, await food_service.user_servings(db, user.id, food.id))
 
@@ -114,8 +121,19 @@ async def create_food(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    food = await food_service.create_food(db, body, created_by=user.id)
+    try:
+        food = await food_service.create_food(db, body, created_by=user.id)
+    except IntegrityError as err:
+        await db.rollback()
+        raise _barcode_taken(body.barcode) from err
     return _food_to_response(food, user)
+
+
+def _barcode_taken(barcode: str | None) -> HTTPException:
+    return HTTPException(
+        status_code=409,
+        detail={"code": "BARCODE_EXISTS", "detail": "Another food already has this barcode", "barcode": barcode},
+    )
 
 
 def _assert_food_writable(food: Food, user: User) -> None:
@@ -170,7 +188,8 @@ async def clone_food(
     description=(
         "Update serving size, label, name, or nutrient values for a food identified by barcode.\n\n"
         "This is the sanctioned correction path for official/cached foods (created_by IS NULL).\n\n"
-        "**Errors:** `404 FOOD_NOT_FOUND` if no food matches the barcode."
+        "**Errors:** `404 FOOD_NOT_FOUND` if no food matches the barcode; "
+        "`403 NOT_FOOD_OWNER` if the food is another user's own food."
     ),
 )
 async def correct_food_by_barcode(
@@ -179,6 +198,13 @@ async def correct_food_by_barcode(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
+    existing = await food_service.get_food_by_barcode(db, barcode)
+    if existing is not None and existing.created_by is not None and existing.created_by != user.id:
+        # Official foods are corrected for everyone; someone else's own food is theirs to fix.
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "NOT_FOOD_OWNER", "detail": "This food belongs to another user"},
+        )
     food = await food_service.correct_food_by_barcode(db, barcode, body, user.id)
     if food is None:
         raise HTTPException(
@@ -215,12 +241,21 @@ async def update_food(
     _assert_food_writable(food, user)
     data = body.model_dump(exclude_unset=True)
     nutrients_data = data.pop("nutrients", None)
+    if data.get("name", "") is None:
+        del data["name"]  # a food always has a name; null means "leave it"
     for field, value in data.items():
         setattr(food, field, value)
-    if nutrients_data is not None and food.nutrients:
+    if nutrients_data is not None:
+        if food.nutrients is None:
+            # Foods made without numbers (rare) get their first values here instead of losing them.
+            food.nutrients = Nutrient(food_id=food.id)
         for field, value in nutrients_data.items():
             setattr(food.nutrients, field, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as err:
+        await db.rollback()
+        raise _barcode_taken(data.get("barcode")) from err
     await db.refresh(food)
     return _food_to_response(food, user)
 

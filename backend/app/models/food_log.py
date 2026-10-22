@@ -13,6 +13,7 @@ class FoodLog(Base):
     __table_args__ = (
         Index("idx_food_logs_user_date", "user_id", "date"),
         Index("idx_food_logs_user_logged_at", "user_id", "logged_at"),
+        Index("idx_food_logs_food", "food_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

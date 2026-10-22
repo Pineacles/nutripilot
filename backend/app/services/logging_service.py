@@ -165,15 +165,19 @@ async def upsert_weight(
     """
     target_date = log_date or today_utc()
 
-    # Check for existing entry with same user + date + source
+    # Check for existing entry with same user + date + source. Overlapping syncs once wrote a day
+    # twice; the first row is kept and updated, the doubles go, so the day can't get stuck.
     result = await db.execute(
         select(WeightLog).where(
             WeightLog.user_id == user_id,
             WeightLog.date == target_date,
             WeightLog.source == source,
-        )
+        ).order_by(WeightLog.logged_at, WeightLog.id)
     )
-    existing = result.scalar_one_or_none()
+    rows = list(result.scalars().all())
+    existing = rows[0] if rows else None
+    for extra in rows[1:]:
+        await db.delete(extra)
 
     # Normalize: auto-detect swapped pct/kg + calculate missing values
     body_fat_pct, muscle_mass_pct, body_fat_kg, muscle_mass_kg = _normalize_body_comp(

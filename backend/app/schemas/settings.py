@@ -2,7 +2,7 @@ from typing import Optional
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class NutritionTargetsUpdate(BaseModel):
@@ -53,28 +53,36 @@ class NutritionTargetsResponse(BaseModel):
 
 
 class MicronutrientTargetItem(BaseModel):
-    nutrient: str = Field(min_length=1, max_length=100)
+    nutrient: str = Field(min_length=1, max_length=50)
     target_value: float = Field(gt=0, le=100000)
-    unit: str = Field(min_length=1, max_length=20)
+    unit: str = Field(min_length=1, max_length=10)
 
 
 class MicronutrientTargetsUpdate(BaseModel):
     targets: list[MicronutrientTargetItem]
 
+    @model_validator(mode="after")
+    def _one_per_nutrient(self):
+        names = [t.nutrient for t in self.targets]
+        if len(names) != len(set(names)):
+            raise ValueError("each nutrient can only have one target")
+        return self
+
 
 class SupplementDefinitionCreate(BaseModel):
-    name: str
-    dose_amount: float
-    dose_unit: str = "mg"
-    time_of_day: Optional[str] = None
+    # Lengths match the columns, so a long value is a 422 instead of a database error.
+    name: str = Field(min_length=1, max_length=255)
+    dose_amount: float = Field(gt=0, le=100000, allow_inf_nan=False)
+    dose_unit: str = Field("mg", min_length=1, max_length=10)
+    time_of_day: Optional[str] = Field(None, max_length=20)
     micronutrients: Optional[dict] = None
 
 
 class SupplementDefinitionUpdate(BaseModel):
-    name: Optional[str] = None
-    dose_amount: Optional[float] = None
-    dose_unit: Optional[str] = None
-    time_of_day: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    dose_amount: Optional[float] = Field(None, gt=0, le=100000, allow_inf_nan=False)
+    dose_unit: Optional[str] = Field(None, min_length=1, max_length=10)
+    time_of_day: Optional[str] = Field(None, max_length=20)
     active: Optional[bool] = None
     micronutrients: Optional[dict] = None
 

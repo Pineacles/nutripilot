@@ -308,6 +308,8 @@ async def _write_weight_records(
             )
             synced += 1
         except Exception as exc:
+            # A failed commit leaves the session unusable; without this every later day fails too.
+            await db.rollback()
             skipped += 1
             log.warning("upsert_failed", detail=f"date={entry_date} error={type(exc).__name__}: {exc}")
 

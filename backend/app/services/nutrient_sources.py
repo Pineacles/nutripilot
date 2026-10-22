@@ -62,6 +62,12 @@ async def get_nutrient_sources(
             },
         )
 
+    if to_date < from_date or (to_date - from_date).days > 366:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_RANGE", "detail": "from must be before to, at most a year apart"},
+        )
+
     stmt = (
         select(FoodLog)
         .where(FoodLog.user_id == user.id, FoodLog.date >= from_date, FoodLog.date <= to_date)
@@ -112,6 +118,8 @@ async def get_nutrient_sources(
     if supp_key_aliases:
         defs_result = await db.execute(
             select(SupplementDefinition).where(SupplementDefinition.user_id == user.id)
+            # Same name twice: the newest definition wins, every time.
+            .order_by(SupplementDefinition.created_at, SupplementDefinition.id)
         )
         defs = {d.name.lower(): d for d in defs_result.scalars().all()}
 

@@ -2,7 +2,7 @@ import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class WeightLogCreate(BaseModel):
@@ -11,7 +11,7 @@ class WeightLogCreate(BaseModel):
     muscle_mass_pct: Optional[float] = Field(default=None, ge=0, le=100)
     body_fat_kg: Optional[float] = Field(default=None, ge=0, le=300)
     muscle_mass_kg: Optional[float] = Field(default=None, ge=0, le=300)
-    source: Optional[str] = Field(default=None, max_length=50)
+    source: Optional[str] = Field(default=None, max_length=20)
     date: Optional[datetime.date] = None
 
 
@@ -29,6 +29,13 @@ class WeightLogUpdate(BaseModel):
             "date on a synced row would corrupt future syncs."
         ),
     )
+
+
+    @model_validator(mode="after")
+    def _weight_not_null(self):
+        if "weight_kg" in self.model_fields_set and self.weight_kg is None:
+            raise ValueError("weight_kg cannot be null; leave it out to keep it")
+        return self
 
 
 class WeightLogResponse(BaseModel):

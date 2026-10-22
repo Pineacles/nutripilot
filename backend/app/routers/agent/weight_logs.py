@@ -104,20 +104,24 @@ async def update_weight_log(
                 detail={"code": "SYNCED_LOG_DATE_IMMUTABLE", "detail": "date of synced entries cannot be changed"},
             )
         log.date = new_date
-    for field, value in updates.items():
-        setattr(log, field, value)
+    weight = updates.pop("weight_kg", log.weight_kg)
+    # Keep each % and kg pair consistent: the side that was sent wins and the other is worked out
+    # again; when neither was sent the % stays (scales report %) and the kg follows a new weight.
+    pairs = {}
+    for pct, kg in (("body_fat_pct", "body_fat_kg"), ("muscle_mass_pct", "muscle_mass_kg")):
+        if pct in updates or kg in updates:
+            pairs[pct] = updates.get(pct) if pct in updates else None
+            pairs[kg] = updates.get(kg) if kg in updates else None
+        else:
+            pairs[pct] = getattr(log, pct)
+            pairs[kg] = None if pairs[pct] is not None else getattr(log, kg)
+    log.weight_kg = weight
+    (log.body_fat_pct, log.muscle_mass_pct, log.body_fat_kg, log.muscle_mass_kg) = logging_service._normalize_body_comp(
+        weight, pairs["body_fat_pct"], pairs["muscle_mass_pct"], pairs["body_fat_kg"], pairs["muscle_mass_kg"]
+    )
     await db.commit()
     await db.refresh(log)
-    return WeightLogResponse(
-        id=log.id,
-        weight_kg=log.weight_kg,
-        body_fat_pct=log.body_fat_pct,
-        muscle_mass_pct=log.muscle_mass_pct,
-        body_fat_kg=log.body_fat_kg,
-        muscle_mass_kg=log.muscle_mass_kg,
-        source=log.source,
-        date=log.date,
-    )
+    return WeightLogResponse.model_validate(log)
 
 
 @router.delete(

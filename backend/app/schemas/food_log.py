@@ -1,8 +1,29 @@
 import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
+
+
+def _plausible_day(day: datetime.date | None) -> datetime.date | None:
+    """A typo like 9999-12-31 or 0001-01-01 would hide an entry where nobody looks for it."""
+    if day is None:
+        return day
+    latest = datetime.datetime.now(datetime.UTC).date() + datetime.timedelta(days=366)
+    if not datetime.date(2000, 1, 1) <= day <= latest:
+        raise ValueError(f"date must be between 2000-01-01 and {latest}")
+    return day
+
+
+LogDate = Annotated[Optional[datetime.date], AfterValidator(_plausible_day)]
+
+
+def _no_explicit_nulls(model, fields: tuple[str, ...]):
+    """Leaving a field out keeps it; sending null for one that can't be empty is a mistake, not a 500."""
+    bad = [f for f in fields if f in model.model_fields_set and getattr(model, f) is None]
+    if bad:
+        raise ValueError(f"{', '.join(bad)} cannot be null; leave the field out to keep it")
+    return model
 
 
 def _check_quantity_or_servings(model):
@@ -26,7 +47,7 @@ class FoodLogCreate(BaseModel):
     # With servings: count them in one of the user's named servings instead of the food's own size.
     serving_id: Optional[UUID] = None
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
-    date: Optional[datetime.date] = None
+    date: LogDate = None
 
     _check_quantity_or_servings = model_validator(mode="after")(_check_quantity_or_servings)
     _check_serving_id = model_validator(mode="after")(_check_serving_id)
@@ -37,7 +58,7 @@ class FoodLogByBarcodeCreate(BaseModel):
     quantity_g: Optional[float] = Field(None, gt=0, le=10000)
     servings: Optional[float] = Field(None, gt=0, le=100)
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
-    date: Optional[datetime.date] = None
+    date: LogDate = None
 
     _check_quantity_or_servings = model_validator(mode="after")(_check_quantity_or_servings)
 
@@ -47,7 +68,7 @@ class FoodLogByNameCreate(BaseModel):
     quantity_g: Optional[float] = Field(None, gt=0, le=10000)
     servings: Optional[float] = Field(None, gt=0, le=100)
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
-    date: Optional[datetime.date] = None
+    date: LogDate = None
 
     _check_quantity_or_servings = model_validator(mode="after")(_check_quantity_or_servings)
 
@@ -58,9 +79,13 @@ class FoodLogUpdate(BaseModel):
     servings: Optional[float] = Field(None, gt=0, le=100)
     serving_id: Optional[UUID] = None
     meal_type: Optional[Literal["breakfast", "lunch", "dinner", "snack"]] = None
-    date: Optional[datetime.date] = None
+    date: LogDate = None
 
     _check_serving_id = model_validator(mode="after")(_check_serving_id)
+
+    @model_validator(mode="after")
+    def _check_nulls(self):
+        return _no_explicit_nulls(self, ("quantity_g", "servings", "meal_type", "date"))
 
 
 MealType = Literal["breakfast", "lunch", "dinner", "snack"]
@@ -68,8 +93,8 @@ MealType = Literal["breakfast", "lunch", "dinner", "snack"]
 
 class FoodLogCopy(BaseModel):
     """Copy one meal (or a whole day when meal_type is left out) to another day or meal."""
-    from_date: datetime.date
-    to_date: datetime.date
+    from_date: Annotated[datetime.date, AfterValidator(_plausible_day)]
+    to_date: Annotated[datetime.date, AfterValidator(_plausible_day)]
     meal_type: Optional[MealType] = None
     # Defaults to the same meal. Only allowed together with meal_type.
     to_meal_type: Optional[MealType] = None

@@ -61,6 +61,8 @@ async def _get_supplement_micros(db, user_id, supp_logs, micro_fields, supp_defs
     if supp_defs is None:
         result = await db.execute(
             select(SupplementDefinition).where(SupplementDefinition.user_id == user_id)
+            # Same name twice: the newest definition wins, every time.
+            .order_by(SupplementDefinition.created_at, SupplementDefinition.id)
         )
         supp_defs = {d.name.lower(): d for d in result.scalars().all()}
 
@@ -286,6 +288,8 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
     # Add supplement micronutrient contributions for the week
     result = await db.execute(
         select(SupplementDefinition).where(SupplementDefinition.user_id == user.id)
+            # Same name twice: the newest definition wins, every time.
+            .order_by(SupplementDefinition.created_at, SupplementDefinition.id)
     )
     supp_defs = {d.name.lower(): d for d in result.scalars().all()}
 
@@ -307,6 +311,8 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
                 micro_totals[mapped_key] += value
 
     num_days = max(len(days_with_data), 1)
+    # Supplements count toward micronutrients, so a supplement-only day is a day for their average too.
+    num_micro_days = max(len(days_with_data | {s.date for s in all_supp_logs}), 1)
 
     # Weight + body composition
     stmt = (
@@ -344,7 +350,7 @@ async def get_week_summary(db: AsyncSession, user: User, end_date: date | None =
         daily_water=[DailyWater(date=d, total_ml=round(v, 1)) for d, v in sorted(daily_water.items())],
         daily_caffeine=[DailyCaffeine(date=d, total_mg=round(v, 1)) for d, v in sorted(daily_caffeine.items())],
         micronutrient_avg=MicronutrientAverages(
-            **{f: round(micro_totals[f] / num_days, 2) if micro_totals[f] > 0 else None for f in micro_fields}
+            **{f: round(micro_totals[f] / num_micro_days, 2) if micro_totals[f] > 0 else None for f in micro_fields}
         ),
         weight=WeightDelta(start_kg=start_kg, end_kg=end_kg, delta=delta),
         body_comp=body_comp,
@@ -428,6 +434,8 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
 
     result = await db.execute(
         select(SupplementDefinition).where(SupplementDefinition.user_id == user.id)
+            # Same name twice: the newest definition wins, every time.
+            .order_by(SupplementDefinition.created_at, SupplementDefinition.id)
     )
     supp_defs = {d.name.lower(): d for d in result.scalars().all()}
 
@@ -475,16 +483,19 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
     for d, v in daily_data.items():
         if highest_protein is None or v["protein"] > highest_protein["protein"]:
             highest_protein = {"date": str(d), "protein": round(v["protein"], 1)}
-        if lowest_calorie is None or (v["kcal"] > 0 and v["kcal"] < lowest_calorie["kcal"]):
+        # Days with nothing but zero calorie entries (water, black coffee) are not a real low, and
+        # neither is today while it is still being logged.
+        if v["kcal"] > 0 and d != end and (lowest_calorie is None or v["kcal"] < lowest_calorie["kcal"]):
             lowest_calorie = {"date": str(d), "kcal": round(v["kcal"], 1)}
         if highest_calorie is None or v["kcal"] > highest_calorie["kcal"]:
             highest_calorie = {"date": str(d), "kcal": round(v["kcal"], 1)}
         if best_fiber is None or v["fiber"] > best_fiber["fiber"]:
             best_fiber = {"date": str(d), "fiber": round(v["fiber"], 1)}
 
-    # Streak: consecutive days with food logs ending today
+    # Streak: consecutive days with food logs up to today. Today not logged yet doesn't break it,
+    # so the streak counts from yesterday until the day is over.
     streak = 0
-    check_date = end
+    check_date = end if end in daily_data else end - timedelta(days=1)
     while check_date in daily_data:
         streak += 1
         check_date -= timedelta(days=1)

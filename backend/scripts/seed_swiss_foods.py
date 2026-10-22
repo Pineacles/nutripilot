@@ -87,6 +87,7 @@ async def seed():
                     magnesium=parse_value(row[122]), # Col DS
                     iron=parse_value(row[128]),      # Col DY
                     zinc=parse_value(row[134]),      # Col EE
+                    alcohol=parse_value(row[59]),    # Col BH
                     omega3=None,                     # Not directly available
                     vit_k2=None,                     # Not available
                 )

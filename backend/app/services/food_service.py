@@ -41,7 +41,7 @@ async def clone_food(db: AsyncSession, source_food: Food, owner_id: UUID, name: 
     user can edit it freely without touching the shared/official original.
     """
     clone = Food(
-        name=name or f"{source_food.name} (custom)",
+        name=name or f"{source_food.name[:246]} (custom)",
         barcode=None,
         source="manual",
         serving_size_g=source_food.serving_size_g,
@@ -63,8 +63,9 @@ async def create_food_from_external(
     db: AsyncSession, name: str, barcode: str | None, source: str, nutrients: NutrientData,
     serving_size_g: float | None = None, serving_label: str | None = None,
 ) -> Food:
-    food = Food(name=name, barcode=barcode, source=source,
-                serving_size_g=serving_size_g, serving_label=serving_label)
+    # Outside databases have no length limits; the columns do.
+    food = Food(name=name.strip()[:255] or "Unknown", barcode=barcode, source=source,
+                serving_size_g=serving_size_g, serving_label=serving_label[:100] if serving_label else None)
     db.add(food)
     await db.flush()
 

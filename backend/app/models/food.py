@@ -20,6 +20,7 @@ class Food(Base):
             postgresql_using="gin",
             postgresql_ops={"name": "gin_trgm_ops"},
         ),
+        Index("idx_foods_created_by", "created_by"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -39,4 +40,8 @@ class Food(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
-    nutrients: Mapped["Nutrient"] = relationship(back_populates="food", uselist=False, lazy="joined")
+    # The database deletes the nutrient row with the food (ON DELETE CASCADE); the ORM must not try to
+    # blank its key first.
+    nutrients: Mapped["Nutrient"] = relationship(
+        back_populates="food", uselist=False, lazy="joined", cascade="all, delete-orphan", passive_deletes=True
+    )
