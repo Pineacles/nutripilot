@@ -3,7 +3,7 @@
 // Registered as /sw.js?v=<build stamp>: every deploy installs a fresh worker and drops the old caches.
 const VERSION = `nutripilot-${new URL(self.location.href).searchParams.get("v") || "dev"}`;
 const SHELL = `${VERSION}-shell`;
-const SHELL_URLS = ["/today", "/weekly", "/statistics", "/body", "/settings", "/foods", "/scanner", "/login", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-192.png"];
+const SHELL_URLS = ["/today", "/weekly", "/statistics", "/body", "/settings", "/foods", "/scanner", "/login", "/manifest.webmanifest", "/icons/icon.svg?v=2", "/icons/icon-192.png?v=2"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

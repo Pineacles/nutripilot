@@ -70,7 +70,7 @@ export function InstallCard({ dismissible = false, className }: { dismissible?: 
     return (
       <div className={cn("clay-card flex items-center gap-3.5 py-5 md:p-5", className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icons/icon.svg" alt="" className="h-11 w-11 shrink-0 rounded-[14px]" />
+        <img src="/icons/icon.svg?v=2" alt="" className="h-11 w-11 shrink-0 rounded-[14px]" />
         <div className="text-sm">
           <div className="font-medium text-ink">NutriPilot is installed</div>
           <p className="text-g4">You&apos;re using the app version.</p>
@@ -92,7 +92,7 @@ export function InstallCard({ dismissible = false, className }: { dismissible?: 
     <div className={cn("clay-card relative py-5 md:p-5", className)}>
       <div className="flex items-start gap-3.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icons/icon.svg" alt="" className="h-11 w-11 shrink-0 rounded-[14px]" />
+        <img src="/icons/icon.svg?v=2" alt="" className="h-11 w-11 shrink-0 rounded-[14px]" />
         <div className={cn("min-w-0 flex-1", dismissible && "pr-8")}>
           <h2 className="font-medium text-ink">Get NutriPilot on your phone</h2>
           <p className="mt-0.5 text-sm leading-snug text-g4">{intro}</p>

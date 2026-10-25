@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/lib/auth";
+import { LogoMark } from "@/components/brand/logo-mark";
 
 const navItems = [
   {
@@ -70,7 +71,10 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-56 flex-col border-r border-g2 bg-g0">
       <div className="px-5 py-6">
-        <p className="text-lg font-bold tracking-tight text-ink">NutriPilot</p>
+        <p className="flex items-baseline gap-[0.4em] text-lg font-bold tracking-tight text-ink">
+          <LogoMark />
+          NutriPilot
+        </p>
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3">

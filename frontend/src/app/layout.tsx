@@ -23,8 +23,8 @@ export const metadata: Metadata = {
     title: "NutriPilot",
   },
   icons: {
-    icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }, { url: "/icons/icon-192.png", sizes: "192x192" }],
-    apple: "/apple-touch-icon.png",
+    icon: [{ url: "/icons/icon.svg?v=2", type: "image/svg+xml" }, { url: "/icons/icon-192.png?v=2", sizes: "192x192" }],
+    apple: "/apple-touch-icon.png?v=2",
   },
 };
 

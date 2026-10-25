@@ -15,16 +15,16 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["health", "fitness", "food"],
     // Long press the app icon for these.
     shortcuts: [
-      { name: "Today", url: "/today", icons: [{ src: "/icons/shortcut-96.png", sizes: "96x96" }] },
-      { name: "Scan a barcode", short_name: "Scan", url: "/scanner", icons: [{ src: "/icons/shortcut-96.png", sizes: "96x96" }] },
-      { name: "Foods", url: "/foods", icons: [{ src: "/icons/shortcut-96.png", sizes: "96x96" }] },
+      { name: "Today", url: "/today", icons: [{ src: "/icons/shortcut-96.png?v=2", sizes: "96x96" }] },
+      { name: "Scan a barcode", short_name: "Scan", url: "/scanner", icons: [{ src: "/icons/shortcut-96.png?v=2", sizes: "96x96" }] },
+      { name: "Foods", url: "/foods", icons: [{ src: "/icons/shortcut-96.png?v=2", sizes: "96x96" }] },
     ],
     icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icons/maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
-      { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-      { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
+      { src: "/icons/icon-192.png?v=2", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png?v=2", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/maskable-192.png?v=2", sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: "/icons/maskable-512.png?v=2", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/icons/icon.svg?v=2", sizes: "any", type: "image/svg+xml" },
     ],
   };
 }

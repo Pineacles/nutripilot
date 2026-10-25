@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { login } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LogoMark } from "@/components/brand/logo-mark";
 import { InstallCard } from "@/components/install-card";
 
 export default function LoginPage() {
@@ -45,7 +46,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background px-4 py-10 sm:px-6">
       <main className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md flex-col justify-center">
-        <h1 className="text-[3.25rem] font-bold leading-[0.9] tracking-[-0.045em] text-ink sm:text-[4.5rem]">
+        <h1 className="flex items-baseline gap-[0.3em] text-[3.25rem] font-bold leading-[0.9] tracking-[-0.045em] text-ink sm:text-[4.5rem]">
+          <LogoMark />
           NutriPilot
         </h1>
         <p className="mt-4 text-[15px] text-g4">Track your nutrition, hit your goals.</p>
