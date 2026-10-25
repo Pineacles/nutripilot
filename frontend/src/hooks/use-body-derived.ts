@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { rollingAvg } from "@/lib/body-chart-utils";
-import { CHART_COLORS } from "@/lib/chart-theme";
+import { plateOf } from "@/lib/plates";
 import type { StatsSummary } from "@/lib/types";
 
 /**
@@ -43,6 +43,12 @@ export function useBodyDerived(data: StatsSummary | undefined, days: number) {
   const validMuscle = weightHistory.filter(e => e.muscle_mass_pct != null);
   const currentMuscle = validMuscle.length > 0 ? validMuscle[validMuscle.length - 1].muscle_mass_pct : null;
 
+  // Change in percentage points over the period; needs two readings to mean anything.
+  const pctChange = (rows: { body_fat_pct?: number | null; muscle_mass_pct?: number | null }[], key: "body_fat_pct" | "muscle_mass_pct") =>
+    rows.length > 1 ? Math.round(((rows[rows.length - 1][key] as number) - (rows[0][key] as number)) * 10) / 10 : null;
+  const bfChange = pctChange(validBf, "body_fat_pct");
+  const muscleChange = pctChange(validMuscle, "muscle_mass_pct");
+
   const validFatKg = weightHistory.filter(e => e.body_fat_kg != null);
   const currentFatKg = validFatKg.length > 0 ? validFatKg[validFatKg.length - 1].body_fat_kg : null;
   const startFatKg = validFatKg.length > 0 ? validFatKg[0].body_fat_kg : null;
@@ -67,33 +73,18 @@ export function useBodyDerived(data: StatsSummary | undefined, days: number) {
     const muscle = currentMuscle ?? 0;
     const other = Math.max(0, 100 - fat - muscle);
     return [
-      { name: "Body Fat", value: fat, color: CHART_COLORS.amber },
-      { name: "Muscle", value: muscle, color: CHART_COLORS.blue },
-      { name: "Other", value: other, color: "#444" },
+      { name: "Body fat", value: fat, color: plateOf("bodyfat") },
+      { name: "Muscle", value: muscle, color: plateOf("muscle") },
+      { name: "Other", value: other, color: "var(--g3)" },
     ];
   }, [currentBf, currentMuscle]);
-
-  // Weekly rate of change data
-  const weeklyRateData = useMemo(() => {
-    if (validWeights.length < 8) return [];
-    const rates: { date: string; rate: number }[] = [];
-    for (let i = 7; i < validWeights.length; i++) {
-      const current = validWeights[i].weight_kg;
-      const prev = validWeights[i - 7].weight_kg;
-      rates.push({
-        date: validWeights[i].date,
-        rate: Math.round((current - prev) * 100) / 100,
-      });
-    }
-    return rates;
-  }, [validWeights]);
 
   return {
     enrichedData, validBf,
     currentWeight, startingWeight, weightChange, lowestWeight, highestWeight,
-    currentBf, currentFatKg, fatKgChange,
-    currentMuscle, currentMuscleKg, muscleKgChange,
+    currentBf, bfChange, currentFatKg, fatKgChange,
+    currentMuscle, muscleChange, currentMuscleKg, muscleKgChange,
     bmi, weeklyAvgChange,
-    compositionDonut, weeklyRateData,
+    compositionDonut,
   };
 }

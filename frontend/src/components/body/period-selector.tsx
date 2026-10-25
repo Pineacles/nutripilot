@@ -5,11 +5,8 @@ import { CalendarRange } from "lucide-react";
 
 const PRESETS = [
   { label: "7d", days: 7 },
-  { label: "14d", days: 14 },
   { label: "30d", days: 30 },
-  { label: "60d", days: 60 },
   { label: "90d", days: 90 },
-  { label: "180d", days: 180 },
   { label: "1y", days: 365 },
 ];
 
@@ -24,7 +21,7 @@ interface Props {
 }
 
 const chip =
-  "flex h-10 min-w-[48px] items-center justify-center rounded-full border px-4 text-[13px] font-medium transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "flex h-11 min-w-0 items-center justify-center rounded-full border px-2 text-[13px] font-medium transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const chipOff = "border-g3 bg-g0 text-g5 hover:border-g5";
 const chipOn = "border-ink bg-ink text-g0";
 const dateField =
@@ -37,7 +34,7 @@ export function PeriodSelector({ activePreset, onPreset, customFrom, customTo, o
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Period">
+      <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1.7fr] gap-2" role="group" aria-label="Period">
         {PRESETS.map((p) => (
           <button
             key={p.days}

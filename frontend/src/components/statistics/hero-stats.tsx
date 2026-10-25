@@ -8,15 +8,14 @@ interface Props {
   data: StatsSummary;
   avgKcal: number;
   targetKcal: number;
-  logPct: number;
 }
 
 /**
  * The statistics poster: one question ("how much do I eat on a day?"), answered by the period's
- * average kcal in display size, with the target and the gap in words under it, then a ruled row
- * of the other three period facts.
+ * average kcal in display size, with the target and the gap in words under it, then one quiet line
+ * saying how many days were logged.
  */
-export function HeroStats({ data, avgKcal, targetKcal, logPct }: Props) {
+export function HeroStats({ data, avgKcal, targetKcal }: Props) {
   const avg = Math.round(avgKcal);
   const shown = Math.round(useCountUp(avg));
   const figure = shown.toLocaleString("en-US");
@@ -47,24 +46,9 @@ export function HeroStats({ data, avgKcal, targetKcal, logPct }: Props) {
           <span className="text-ink">{gapPhrase(avg, targetKcal)}</span>
         </p>
       </div>
-      <dl className="grid grid-cols-3 divide-x divide-g2 border-y border-g2">
-        <Cell label="Days logged" value={String(data.days_logged)} unit={`/${data.total_days}`} note={`${logPct}%`} first />
-        <Cell label="Current streak" value={String(data.current_streak)} unit={data.current_streak === 1 ? "day" : "days"} />
-        <Cell label="Supplements" value={`${Math.round(data.supplement_adherence_pct)}`} unit="%" />
-      </dl>
-    </div>
-  );
-}
-
-function Cell({ label, value, unit, note, first = false }: { label: string; value: string; unit?: string; note?: string; first?: boolean }) {
-  return (
-    <div className={`py-3 ${first ? "pr-3" : "px-3"}`}>
-      <dt className="text-[12px] text-g4">{label}</dt>
-      <dd className="mt-0.5 whitespace-nowrap">
-        <span className="text-[22px] font-medium tabular-nums text-ink">{value}</span>
-        {unit && <span className="ml-0.5 text-[12px] text-g4">{unit}</span>}
-        {note && <span className="ml-1.5 text-[12px] tabular-nums text-g4">{note}</span>}
-      </dd>
+      <p className="border-y border-g2 py-3 text-[13px] tabular-nums text-g4">
+        {data.days_logged} of {data.total_days} days logged
+      </p>
     </div>
   );
 }

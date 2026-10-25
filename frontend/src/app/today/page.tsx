@@ -6,6 +6,7 @@ import { useTodaySummary, useSettings } from "@/hooks/queries";
 import { useTracked } from "@/hooks/use-tracked";
 import { getErrorMessage } from "@/lib/api";
 import { DashboardLayout } from "@/components/dashboard-layout";
+import { SettingsLink } from "@/components/settings-link";
 import { ErrorState } from "@/components/ui/error-state";
 import { Button } from "@/components/ui/button";
 import { DayPoster } from "@/components/today/day-poster";
@@ -111,6 +112,7 @@ function TodayPageInner() {
             <Plus className="h-4 w-4" aria-hidden="true" />
             Log food
           </Button>
+          <SettingsLink />
         </div>
       </div>
 

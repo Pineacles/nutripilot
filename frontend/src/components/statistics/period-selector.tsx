@@ -4,11 +4,8 @@ import { useState } from "react";
 
 const PRESETS = [
   { label: "7d", days: 7 },
-  { label: "14d", days: 14 },
   { label: "30d", days: 30 },
-  { label: "60d", days: 60 },
   { label: "90d", days: 90 },
-  { label: "180d", days: 180 },
   { label: "1y", days: 365 },
 ];
 
@@ -30,14 +27,14 @@ export function PeriodSelector({ activePreset, onPreset, customFrom, customTo, o
   const canApply = !!customFrom && !!customTo;
   return (
     <div className="mb-6">
-      <div role="group" aria-label="Period" className="grid grid-cols-7 gap-1 sm:flex sm:gap-2">
+      <div role="group" aria-label="Period" className="grid grid-cols-4 gap-2 sm:flex">
         {PRESETS.map((p) => (
           <button
             key={p.days}
             type="button"
             aria-pressed={activePreset === p.days}
             onClick={() => onPreset(p.days)}
-            className={`h-11 rounded-full border text-[13px] font-medium tabular-nums transition-colors duration-150 sm:px-4 ${
+            className={`h-11 rounded-full border text-[13px] font-medium tabular-nums transition-colors duration-150 sm:min-w-16 sm:px-4 ${
               activePreset === p.days
                 ? "border-ink bg-ink text-g0"
                 : "border-g3 text-g5 hover:border-g5 hover:text-ink"

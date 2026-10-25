@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 interface SectionProps {
-  title: string;
+  title?: string;
   description?: React.ReactNode;
   /** A pill at the right of the heading ("Add supplement"). */
   action?: React.ReactNode;
@@ -16,13 +16,15 @@ interface SectionProps {
 export function SettingsSection({ title, description, action, className, children }: SectionProps) {
   return (
     <section className={cn("clay-card p-5", className)}>
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-[15px] leading-6 font-medium text-ink">{title}</h3>
-          {description && <p className="mt-1 text-[13px] text-g4">{description}</p>}
+      {(title || description || action) && (
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {title && <h3 className="text-[15px] leading-6 font-medium text-ink">{title}</h3>}
+            {description && <p className="text-[13px] text-g4">{description}</p>}
+          </div>
+          {action}
         </div>
-        {action}
-      </div>
+      )}
       {children}
     </section>
   );

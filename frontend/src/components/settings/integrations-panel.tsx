@@ -83,8 +83,7 @@ export function IntegrationsPanel({ integrations }: Props) {
 
   return (
     <SettingsSection
-      title="Connected integrations"
-      className="md:col-span-2"
+      title="Integrations"
       action={integrations.length > 0 ? <Button onClick={() => setAddOpen(true)} size="sm" variant="outline">Add integration</Button> : undefined}
     >
       {integrations.length === 0 ? (

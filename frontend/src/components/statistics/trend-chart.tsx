@@ -30,8 +30,9 @@ interface Props {
 
 /**
  * One nutrient's days as an answer: the 7-day average is a 2px line in the plate (over a soft tint
- * when the nutrient has a plate, none for ink), each day a small dot (--alert when over a limit),
- * and a goal or range target a faint zone with its 1px rule. A limit is only the rule.
+ * when the nutrient has a plate, none for ink), a goal or range target a faint zone with its 1px
+ * rule (a limit is only the rule), and a day over a limit or range is an --alert dot. Daily dots in
+ * the plate only show on short periods (up to 31 days); on longer ones they would be noise.
  */
 export function TrendChart({ data, rawKey, avgKey, plate, unit, target, mode, height = 140, yWidth = 40 }: Props) {
   const motion = useChartMotion();
@@ -40,6 +41,7 @@ export function TrendChart({ data, rawKey, avgKey, plate, unit, target, mode, he
   const overOf = mode === "limit" || mode === "range";
   const zone: [number, number] | null = !hasTarget || mode === "limit" ? null : [target * 0.9, target * 1.1];
   const filled = ink !== plateOf("kcal");
+  const dots = data.length <= 31;
 
   return (
     <ResponsiveContainer minWidth={0} width="100%" height={height}>
@@ -63,7 +65,7 @@ export function TrendChart({ data, rawKey, avgKey, plate, unit, target, mode, he
           legendType="none"
           dot={(p: { cx?: number; cy?: number; index?: number; payload?: Record<string, number | string> }) => {
             const over = overOf && hasTarget && Number(p.payload?.[rawKey]) > target;
-            if (p.cx == null || p.cy == null) return <g key={p.index} />;
+            if (p.cx == null || p.cy == null || (!over && !dots)) return <g key={p.index} />;
             return <circle key={p.index} cx={p.cx} cy={p.cy} r={over ? 2.5 : 2} fill={over ? ALERT : ink} fillOpacity={over ? 1 : 0.55} />;
           }}
           {...motion}

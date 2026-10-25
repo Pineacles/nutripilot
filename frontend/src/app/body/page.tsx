@@ -5,19 +5,20 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { useStats, useSettings, useWeightLogList } from "@/hooks/queries";
 import { useBodyDerived } from "@/hooks/use-body-derived";
 import { getErrorMessage } from "@/lib/api";
+import { fmt } from "@/lib/utils";
 import { ErrorState } from "@/components/ui/error-state";
 import { MeasurementsList } from "@/components/body/measurements-list";
 import { Plus } from "lucide-react";
+import { SettingsLink } from "@/components/settings-link";
 import { PeriodSelector } from "@/components/body/period-selector";
 import { HeroStats } from "@/components/body/hero-stats";
 import { BodySkeleton } from "@/components/body/body-skeleton";
 import { CompositionCard } from "@/components/body/composition-card";
 import { MetricTrendCard } from "@/components/body/metric-trend-card";
-import { WeightStatsCard } from "@/components/body/weight-stats-card";
 import { CompositionDonutCard } from "@/components/body/composition-donut-card";
+import { GoalRows } from "@/components/body/goal-rows";
+import { CompositionPair } from "@/components/body/composition-pair";
 import { ProgressOverviewCard } from "@/components/body/progress-overview-card";
-import { MilestonesCard } from "@/components/body/milestones-card";
-import { RateOfChangeCard } from "@/components/body/rate-of-change-card";
 
 export default function BodyCompositionPage() {
   const [days, setDays] = useState(90);
@@ -40,11 +41,11 @@ export default function BodyCompositionPage() {
 
   const {
     enrichedData,
-    currentWeight, startingWeight, weightChange, lowestWeight, highestWeight,
-    currentBf, currentFatKg, fatKgChange,
-    currentMuscle, currentMuscleKg, muscleKgChange,
+    currentWeight, weightChange, lowestWeight, highestWeight,
+    currentBf, bfChange,
+    currentMuscle, muscleChange,
     bmi, weeklyAvgChange,
-    compositionDonut, weeklyRateData,
+    compositionDonut,
   } = useBodyDerived(data, days);
 
   function applyCustomRange() {
@@ -75,8 +76,8 @@ export default function BodyCompositionPage() {
   return (
     <DashboardLayout title="Body" hideTitle>
       <div className="flex flex-col">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-ink">Body</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="mr-auto text-[22px] font-semibold tracking-[-0.01em] text-ink">Body</h1>
           <button
             type="button"
             onClick={() => setAddOpen(true)}
@@ -84,6 +85,7 @@ export default function BodyCompositionPage() {
           >
             <Plus className="h-4 w-4" aria-hidden="true" /> Add measurement
           </button>
+          <SettingsLink className="-mr-2" />
         </div>
 
         <div className="mt-4">
@@ -102,51 +104,37 @@ export default function BodyCompositionPage() {
           currentWeight={currentWeight}
           weightChange={weightChange}
           days={days}
-          currentBf={currentBf}
-          currentFatKg={currentFatKg}
-          fatKgChange={fatKgChange}
-          currentMuscle={currentMuscle}
-          currentMuscleKg={currentMuscleKg}
-          muscleKgChange={muscleKgChange}
-          bmi={bmi}
           weeklyAvgChange={weeklyAvgChange}
-          targetWeight={targetWeight}
         />
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 md:gap-4">
+        <GoalRows
+          targetWeight={targetWeight}
+          targetBf={targetBf}
+          currentWeight={currentWeight}
+          startingWeight={startingWeightAll}
+          currentBf={currentBf}
+          startingBf={startingBfAll}
+          weeklyAvgChange={weeklyAvgChange}
+        />
+
+        <CompositionPair bf={currentBf} bfChange={bfChange} muscle={currentMuscle} muscleChange={muscleChange} days={days} />
+
+        <div className="mt-6">
           <MetricTrendCard
-            title="Weight" span="lg:col-span-2" data={enrichedData} hasData={enrichedData.length > 0}
+            title="Weight" data={enrichedData} hasData={enrichedData.length > 0}
             emptyMessage="No weight logged in this period. Pick a longer one or add a measurement."
-            dataKey="weight_kg" avgKey="weight_kg_avg" height={260} valueSuffix=" kg" alwaysDots referenceValue={targetWeight}
-          />
-          <WeightStatsCard
-            startingWeight={startingWeight}
-            lowestWeight={lowestWeight}
-            highestWeight={highestWeight}
-            weightChange={weightChange}
-            weeklyAvgChange={weeklyAvgChange}
+            dataKey="weight_kg" avgKey="weight_kg_avg" height={240} valueSuffix=" kg" alwaysDots referenceValue={targetWeight}
+            caption={lowestWeight != null && highestWeight != null ? `lowest ${fmt(lowestWeight)}, highest ${fmt(highestWeight)}` : undefined}
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 md:mt-4 md:gap-4">
           <CompositionCard data={enrichedData} span="lg:col-span-2" />
-          <CompositionDonutCard compositionDonut={compositionDonut} />
+          <CompositionDonutCard compositionDonut={compositionDonut} bmi={bmi} />
         </div>
 
         <div className="md:mt-4">
           <MeasurementsList onAdd={() => setAddOpen(true)} addOpen={addOpen} onAddOpenChange={setAddOpen} />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 md:mt-4 md:gap-4">
-          <MilestonesCard
-            targetWeight={targetWeight}
-            targetBf={targetBf}
-            currentWeight={currentWeight}
-            startingWeight={startingWeightAll}
-            currentBf={currentBf}
-            startingBf={startingBfAll}
-          />
-          <RateOfChangeCard weeklyRateData={weeklyRateData} weeklyAvgChange={weeklyAvgChange} />
         </div>
 
         <div className="md:mt-4">

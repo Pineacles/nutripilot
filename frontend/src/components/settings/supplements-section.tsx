@@ -100,8 +100,6 @@ export function SupplementsSection({ supplements }: Props) {
 
   return (
     <SettingsSection
-      title="Supplements"
-      className="md:col-span-1"
       action={
         <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
           Add supplement

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLogWeight, useUpdateWeightLog } from "@/hooks/mutations/weight";
+import { useDeleteWeightLog, useLogWeight, useUpdateWeightLog } from "@/hooks/mutations/weight";
 import { WEIGHT_LOG_BOUNDS, validateBounds } from "@/lib/validation";
 import { todayStr } from "@/lib/dates";
 import { fmtDateFull } from "@/lib/chart-utils";
@@ -39,7 +39,9 @@ export function MeasurementDialog({ open, onOpenChange, entry, defaultDate }: Pr
 
   const logWeight = useLogWeight();
   const updateWeight = useUpdateWeightLog();
-  const pending = logWeight.isPending || updateWeight.isPending;
+  const deleteWeight = useDeleteWeightLog();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const pending = logWeight.isPending || updateWeight.isPending || deleteWeight.isPending;
 
   useEffect(() => {
     if (!open) return;
@@ -48,6 +50,7 @@ export function MeasurementDialog({ open, onOpenChange, entry, defaultDate }: Pr
     let cancelled = false;
     Promise.resolve().then(() => {
       if (cancelled) return;
+      setConfirmDelete(false);
       setWeightKg(entry?.weight_kg != null ? String(entry.weight_kg) : "");
       setBodyFatPct(entry?.body_fat_pct != null ? String(entry.body_fat_pct) : "");
       setMuscleMassPct(entry?.muscle_mass_pct != null ? String(entry.muscle_mass_pct) : "");
@@ -81,6 +84,13 @@ export function MeasurementDialog({ open, onOpenChange, entry, defaultDate }: Pr
         { onSuccess: () => { toast.success("Measurement logged"); onOpenChange(false); } }
       );
     }
+  }
+
+  function handleDelete() {
+    if (!entry) return;
+    deleteWeight.mutate(entry.id, {
+      onSuccess: () => { toast.success("Measurement removed"); onOpenChange(false); },
+    });
   }
 
   return (
@@ -155,6 +165,21 @@ export function MeasurementDialog({ open, onOpenChange, entry, defaultDate }: Pr
               Cancel
             </button>
           </div>
+          {isEdit && (
+            <div className="flex items-center justify-between gap-2 border-t border-g2 pt-3">
+              {confirmDelete ? (
+                <>
+                  <span className="text-[13px] text-g5">Delete this measurement?</span>
+                  <div className="flex gap-2">
+                    <button onClick={handleDelete} disabled={pending} className="h-11 rounded-full border border-g3 px-4 text-[13px] font-medium text-ink transition-colors hover:border-g5 disabled:text-g3">Delete</button>
+                    <button onClick={() => setConfirmDelete(false)} className="h-11 rounded-full px-4 text-[13px] font-medium text-g5 hover:text-ink">Keep</button>
+                  </div>
+                </>
+              ) : (
+                <button onClick={() => setConfirmDelete(true)} className="h-11 text-[13px] font-medium text-g5 transition-colors hover:text-ink">Delete measurement</button>
+              )}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

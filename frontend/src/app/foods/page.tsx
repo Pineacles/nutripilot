@@ -4,7 +4,9 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { Plus, Search, X } from "lucide-react";
+import Link from "next/link";
+import { SettingsLink } from "@/components/settings-link";
+import { Plus, ScanBarcode, Search, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -215,9 +217,15 @@ function FoodsPageInner() {
     <DashboardLayout title="Foods" hideTitle>
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-ink">Foods</h1>
-        <button onClick={openCreate} className={pillInk}>
-          <Plus className="h-4 w-4" aria-hidden="true" /> Add food
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/scanner" className={`${pillOutline} gap-2 !h-12`}>
+            <ScanBarcode className="h-4 w-4" aria-hidden="true" /> Scan
+          </Link>
+          <button onClick={openCreate} className={pillInk}>
+            <Plus className="h-4 w-4" aria-hidden="true" /> Add food
+          </button>
+          <SettingsLink className="-mr-2" />
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 lg:gap-4">

@@ -1,9 +1,9 @@
-/** Loading shape of the statistics poster: chips, hero figure, ruled facts, then chart bands. */
+/** Loading shape of the statistics poster: chips, hero figure, one line, then ruled rows. */
 export function StatisticsSkeleton() {
   return (
     <div role="status" aria-label="Loading statistics">
-      <div className="mb-6 grid grid-cols-7 gap-1 sm:flex sm:gap-2">
-        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+      <div className="mb-6 grid grid-cols-4 gap-2 sm:flex">
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-11 rounded-full bg-g1 animate-pulse sm:w-14" />
         ))}
       </div>
@@ -12,20 +12,18 @@ export function StatisticsSkeleton() {
           <div className="h-3 w-24 rounded-sm bg-g2 animate-pulse" />
           <div className="h-24 w-56 rounded-sm bg-g1 animate-pulse" />
         </div>
-        <div className="grid grid-cols-3 divide-x divide-g2 border-y border-g2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="space-y-2 px-3 py-3 first:pl-0">
-              <div className="h-3 w-14 rounded-sm bg-g2 animate-pulse" />
-              <div className="h-6 w-12 rounded-sm bg-g1 animate-pulse" />
-            </div>
-          ))}
+        <div className="border-y border-g2 py-3">
+          <div className="h-3 w-32 rounded-sm bg-g2 animate-pulse" />
         </div>
       </div>
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className={`clay-card space-y-4 py-5 px-5 ${i === 1 ? "lg:col-span-2" : ""}`}>
-            <div className="h-4 w-28 rounded-sm bg-g3/60 animate-pulse" />
-            <div className="h-[200px] rounded-sm bg-g2 animate-pulse" />
+      <div className="mt-10 border-t border-g2 lg:grid lg:grid-cols-2 lg:gap-x-10">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex min-h-[64px] items-center justify-between gap-3 border-b border-g2 py-3">
+            <div className="space-y-2">
+              <div className="h-4 w-28 rounded-sm bg-g2 animate-pulse" />
+              <div className="h-3 w-44 rounded-sm bg-g1 animate-pulse" />
+            </div>
+            <div className="h-6 w-[72px] rounded-sm bg-g1 animate-pulse" />
           </div>
         ))}
       </div>

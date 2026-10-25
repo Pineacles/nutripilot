@@ -133,3 +133,14 @@ export function countDays(values: (number | null | undefined)[], test: (v: numbe
   const v = values.filter((x): x is number => typeof x === "number" && !Number.isNaN(x));
   return { n: v.filter(test).length, total: v.length };
 }
+
+/** A figure without needless decimals: 446.1 reads 446, 2.43 reads 2.4 (one decimal only under 10). */
+export function fmtFigure(v: number): string {
+  if (Math.abs(v) >= 10) return Math.round(v).toLocaleString("en-US");
+  return String(Math.round(v * 10) / 10);
+}
+
+/** "18 of 90 days", with the singular when the period is one day. */
+export function ofDays(n: number, total: number): string {
+  return `${n.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} ${total === 1 ? "day" : "days"}`;
+}

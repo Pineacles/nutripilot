@@ -139,9 +139,15 @@ export default function ScannerPage() {
   }
 
   const isCollapsed = result !== null;
+  // The result area exists only once there is a lookup (camera errors show in the viewfinder).
+  const showResult = loading || result !== null || (!!error && errorType !== "camera");
 
   return (
-    <DashboardLayout title="Barcode scanner">
+    <DashboardLayout
+      title="Barcode scanner"
+      backHref="/foods"
+      backLabel="Back to Foods"
+    >
       <div className="grid grid-cols-1 items-start gap-y-0 pb-24 md:grid-cols-2 md:gap-4">
         <div className="clay-card p-5 self-start">
           <h3 className="mb-3 text-[15px] leading-6 font-medium text-ink">Scan</h3>
@@ -177,6 +183,7 @@ export default function ScannerPage() {
           </div>
         </div>
 
+        {showResult && (
         <ResultPanel
           loading={loading}
           result={result}
@@ -189,6 +196,7 @@ export default function ScannerPage() {
           loggedOn={loggedOn}
           onLog={() => setLogOpen(true)}
         />
+        )}
       </div>
       {result && (
         <AddFoodDialog

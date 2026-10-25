@@ -4,7 +4,8 @@ import {
 import { Band, BandEmpty } from "./band";
 import { MultiLineTooltip } from "./chart-tooltip";
 import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
-import { BODY_INK, BODY_QUIET, BODY_RULE, BODY_SOFT, BODY_TICK, niceDomain, usePrefersReducedMotion } from "@/lib/body-chart-utils";
+import { plateOf } from "@/lib/plates";
+import { BODY_INK, BODY_RULE, BODY_SOFT, BODY_TICK, niceDomain, usePrefersReducedMotion } from "@/lib/body-chart-utils";
 
 type DataRow = Record<string, unknown>;
 
@@ -14,8 +15,8 @@ interface Props {
 
 const SERIES = [
   { name: "Weight (kg, left)", key: "weight_kg_avg", axis: "weight", stroke: BODY_INK, dash: undefined },
-  { name: "Body fat (%, right)", key: "body_fat_pct_avg", axis: "pct", stroke: BODY_SOFT, dash: undefined },
-  { name: "Muscle (%, right)", key: "muscle_mass_pct_avg", axis: "pct", stroke: BODY_QUIET, dash: "4 3" },
+  { name: "Body fat (%, right)", key: "body_fat_pct_avg", axis: "pct", stroke: plateOf("bodyfat"), dash: undefined },
+  { name: "Muscle (%, right)", key: "muscle_mass_pct_avg", axis: "pct", stroke: plateOf("muscle"), dash: undefined },
 ];
 
 export function ProgressOverviewCard({ enrichedData }: Props) {

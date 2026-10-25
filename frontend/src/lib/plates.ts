@@ -12,6 +12,10 @@ const PLATES: Record<string, string> = {
   caffeine: "var(--caffeine)",
   caffeine_mg: "var(--caffeine)",
   alcohol: "var(--alcohol)",
+  muscle: "var(--muscle)",
+  bodyfat: "var(--bodyfat)",
+  body_fat: "var(--bodyfat)",
+  weight: "var(--ink)",
 };
 
 /** The plate ink for a nutrient key, or ink when it has none. */

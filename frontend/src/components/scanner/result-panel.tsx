@@ -184,13 +184,6 @@ export function ResultPanel({
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && !result && !error && (
-        <div className="flex h-32 flex-col items-center justify-center border-t border-g2 text-center">
-          <p className="text-[13px] text-g4">Scan a barcode or enter one manually</p>
-        </div>
-      )}
-
       {/* Not found error: a shop's counter label and a misread scan get their own advice */}
       {!loading && errorType === "not-found" && (
         <div role="alert" className="space-y-3 border-t border-g2 pt-4">

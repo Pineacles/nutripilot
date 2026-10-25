@@ -1,4 +1,4 @@
-import { SectionCard } from "@/components/charts/section-card";
+import { ScoreGroup } from "./scorecard-row";
 import { fmtDate } from "@/lib/chart-utils";
 import { POSTER } from "@/lib/chart-theme";
 import { plateOf } from "@/lib/plates";
@@ -9,8 +9,8 @@ interface Props {
   data: StatsSummary;
 }
 
-/** Best and worst days as ruled rows. A value takes a plate ink only when it is that macro's own figure. */
-export function RecordsCard({ data }: Props) {
+/** Best and worst days as a compact ruled list at the end of the page. A value takes a plate ink only when it is that macro's own figure. */
+export function RecordsGroup({ data }: Props) {
   const { shows } = useTracked();
   const records = [
     {
@@ -46,22 +46,20 @@ export function RecordsCard({ data }: Props) {
   ].filter((r) => !("nutrient" in r) || shows(r.nutrient as string));
 
   return (
-    <SectionCard title="Records">
-      <ul className="divide-y divide-g2 border-t border-g2">
-        {records.map((record) => (
-          <li key={record.label} className="flex min-h-[60px] items-center justify-between gap-3 py-2">
-            <div>
-              <p className="text-[15px] text-ink">{record.label}</p>
-              {record.date && <p className="text-[12px] tabular-nums text-g4">{fmtDate(record.date)}</p>}
-            </div>
-            {record.data && record.value ? (
-              <span className="text-[17px] font-medium tabular-nums" style={{ color: record.ink }}>{record.value}</span>
-            ) : (
-              <span className="text-[13px] text-g4">No data yet</span>
-            )}
-          </li>
+    <ScoreGroup title="Records">
+      {records.map((record) => (
+        <li key={record.label} className="flex min-h-[60px] items-center border-b border-g2 justify-between gap-3 py-2">
+          <div>
+            <p className="text-[15px] text-ink">{record.label}</p>
+            {record.date && <p className="text-[12px] tabular-nums text-g4">{fmtDate(record.date)}</p>}
+          </div>
+          {record.data && record.value ? (
+            <span className="text-[17px] font-medium tabular-nums" style={{ color: record.ink }}>{record.value}</span>
+          ) : (
+            <span className="text-[13px] text-g4">No data yet</span>
+          )}
+        </li>
         ))}
-      </ul>
-    </SectionCard>
+    </ScoreGroup>
   );
 }

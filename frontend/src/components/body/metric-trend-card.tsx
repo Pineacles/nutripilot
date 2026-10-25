@@ -19,6 +19,10 @@ interface ChartProps {
   alwaysDots?: boolean;
   /** Only the Weight trend draws a goal rule. */
   referenceValue?: number | null;
+  /** The line and dot colour; ink for weight, a plate for body fat and muscle. */
+  color?: string;
+  /** A small line under the chart, e.g. lowest and highest. */
+  caption?: string;
 }
 
 /** The latest 7 day average of a series, or undefined when there is none. */
@@ -31,7 +35,7 @@ export function latestAvg(data: DataRow[], avgKey: string): number | undefined {
  * the goal as a 1px g5 rule. Hairline guides only, ticks in g4 at 12px. The Y domain holds every
  * raw value, every average point and the goal.
  */
-export function TrendChart({ data, dataKey, avgKey, height, valueSuffix, alwaysDots, referenceValue }: ChartProps) {
+export function TrendChart({ data, dataKey, avgKey, height, valueSuffix, alwaysDots, referenceValue, color = BODY_INK }: ChartProps) {
   const still = usePrefersReducedMotion();
   const nice = niceDomain([
     ...data.map((d) => d[dataKey] as number | null | undefined),
@@ -50,8 +54,8 @@ export function TrendChart({ data, dataKey, avgKey, height, valueSuffix, alwaysD
         {referenceValue != null && (
           <ReferenceLine y={referenceValue} stroke={BODY_SOFT} strokeWidth={1} label={{ value: `Goal ${referenceValue}`, position: "insideTopRight", fill: BODY_SOFT, fontSize: 12 }} />
         )}
-        <Line type="linear" dataKey={dataKey} stroke="none" dot={dots ? { r: 2, fill: BODY_QUIET, strokeWidth: 0 } : false} activeDot={false} connectNulls isAnimationActive={false} />
-        <Line type="monotone" dataKey={avgKey} stroke={BODY_INK} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: BODY_INK, stroke: "var(--g1)", strokeWidth: 2 }} connectNulls isAnimationActive={!still} animationDuration={700} animationEasing="ease-out" />
+        <Line type="linear" dataKey={dataKey} stroke="none" dot={dots ? { r: 2, fill: color === BODY_INK ? BODY_QUIET : color, fillOpacity: color === BODY_INK ? 1 : 0.55, strokeWidth: 0 } : false} activeDot={false} connectNulls isAnimationActive={false} />
+        <Line type="monotone" dataKey={avgKey} stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: color, stroke: "var(--g1)", strokeWidth: 2 }} connectNulls isAnimationActive={!still} animationDuration={700} animationEasing="ease-out" />
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -64,11 +68,18 @@ interface Props extends ChartProps {
   emptyMessage: string;
 }
 
-export function MetricTrendCard({ title, span, hasData, emptyMessage, ...chart }: Props) {
+export function MetricTrendCard({ title, span, hasData, emptyMessage, caption, ...chart }: Props) {
   const latest = latestAvg(chart.data, chart.avgKey);
   return (
     <Band title={title} aside={latest != null ? `7-day avg ${fmt(latest)}${chart.valueSuffix}` : undefined} className={span}>
-      {hasData ? <TrendChart {...chart} /> : <BandEmpty>{emptyMessage}</BandEmpty>}
+      {hasData ? (
+        <>
+          <TrendChart {...chart} />
+          {caption && <p className="mt-2 text-[12px] tabular-nums text-g4">{caption}</p>}
+        </>
+      ) : (
+        <BandEmpty>{emptyMessage}</BandEmpty>
+      )}
     </Band>
   );
 }

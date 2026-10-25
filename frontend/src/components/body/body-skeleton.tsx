@@ -7,7 +7,7 @@ export function BodySkeleton() {
       </div>
       <div className="mt-4 flex gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-10 w-12 animate-pulse rounded-full bg-g1" />
+          <div key={i} className="h-11 flex-1 animate-pulse rounded-full bg-g1" />
         ))}
       </div>
       <div className="mt-8 space-y-3 border-b border-g2 pb-6">
@@ -15,9 +15,9 @@ export function BodySkeleton() {
         <div className="h-24 w-56 animate-pulse bg-g1" />
         <div className="h-4 w-40 animate-pulse bg-g2" />
       </div>
-      <div className="grid grid-cols-3 divide-x divide-g2 border-b border-g2 py-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="space-y-2 px-3 first:pl-0">
+      <div className="grid grid-cols-2 divide-x divide-g2 border-b border-g2 py-3">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="space-y-2 px-4 first:pl-0">
             <div className="h-3 w-10 animate-pulse bg-g2" />
             <div className="h-6 w-14 animate-pulse bg-g1" />
           </div>

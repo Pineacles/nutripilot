@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
 import { POSTER } from "@/lib/chart-theme";
 import type { MacroTotals } from "@/lib/types";
 import { useTracked } from "@/hooks/use-tracked";
@@ -12,9 +11,9 @@ interface Props {
 
 /**
  * Share of the day's macro grams: one square strip split in the three plate inks, and under it a
- * ruled row with each macro's share in its own plate. No donut, no legend.
+ * ruled row with each macro's share in its own plate. No donut, no legend. Needs two macros.
  */
-export function MacroDistributionCard({ macroAvg }: Props) {
+export function MacroSplit({ macroAvg }: Props) {
   const { hidden } = useTracked();
   const macroPie = useMemo(() => {
     if (!macroAvg) return [];
@@ -28,36 +27,29 @@ export function MacroDistributionCard({ macroAvg }: Props) {
     ].filter((m) => shown(m.key));
   }, [macroAvg, hidden]);
 
-  const top = [...macroPie].sort((a, b) => b.share - a.share)[0];
-
   // One macro is always 100%, which says nothing: the split needs at least two.
-  if (["protein", "carbs", "fat"].filter((k) => !hidden.has(k)).length < 2) return null;
+  if (["protein", "carbs", "fat"].filter((k) => !hidden.has(k)).length < 2 || macroPie.length === 0) return null;
 
   return (
-    <SectionCard title={top ? `Macro split: mostly ${top.name.toLowerCase()} (${top.value}%)` : "Macro split"} span="md:col-span-2" summary="share of grams">
-      {macroPie.length === 0 ? (
-        <SectionEmpty>No macros logged in this period.</SectionEmpty>
-      ) : (
-        <>
-          <div className="flex h-3 gap-px" role="img" aria-label={macroPie.map((m) => `${m.name} ${m.value}%`).join(", ")}>
-            {macroPie.map((m) => (
-              <div key={m.key} className="animate-bar h-full" style={{ width: `${m.share}%`, background: m.ink }} />
-            ))}
+    <div className="mb-5">
+      <p className="mb-2 text-[13px] text-g4">Share of grams</p>
+      <div className="flex h-3 gap-px" role="img" aria-label={macroPie.map((m) => `${m.name} ${m.value}%`).join(", ")}>
+        {macroPie.map((m) => (
+          <div key={m.key} className="animate-bar h-full" style={{ width: `${m.share}%`, background: m.ink }} />
+        ))}
+      </div>
+      <dl className="mt-4 grid divide-x divide-g2" style={{ gridTemplateColumns: `repeat(${macroPie.length}, minmax(0, 1fr))` }}>
+        {macroPie.map((m, i) => (
+          <div key={m.key} className={i === 0 ? "pr-3" : "px-3"}>
+            <dt className="text-[12px] text-g4">{m.name}</dt>
+            <dd className="mt-0.5 whitespace-nowrap">
+              <span className="text-[22px] font-medium tabular-nums" style={{ color: m.ink }}>{m.value}</span>
+              <span className="text-[12px] text-g4">% </span>
+              <span className="text-[12px] tabular-nums text-g4">{m.grams} g</span>
+            </dd>
           </div>
-          <dl className="mt-4 grid divide-x divide-g2" style={{ gridTemplateColumns: `repeat(${macroPie.length}, minmax(0, 1fr))` }}>
-            {macroPie.map((m, i) => (
-              <div key={m.key} className={i === 0 ? "pr-3" : "px-3"}>
-                <dt className="text-[12px] text-g4">{m.name}</dt>
-                <dd className="mt-0.5 whitespace-nowrap">
-                  <span className="text-[22px] font-medium tabular-nums" style={{ color: m.ink }}>{m.value}</span>
-                  <span className="text-[12px] text-g4">% </span>
-                  <span className="text-[12px] tabular-nums text-g4">{m.grams} g</span>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </>
-      )}
-    </SectionCard>
+        ))}
+      </dl>
+    </div>
   );
 }

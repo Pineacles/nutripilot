@@ -12,11 +12,12 @@ import {
 import type { BodyCompEntry } from "@/lib/types";
 import { fmt } from "@/lib/utils";
 import { DashboardCard } from "./dashboard-card";
-import { BODY_INK, BODY_RULE, BODY_SOFT, BODY_TICK, BODY_TOOLTIP_STYLE, usePrefersReducedMotion } from "@/lib/body-chart-utils";
+import { plateOf } from "@/lib/plates";
+import { BODY_RULE, BODY_SOFT, BODY_TICK, BODY_TOOLTIP_STYLE, usePrefersReducedMotion } from "@/lib/body-chart-utils";
 
-/* Body metrics are not nutrients: ink and g5, never the macro plate inks. */
-const COLOR_BODY_FAT = BODY_INK;
-const COLOR_MUSCLE = BODY_SOFT;
+/* Body metrics wear their own plates: ochre for body fat, teal for muscle. */
+const COLOR_BODY_FAT = plateOf("bodyfat");
+const COLOR_MUSCLE = plateOf("muscle");
 
 interface Props {
   data: BodyCompEntry[];
@@ -77,7 +78,7 @@ export function BodyCompCard({ data }: Props) {
               <svg width="14" height="2" aria-hidden="true"><line x1="0" y1="1" x2="14" y2="1" stroke={COLOR_BODY_FAT} strokeWidth="2" /></svg>
               Body fat
             </p>
-            <p className="mt-0.5 text-[22px] font-medium leading-tight text-ink">
+            <p className="mt-0.5 text-[22px] font-medium leading-tight" style={{ color: COLOR_BODY_FAT }}>
               {fmt(latestFat)}<span className="text-[12px] font-normal text-g4">%</span>
             </p>
             {firstFat != null && (
@@ -91,7 +92,7 @@ export function BodyCompCard({ data }: Props) {
               <svg width="14" height="2" aria-hidden="true"><line x1="0" y1="1" x2="14" y2="1" stroke={COLOR_MUSCLE} strokeWidth="2" /></svg>
               Muscle
             </p>
-            <p className="mt-0.5 text-[22px] font-medium leading-tight text-ink">
+            <p className="mt-0.5 text-[22px] font-medium leading-tight" style={{ color: COLOR_MUSCLE }}>
               {fmt(latestMuscle)}<span className="text-[12px] font-normal text-g4">%</span>
             </p>
             {firstMuscle != null && (
@@ -133,7 +134,6 @@ export function BodyCompCard({ data }: Props) {
               dataKey="muscle_mass_pct"
               stroke={COLOR_MUSCLE}
               strokeWidth={2}
-              strokeDasharray="4 3"
               dot={false}
               activeDot={{ fill: COLOR_MUSCLE, r: 4, stroke: "var(--g1)", strokeWidth: 2 }}
               connectNulls

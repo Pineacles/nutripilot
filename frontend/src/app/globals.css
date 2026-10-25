@@ -37,6 +37,8 @@
   --color-water: var(--water);
   --color-caffeine: var(--caffeine);
   --color-alcohol: var(--alcohol);
+  --color-muscle: var(--muscle);
+  --color-bodyfat: var(--bodyfat);
   --color-alert: var(--alert);
   --color-g0: var(--g0);
   --color-g1: var(--g1);
@@ -72,6 +74,9 @@
   --water: #299fcd;
   --caffeine: #854cdd;
   --alcohol: #b24c74;
+  /* Body plates, a validated pair on g0; weight stays ink */
+  --muscle: #10aa91;
+  --bodyfat: #a1790c;
   /* Attention: over a limit, or low on a goal. Always with a word ("over", "low"), never alone. */
   --alert: #ff6f91;
 
