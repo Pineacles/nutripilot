@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useCreateIntegration } from "@/hooks/mutations/integrations";
 import { INTEGRATION_TYPES, MEASURE_TARGET_LABELS } from "@/lib/integration-types";
 import { getErrorMessage } from "@/lib/api";
@@ -118,95 +118,100 @@ export function AddIntegrationDialog({ open, onOpenChange }: Props) {
         </DialogHeader>
         <div className="space-y-4 max-h-[70vh] overflow-y-auto thin-scrollbar pr-1">
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Type</Label>
-            <select
+            <Label>Type</Label>
+            <NativeSelect
               value={type}
               onChange={(e) => handleTypeChange(e.target.value as keyof typeof INTEGRATION_TYPES)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
             >
               {Object.entries(INTEGRATION_TYPES).map(([key, s]) => (
-                <option key={key} value={key} className="bg-card">{s.label}</option>
+                <option key={key} value={key} className="bg-g1">{s.label}</option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Name</Label>
+              <Label>Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Withings Body+" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Source label</Label>
+              <Label>Source label</Label>
               <Input value={sourceLabel} onChange={(e) => setSourceLabel(e.target.value)} placeholder="e.g. withings" />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Source URL</Label>
-            <Input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://..." className="font-mono text-xs" />
+            <Label>Source URL</Label>
+            <Input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://..." className="font-mono text-[13px]" />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Sync schedule (cron)</Label>
-            <Input value={schedule} onChange={(e) => setSchedule(e.target.value)} className="font-mono text-xs" />
+            <Label>Sync schedule (cron)</Label>
+            <Input value={schedule} onChange={(e) => setSchedule(e.target.value)} className="font-mono text-[13px]" />
           </div>
 
-          <Separator />
+          <div className="border-t border-g2" />
 
           {spec.requiresAuthHeader && (
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Auth header (OAuth2 access token)</Label>
-              <Input value={authHeader} onChange={(e) => setAuthHeader(e.target.value)} className="font-mono text-xs" type="password" />
+              <Label>Auth header (OAuth2 access token)</Label>
+              <Input value={authHeader} onChange={(e) => setAuthHeader(e.target.value)} className="font-mono text-[13px]" type="password" />
             </div>
           )}
           {spec.credentialFields.map((f) => (
             <div key={f.key} className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">{f.label}</Label>
+              <Label>{f.label}</Label>
               <Input
                 value={credentials[f.key] ?? ""}
                 onChange={(e) => setCredentials((prev) => ({ ...prev, [f.key]: e.target.value }))}
                 type={f.secret ? "password" : "text"}
-                className="font-mono text-xs"
+                className="font-mono text-[13px]"
               />
             </div>
           ))}
 
-          <Separator />
+          <div className="border-t border-g2" />
 
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Field mapping (vendor field → NutriPilot field)</Label>
+            <Label>Field mapping (vendor field → NutriPilot field)</Label>
             {measureMap.map((row, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={i} className="grid grid-cols-[1fr_44px] items-center gap-2 sm:grid-cols-[1fr_10rem_44px]">
                 <Input
                   value={row.vendorKey}
                   onChange={(e) => updateMeasureRow(i, { vendorKey: e.target.value })}
                   placeholder="vendor field key"
-                  className="flex-1 font-mono text-xs"
+                  aria-label="Vendor field key"
+                  className="col-start-1 font-mono text-[13px]"
                 />
-                <select
+                <NativeSelect
                   value={row.target}
                   onChange={(e) => updateMeasureRow(i, { target: e.target.value })}
-                  className="h-8 rounded-lg border border-input bg-transparent px-2 py-1 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                  aria-label="NutriPilot field"
+                  className="text-[13px]"
+                  wrapperClassName="col-start-1 row-start-2 sm:col-start-2 sm:row-start-1"
                 >
                   {spec.validMeasureTargets.map((t) => (
-                    <option key={t} value={t} className="bg-card">{MEASURE_TARGET_LABELS[t] ?? t}</option>
+                    <option key={t} value={t} className="bg-g1">{MEASURE_TARGET_LABELS[t] ?? t}</option>
                   ))}
-                </select>
-                <button
+                </NativeSelect>
+                <Button
                   onClick={() => setMeasureMap((prev) => prev.filter((_, idx) => idx !== i))}
                   disabled={measureMap.length === 1}
-                  className="text-muted-foreground/40 hover:text-destructive disabled:opacity-30 px-1"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Remove field"
+                  className="col-start-2 row-start-1 sm:col-start-3"
                 >
                   ✕
-                </button>
+                </Button>
               </div>
             ))}
             <Button
               onClick={() => setMeasureMap((prev) => [...prev, { vendorKey: "", target: spec.validMeasureTargets[0] }])}
-              variant="ghost"
-              size="xs"
+              variant="outline"
+              size="sm"
             >
-              + Add field
+              Add field
             </Button>
           </div>
 

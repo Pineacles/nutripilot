@@ -1,55 +1,31 @@
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine,
-} from "recharts";
-import { SectionCard } from "@/components/charts/section-card";
-import { ChartTooltip } from "./chart-tooltip";
-import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
-import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH } from "@/lib/chart-theme";
+"use client";
+
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
+import { TrendChart } from "./trend-chart";
+import { countDays, daysWord, meanOf, withRollingAvg } from "@/lib/chart-utils";
 import type { DailyWater } from "@/lib/types";
+import { useTracked } from "@/hooks/use-tracked";
 
 interface Props {
   dailyWater: DailyWater[] | undefined;
   targetWaterMl: number;
 }
 
+/** Water wears its plate; the zone is the target plus or minus 10%, and the title counts the days under it. */
 export function WaterTrendCard({ dailyWater, targetWaterMl }: Props) {
+  const { shows } = useTracked();
+  if (!shows("water")) return null;
+  const has = !!dailyWater && dailyWater.length > 0;
+  const rolling = has ? withRollingAvg(dailyWater, "total_ml") : [];
+  const avg = has ? meanOf(dailyWater.map((d) => d.total_ml)) : null;
+  const { n, total } = has ? countDays(dailyWater.map((d) => d.total_ml), (v) => v < targetWaterMl) : { n: 0, total: 0 };
+  const title = !has ? "Water" : n === 0 ? "Water: target reached every day" : `Water: under target on ${daysWord(n)} of ${total}`;
   return (
-    <SectionCard title="Water Trend">
-      {(!dailyWater || dailyWater.length === 0) ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">No water data</p>
+    <SectionCard title={title} summary={avg != null ? `avg ${Math.round(avg).toLocaleString("en-US")} ml, target ${targetWaterMl.toLocaleString("en-US")}` : undefined}>
+      {!has ? (
+        <SectionEmpty>No water logged in this period.</SectionEmpty>
       ) : (
-        <ResponsiveContainer minWidth={0} width="100%" height={140}>
-          <AreaChart data={dailyWater} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-            <defs>
-              <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={CHART_COLORS.cyan} stopOpacity={0.25} />
-                <stop offset="95%" stopColor={CHART_COLORS.cyan} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray={CHART_GRID_DASH} stroke={CHART_GRID_SUBTLE} vertical={false} />
-            <XAxis
-              dataKey="date"
-              tick={{ fill: "#888", fontSize: 9 }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS}
-            />
-            <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-            <Tooltip content={<ChartTooltip valueSuffix=" ml" />} />
-            <ReferenceLine y={targetWaterMl} stroke={CHART_COLORS.cyan} strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.6} />
-            <Area
-              type="monotone"
-              dataKey="total_ml"
-              name="Water (ml)"
-              stroke={CHART_COLORS.cyan}
-              strokeWidth={2}
-              fill="url(#waterGrad)"
-              dot={{ fill: CHART_COLORS.cyan, r: 2, strokeWidth: 0 }}
-              activeDot={{ r: 4, stroke: CHART_COLORS.cyan, strokeWidth: 2, fill: "#1e1e22" }}
-              animationDuration={600}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        <TrendChart data={rolling} rawKey="total_ml" avgKey="avg_total_ml" plate="water" unit="ml" target={targetWaterMl} mode="goal" />
       )}
     </SectionCard>
   );

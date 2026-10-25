@@ -1,38 +1,25 @@
 "use client";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Tooltip, CartesianGrid, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, ReferenceLine, ReferenceArea, Tooltip, Cell } from "recharts";
 import type { DailyWater, DailyCaffeine } from "@/lib/types";
-import { DashboardCard } from "./dashboard-card";
-
-/* ── Design tokens (consistent with calorie-chart) ── */
-const GRID_STROKE = "rgba(255,255,255,0.06)";
-const TICK = { fill: "rgba(255,255,255,0.35)", fontSize: 10 };
-const CURSOR_FILL = "rgba(255,255,255,0.03)";
-const TT_STYLE: React.CSSProperties = {
-  backgroundColor: "#1e1e22",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 10,
-  color: "#e8e8e8",
-  fontSize: 13,
-  padding: "10px 14px",
-  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-};
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
+import { POSTER_CURSOR_BAR, POSTER_TARGET_LINE, POSTER_X_AXIS } from "@/lib/chart-theme";
+import { TT_STYLE } from "@/components/statistics/chart-tooltip";
+import { countDays, daysWord, meanOf, niceCeil, todayKey, useChartMotion } from "@/lib/chart-utils";
+import { ALERT, plateOf, plateTint } from "@/lib/plates";
+import { useTracked } from "@/hooks/use-tracked";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function WaterTooltip({ active, payload, label }: any) {
+function DrinkTooltip({ active, payload, label, unit, limit, target }: any) {
   if (!active || !payload?.length) return null;
+  const v = payload[0].value;
   return (
     <div style={TT_STYLE}>
-      <p style={{ fontWeight: 600, marginBottom: 2 }}>{label}</p>
-      <p style={{ color: "#22d3ee" }}>{Math.round(payload[0].value).toLocaleString()} ml</p>
-    </div>
-  );
-}
-function CaffeineTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={TT_STYLE}>
-      <p style={{ fontWeight: 600, marginBottom: 2 }}>{label}</p>
-      <p style={{ color: "#b45309" }}>{Math.round(payload[0].value)} mg</p>
+      <p style={{ color: "var(--g4)", fontSize: 12 }}>{label}</p>
+      <p style={{ fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+        {Math.round(v).toLocaleString("en-US")} {unit}
+        {limit && target > 0 && v > target && <span style={{ color: "var(--alert)", marginLeft: 8, fontWeight: 600 }}>over</span>}
+        {!limit && target > 0 && v > 0 && v < target * 0.9 && <span style={{ color: "var(--alert)", marginLeft: 8, fontWeight: 600 }}>low</span>}
+      </p>
     </div>
   );
 }
@@ -44,92 +31,85 @@ interface Props {
   targetCaffeine: number;
 }
 
-export function HydrationWeeklyCard({ dailyWater, dailyCaffeine, targetWater, targetCaffeine }: Props) {
-  const todayIdx = dailyWater.length - 1;
-  const waterData = dailyWater.map((d, i) => ({
-    day: new Date(d.date + "T00:00:00").toLocaleDateString("en", { weekday: "short" }),
-    ml: Math.round(d.total_ml),
-    isToday: i === todayIdx,
-  }));
-  const caffData = dailyCaffeine.map((d, i) => ({
-    day: new Date(d.date + "T00:00:00").toLocaleDateString("en", { weekday: "short" }),
-    mg: Math.round(d.total_mg),
-    isToday: i === dailyCaffeine.length - 1,
-  }));
+/**
+ * One small bar strip per drink in its plate: a tint, today in full, a goal a faint zone with its
+ * rule, a limit only the rule. A limit (caffeine) turns a day over it --alert; a goal (water) says "low" on hover.
+ */
+function DrinkStrip({ label, plate, unit, limit, note, data, target }: {
+  label: string; plate: string; unit: string; limit: boolean; note: React.ReactNode; data: { day: string; value: number; isToday: boolean }[]; target: number;
+}) {
+  const motion = useChartMotion();
+  const zone: [number, number] | null = limit ? null : [target * 0.9, target * 1.1];
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <p className="text-[12px] text-g4">{label}</p>
+        <p className="text-[12px] tabular-nums text-g4">{note}</p>
+      </div>
+      <ResponsiveContainer minWidth={0} width="100%" height={96}>
+        <BarChart data={data} barCategoryGap="22%" margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+          <XAxis dataKey="day" {...POSTER_X_AXIS} />
+          <YAxis hide domain={[0, (max: number) => niceCeil(Math.max(max, target) * 1.05)]} />
+          <Tooltip content={<DrinkTooltip unit={unit} limit={limit} target={target} />} cursor={POSTER_CURSOR_BAR} />
+          {zone && <ReferenceArea y1={zone[0]} y2={zone[1]} ifOverflow="hidden" fill={plateTint(plate, 10)} fillOpacity={1} stroke="none" />}
+          <ReferenceLine y={target} {...POSTER_TARGET_LINE} />
+          <Bar dataKey="value" radius={0} {...motion}>
+            {data.map((entry, i) => (
+              <Cell key={i} fill={limit && target > 0 && entry.value > target ? ALERT : entry.isToday ? plateOf(plate) : plateTint(plate, 60)} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
-  const hasWater = waterData.some(d => d.ml > 0);
-  const hasCaff = caffData.some(d => d.mg > 0);
+export function HydrationWeeklyCard({ dailyWater, dailyCaffeine, targetWater, targetCaffeine }: Props) {
+  const { shows } = useTracked();
+  const today = todayKey();
+  const dayName = (date: string) => new Date(date + "T00:00:00").toLocaleDateString("en", { weekday: "short" });
+  const waterData = dailyWater.map((d) => ({ day: dayName(d.date), value: Math.round(d.total_ml), isToday: d.date === today }));
+  const caffData = dailyCaffeine.map((d) => ({ day: dayName(d.date), value: Math.round(d.total_mg), isToday: d.date === today }));
+
+  const showWater = shows("water");
+  const showCaffeine = shows("caffeine");
+  if (!showWater && !showCaffeine) return null;
+
+  const hasWater = showWater && waterData.some((d) => d.value > 0);
+  const hasCaff = showCaffeine && caffData.some((d) => d.value > 0);
+  const loggedWater = waterData.filter((d) => d.value > 0).map((d) => d.value);
+  const loggedCaff = caffData.filter((d) => d.value > 0).map((d) => d.value);
+  const underDays = countDays(loggedWater, (v) => v < targetWater).n;
+  const overDays = countDays(loggedCaff, (v) => v > targetCaffeine).n;
+  const waterPart = underDays === 0 ? "water on target" : `water under target on ${daysWord(underDays)}`;
+  const caffPart = overDays === 0 ? "caffeine within the limit" : `caffeine over the limit on ${daysWord(overDays)}`;
+  const parts = [hasWater ? waterPart : null, hasCaff ? caffPart : null].filter(Boolean) as string[];
+  const lead = showWater && showCaffeine ? "Drinks" : showWater ? "Water" : "Caffeine";
+  const answer = showWater && showCaffeine ? parts.join(", ") : (parts[0] ?? "").replace(/^(water|caffeine) /, "");
+  const title = parts.length ? `${lead}: ${answer}` : lead;
 
   if (!hasWater && !hasCaff) {
     return (
-      <DashboardCard title="Hydration & Caffeine">
-        <p className="text-sm text-muted-foreground py-6 text-center">No data this week</p>
-      </DashboardCard>
+      <SectionCard title={title}>
+        <SectionEmpty>Nothing logged this week.</SectionEmpty>
+      </SectionCard>
     );
   }
 
+  const waterAvg = meanOf(waterData.map((d) => d.value)) ?? 0;
+  const caffAvg = meanOf(caffData.map((d) => d.value)) ?? 0;
   return (
-    <DashboardCard title="Hydration & Caffeine">
+    <SectionCard title={title}>
       <div className="space-y-5">
         {hasWater && (
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Water</p>
-            <ResponsiveContainer minWidth={0} width="100%" height={100}>
-              <BarChart data={waterData} barCategoryGap="20%">
-                <defs>
-                  <linearGradient id="waterBarToday" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.95} />
-                    <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.6} />
-                  </linearGradient>
-                  <linearGradient id="waterBarDim" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.15} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                <XAxis dataKey="day" tick={TICK} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip content={<WaterTooltip />} cursor={{ fill: CURSOR_FILL }} />
-                <ReferenceLine y={targetWater} stroke="#06b6d4" strokeDasharray="6 3" strokeWidth={1.5} strokeOpacity={0.5} />
-                <Bar dataKey="ml" radius={[4, 4, 0, 0]} animationDuration={600} animationEasing="ease-out">
-                  {waterData.map((entry, i) => (
-                    <Cell key={i} fill={entry.isToday ? "url(#waterBarToday)" : "url(#waterBarDim)"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <DrinkStrip label="Water" plate="water" unit="ml" limit={false} data={waterData} target={targetWater}
+            note={`avg ${Math.round(waterAvg).toLocaleString("en-US")} of ${targetWater.toLocaleString("en-US")} ml`} />
         )}
         {hasCaff && (
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Caffeine</p>
-            <ResponsiveContainer minWidth={0} width="100%" height={100}>
-              <BarChart data={caffData} barCategoryGap="20%">
-                <defs>
-                  <linearGradient id="caffBarToday" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#b45309" stopOpacity={0.95} />
-                    <stop offset="100%" stopColor="#92400e" stopOpacity={0.6} />
-                  </linearGradient>
-                  <linearGradient id="caffBarDim" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#92400e" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#92400e" stopOpacity={0.15} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                <XAxis dataKey="day" tick={TICK} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip content={<CaffeineTooltip />} cursor={{ fill: CURSOR_FILL }} />
-                <ReferenceLine y={targetCaffeine} stroke="#b45309" strokeDasharray="6 3" strokeWidth={1.5} strokeOpacity={0.5} />
-                <Bar dataKey="mg" radius={[4, 4, 0, 0]} animationDuration={600} animationEasing="ease-out">
-                  {caffData.map((entry, i) => (
-                    <Cell key={i} fill={entry.isToday ? "url(#caffBarToday)" : "url(#caffBarDim)"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <DrinkStrip label="Caffeine" plate="caffeine" unit="mg" limit data={caffData} target={targetCaffeine}
+            note={<>avg {Math.round(caffAvg)} of {targetCaffeine} mg{caffAvg > targetCaffeine && <span className="ml-1.5 font-semibold text-alert">over</span>}</>} />
         )}
       </div>
-    </DashboardCard>
+    </SectionCard>
   );
 }

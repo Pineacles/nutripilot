@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { useCreateFood, useUpdateFood } from "@/hooks/mutations/foods";
 import { useFoodsSearch } from "@/hooks/queries";
 import { atwaterMismatch, labelProblem } from "@/lib/portion";
@@ -30,6 +28,10 @@ type NutrientFields = Record<keyof NutrientData, string>;
 
 /** What the typed nutrient values refer to: 100 g (how they are stored) or one serving (US style labels). */
 type Basis = "100g" | "serving";
+
+const field = "h-12 rounded-[14px] border-g3 px-3.5 text-base focus-visible:border-ink focus-visible:ring-0 aria-invalid:border-ink aria-invalid:ring-0";
+const labelCls = "text-[12px] font-normal text-g4";
+const errorCls = "text-[12px] text-ink";
 
 const fmt = (n: number) => String(Math.round(n * 1000) / 1000);
 
@@ -174,25 +176,29 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
 
   function renderNutrientGrid(fields: Record<string, { label: string; unit: string }>) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {Object.entries(fields).map(([key, meta]) => {
           const k = key as keyof NutrientData;
           const error = shown(k, nutrientErrors[k]);
           return (
-            <div key={key} className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">{meta.label} <span className="text-muted-foreground/50">({meta.unit})</span></Label>
-              <Input
-                type="number"
-                value={nutrients[k]}
-                onChange={(e) => setNutrient(k, e.target.value)}
-                onBlur={() => touch(k)}
-                min={0}
-                step="any"
-                aria-invalid={!!error}
-                placeholder={k === "kcal" ? "required" : "optional"}
-                className="tabular-nums"
-              />
-              {error && <p className="text-[10px] text-destructive">{error}</p>}
+            <div key={key} className="space-y-1.5">
+              <Label className={labelCls}>{meta.label}</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  value={nutrients[k]}
+                  onChange={(e) => setNutrient(k, e.target.value)}
+                  onBlur={() => touch(k)}
+                  min={0}
+                  step="any"
+                  aria-invalid={!!error}
+                  aria-label={`${meta.label} in ${meta.unit} ${perServing ? "per serving" : "per 100 g"}`}
+                  placeholder={k === "kcal" ? "required" : "optional"}
+                  className={`${field} pr-12 tabular-nums`}
+                />
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] text-g4">{meta.unit}</span>
+              </div>
+              {error && <p className={errorCls}>{error}</p>}
             </div>
           );
         })}
@@ -200,93 +206,98 @@ export function FoodForm({ mode, initial, defaultBarcode, onSuccess, onCancel }:
     );
   }
 
+  const warn = (text: string) => (
+    <p className="flex items-start gap-2 border-y border-g2 py-3 text-[13px] text-ink">
+      <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+      <span>{text}</span>
+    </p>
+  );
+
+  const basisUnit = perServing ? `per serving, ${fmt(servingNum)} g` : "per 100 g";
   return (
-    <div className="space-y-5 max-h-[70vh] overflow-y-auto thin-scrollbar pr-1">
-      {/* Basics */}
+    <div className="max-h-[70vh] space-y-6 overflow-y-auto pr-1 thin-scrollbar">
       <section className="space-y-3">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Basics</h4>
+        <h4 className="text-[15px] font-medium text-ink">Food</h4>
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => touch("name")} aria-invalid={!!shown("name", nameError)} placeholder="e.g. Rolled oats" />
-          {shown("name", nameError) && <p className="text-[11px] text-destructive">{nameError}</p>}
+          <Label className={labelCls}>Name</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => touch("name")} aria-invalid={!!shown("name", nameError)} placeholder="e.g. Rolled oats" className={field} />
+          {shown("name", nameError) && <p className={errorCls}>{nameError}</p>}
           {mode === "create" && lookalikes.length > 0 && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[12px] text-g4">
               Already in your foods: {lookalikes.map((f) => f.name).join(", ")}. Search for it instead if it&apos;s the same.
             </p>
           )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Barcode (optional)</Label>
-            <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} className="font-mono" placeholder="EAN/UPC" />
+            <Label className={labelCls}>Barcode (optional)</Label>
+            <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} className={`${field} font-mono`} placeholder="EAN/UPC" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Serving size (g, optional)</Label>
-            <Input type="number" value={servingSizeG} onChange={(e) => setServingSizeG(e.target.value)} min={0} className="tabular-nums" />
+            <Label className={labelCls}>Serving size in g (optional)</Label>
+            <Input type="number" value={servingSizeG} onChange={(e) => setServingSizeG(e.target.value)} min={0} className={`${field} tabular-nums`} />
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Serving label (optional)</Label>
-          <Input value={servingLabel} onChange={(e) => setServingLabel(e.target.value)} placeholder="e.g. 1 cup, 1 slice" />
+          <Label className={labelCls}>Serving label (optional)</Label>
+          <Input value={servingLabel} onChange={(e) => setServingLabel(e.target.value)} placeholder="e.g. 1 cup, 1 slice" className={field} />
         </div>
       </section>
 
-      <Separator />
-
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Macros ({perServing ? `per serving, ${fmt(servingNum)} g` : "per 100 g"})
-          </h4>
-          {(hasServing || perServing) && (
-            <div className="flex gap-1" role="group" aria-label="Values on the label are">
-              {(["100g", "serving"] as Basis[]).map((b) => (
-                <button
-                  key={b}
-                  type="button"
-                  onClick={() => switchBasis(b)}
-                  aria-pressed={basis === b}
-                  className={`h-9 px-3.5 rounded-full text-xs font-medium transition-colors duration-100 ${
-                    basis === b ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {b === "100g" ? "Per 100 g" : "Per serving"}
-                </button>
-              ))}
-            </div>
-          )}
+      <section className="space-y-3 border-t border-g2 pt-5">
+        <div>
+          <h4 className="text-[22px] font-semibold leading-tight tracking-[-0.01em] text-ink">Nutrition {basisUnit}</h4>
+          <p className="mt-1 text-[13px] text-g5">
+            {perServing
+              ? "You are entering the label's per serving column. It is saved per 100 g."
+              : "Type the label's per 100 g column. Not the per serving one."}
+          </p>
         </div>
-        {!hasServing && !perServing && <p className="text-[11px] text-muted-foreground">Label only shows values per serving? Enter the serving size above first.</p>}
-        {basisError && <p className="text-[11px] text-destructive">{basisError}</p>}
-        {kcalEstimate != null && (
-          <p className="pill pill-amber flex items-start gap-2 px-3 py-2 text-[11px] text-amber-300">
-            <svg className="h-4 w-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
-            <span>Calories look off: protein, carbs and fat add up to about {kcalEstimate} kcal. Check the label before saving.</span>
-          </p>
+        {(hasServing || perServing) && (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Values on the label are">
+            {(["100g", "serving"] as Basis[]).map((b) => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => switchBasis(b)}
+                aria-pressed={basis === b}
+                className={`h-10 rounded-full border px-4 text-[13px] font-medium transition-colors ${
+                  basis === b ? "border-ink bg-ink text-g0" : "border-g3 bg-g0 text-g5 hover:border-g5"
+                }`}
+              >
+                {b === "100g" ? "Per 100 g" : "Per serving"}
+              </button>
+            ))}
+          </div>
         )}
-        {labelWarning && (
-          <p className="pill pill-amber flex items-start gap-2 px-3 py-2 text-[11px] text-amber-300">
-            <svg className="h-4 w-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
-            <span>{labelWarning}</span>
-          </p>
-        )}
+        {!hasServing && !perServing && <p className="text-[12px] text-g4">Label only shows values per serving? Enter the serving size above, then switch to per serving.</p>}
+        {basisError && <p className={errorCls}>{basisError}</p>}
+        {kcalEstimate != null && warn(`Calories look off: protein, carbs and fat add up to about ${kcalEstimate} kcal. Check the label before saving.`)}
+        {labelWarning && warn(labelWarning)}
         {renderNutrientGrid(MACRO_NUTRIENT_LABELS)}
       </section>
 
-      <Separator />
-
-      <section className="space-y-3">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Micronutrients ({perServing ? "per serving" : "per 100 g"}, optional)
+      <section className="space-y-3 border-t border-g2 pt-5">
+        <h4 className="text-[15px] font-medium text-ink">
+          Vitamins and minerals <span className="text-[12px] font-normal text-g4">{perServing ? "per serving" : "per 100 g"}, optional</span>
         </h4>
         {renderNutrientGrid(MICRO_NUTRIENT_LABELS)}
       </section>
 
-      <div className="flex gap-2 pt-2 sticky bottom-0 bg-popover">
-        <Button onClick={handleSubmit} disabled={pending} size="lg" className="flex-1">
+      <div className="sticky bottom-0 flex gap-2 border-t border-g2 bg-popover pt-3">
+        <button
+          onClick={handleSubmit}
+          disabled={pending}
+          className="h-12 flex-1 rounded-full bg-ink text-[15px] font-medium text-g0 transition-transform active:scale-[0.98] disabled:bg-g3 disabled:text-g5"
+        >
           {pending ? "Saving..." : mode === "edit" ? "Save changes" : "Create food"}
-        </Button>
-        <Button onClick={onCancel} variant="outline" size="lg">Cancel</Button>
+        </button>
+        <button
+          onClick={onCancel}
+          className="h-12 rounded-full border border-g3 px-5 text-[13px] font-medium text-ink transition-colors hover:border-g5"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );

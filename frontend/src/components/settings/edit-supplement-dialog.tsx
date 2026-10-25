@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useUpdateSupplement } from "@/hooks/queries";
 import { DOSE_UNITS, TIMINGS } from "@/lib/supplement-constants";
 import { getErrorMessage } from "@/lib/api";
@@ -21,7 +22,7 @@ interface Props {
   onClose: () => void;
 }
 
-/** Full edit form for a supplement definition: mirrors the "+ Add Supplement" create form. */
+/** Full edit form for a supplement definition: mirrors the "+ Add supplement" create form. */
 export function EditSupplementDialog({ supplement, onClose }: Props) {
   const [name, setName] = useState("");
   const [doseAmount, setDoseAmount] = useState(0);
@@ -78,18 +79,20 @@ export function EditSupplementDialog({ supplement, onClose }: Props) {
     <Dialog open={!!supplement} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Supplement</DialogTitle>
+          <DialogTitle>Edit supplement</DialogTitle>
         </DialogHeader>
         {supplement && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Name</Label>
-              <Input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+              <Label htmlFor="esupp-name">Name</Label>
+              <Input id="esupp-name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Dose</Label>
+                <Label htmlFor="esupp-dose">Dose</Label>
                 <Input
+                  id="esupp-dose"
+                  inputMode="decimal"
                   type="number"
                   value={doseAmount}
                   onChange={(e) => setDoseAmount(Number(e.target.value))}
@@ -97,41 +100,34 @@ export function EditSupplementDialog({ supplement, onClose }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Unit</Label>
-                <select
-                  value={doseUnit}
-                  onChange={(e) => setDoseUnit(e.target.value)}
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                >
+                <Label htmlFor="esupp-unit">Unit</Label>
+                <NativeSelect id="esupp-unit" value={doseUnit} onChange={(e) => setDoseUnit(e.target.value)}>
                   {DOSE_UNITS.map((u) => (
-                    <option key={u} value={u} className="bg-card">{u}</option>
+                    <option key={u} value={u} className="bg-g1">{u}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Timing</Label>
-              <select
-                value={timeOfDay}
-                onChange={(e) => setTimeOfDay(e.target.value)}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-              >
+              <Label htmlFor="esupp-timing">Timing</Label>
+              <NativeSelect id="esupp-timing" value={timeOfDay} onChange={(e) => setTimeOfDay(e.target.value)}>
                 {TIMINGS.map((t) => (
-                  <option key={t} value={t} className="bg-card">{t}</option>
+                  <option key={t} value={t} className="bg-g1">{t}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Micronutrients contributed (JSON, optional)</Label>
+              <Label htmlFor="esupp-micros">Micronutrients contributed (JSON, optional)</Label>
               <Input
+                id="esupp-micros"
                 type="text"
                 value={micronutrients}
                 onChange={(e) => setMicronutrients(e.target.value)}
                 placeholder='{"vitamin_d": 50, "zinc": 10}'
-                className="text-xs font-mono"
+                className="font-mono text-[13px]"
               />
             </div>
-            <div className="flex gap-3 mt-2">
+            <div className="mt-2 flex gap-2">
               <Button onClick={handleSave} disabled={!name || updateSupplement.isPending} className="flex-1" size="lg">
                 {updateSupplement.isPending ? "Saving..." : "Save"}
               </Button>

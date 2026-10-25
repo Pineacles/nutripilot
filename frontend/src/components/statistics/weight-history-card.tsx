@@ -1,10 +1,11 @@
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine,
-} from "recharts";
-import { SectionCard } from "@/components/charts/section-card";
+"use client";
+
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
 import { ChartTooltip } from "./chart-tooltip";
-import { fmtDateAxis, AXIS_TICK_PROPS } from "@/lib/chart-utils";
-import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
+import { fmtDateAxis, useChartMotion, AXIS_TICK_PROPS, fmtAxisTick, daysWord } from "@/lib/chart-utils";
+import { POSTER, POSTER_ACTIVE_DOT, POSTER_CURSOR_LINE, POSTER_TARGET_LINE, POSTER_X_AXIS, POSTER_Y_AXIS } from "@/lib/chart-theme";
+import { fmt } from "@/lib/utils";
 import type { BodyCompEntry } from "@/lib/types";
 
 interface Props {
@@ -13,44 +14,32 @@ interface Props {
 }
 
 export function WeightHistoryCard({ weightData, targetWeight }: Props) {
+  const motion = useChartMotion();
+  const latest = [...weightData].reverse().find((d) => d.weight_kg != null)?.weight_kg;
+  const withWeight = weightData.filter((d) => d.weight_kg != null);
+  let title = "Weight";
+  if (withWeight.length >= 2) {
+    const first = withWeight[0];
+    const end = withWeight[withWeight.length - 1];
+    const span = Math.max(1, Math.round((new Date(end.date + "T00:00:00").getTime() - new Date(first.date + "T00:00:00").getTime()) / 86400000));
+    const delta = Math.round((end.weight_kg - first.weight_kg) * 10) / 10;
+    title = `Weight: ${delta > 0 ? "+" : ""}${fmt(delta)} kg in ${daysWord(span)}`;
+  }
   return (
-    <SectionCard title="Weight History" span="lg:col-span-2">
+    <SectionCard title={title} summary={[latest != null ? `${fmt(latest)} kg now` : null, targetWeight != null ? `goal ${fmt(targetWeight)} kg` : null].filter(Boolean).join(", ") || undefined}>
       {weightData.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No weight data recorded yet</p>
+        <SectionEmpty>No weight recorded in this period. Add a measurement on the Body page.</SectionEmpty>
       ) : (
-        <ResponsiveContainer minWidth={0} width="100%" height={240}>
-          <AreaChart data={weightData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-            <defs>
-              <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={CHART_COLORS.green} stopOpacity={0.25} />
-                <stop offset="95%" stopColor={CHART_COLORS.green} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray={CHART_GRID_DASH} stroke={CHART_GRID_SUBTLE} vertical={false} />
-            <XAxis
-              dataKey="date"
-              tick={CHART_TICK_X}
-              axisLine={false}
-              tickLine={false}
-              {...AXIS_TICK_PROPS}
-              tickFormatter={(v: string) => fmtDateAxis(v, weightData.length)}
-            />
-            <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} width={40} domain={["auto", "auto"]} />
-            <Tooltip content={<ChartTooltip valueSuffix=" kg" />} />
+        <ResponsiveContainer minWidth={0} width="100%" height={220}>
+          <LineChart data={weightData} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+            <XAxis dataKey="date" {...POSTER_X_AXIS} {...AXIS_TICK_PROPS} tickFormatter={(v: string) => fmtDateAxis(v, weightData.length)} />
+            <YAxis {...POSTER_Y_AXIS} width={40} tickFormatter={fmtAxisTick} domain={["auto", "auto"]} />
+            <Tooltip content={<ChartTooltip valueSuffix=" kg" />} cursor={POSTER_CURSOR_LINE} />
             {targetWeight != null && (
-              <ReferenceLine y={targetWeight} stroke={CHART_COLORS.blue} strokeDasharray="6 3" strokeWidth={1.5} label={{ value: `Target ${targetWeight} kg`, fill: "#666", fontSize: 10, position: "insideTopRight" }} />
+              <ReferenceLine y={targetWeight} {...POSTER_TARGET_LINE} />
             )}
-            <Area
-              type="monotone"
-              dataKey="weight_kg"
-              stroke={CHART_COLORS.green}
-              strokeWidth={2.5}
-              fill="url(#weightGrad)"
-              dot={{ fill: CHART_COLORS.green, r: 2, strokeWidth: 0 }}
-              activeDot={{ r: 5, stroke: CHART_COLORS.green, strokeWidth: 2, fill: "#1e1e22" }}
-              animationDuration={800}
-            />
-          </AreaChart>
+            <Line type="monotone" dataKey="weight_kg" stroke={POSTER.ink} strokeWidth={2} dot={{ r: 2, fill: POSTER.ink, strokeWidth: 0 }} activeDot={POSTER_ACTIVE_DOT} {...motion} />
+          </LineChart>
         </ResponsiveContainer>
       )}
     </SectionCard>

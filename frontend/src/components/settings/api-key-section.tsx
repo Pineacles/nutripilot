@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { SettingsSection } from "./section";
 import { useRegenerateApiKey } from "@/hooks/queries";
 
 interface Props {
@@ -27,62 +27,59 @@ export function ApiKeySection({ apiKeyMasked }: Props) {
   }
 
   return (
-    <div className="clay-card p-5 md:col-span-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">API Access</h3>
-      <div className="space-y-4">
+    <SettingsSection title="API access" description="For an agent or script that logs on your behalf." className="md:col-span-2">
+      <div className="space-y-5 border-t border-g2 pt-4">
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">API Key</Label>
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
-            <code className="flex-1 text-sm text-foreground/60 font-mono">
+          <Label>API key</Label>
+          <div className="flex items-center gap-2 rounded-[14px] border border-g3 py-1 pr-1 pl-3.5">
+            <code className="min-h-9 flex-1 py-2 font-mono text-[13px] break-all text-g5">
               {fullApiKey || apiKeyMasked}
             </code>
             {fullApiKey && (
               <Button
                 onClick={() => {
                   navigator.clipboard.writeText(fullApiKey);
+                  toast.success("Copied");
                 }}
-                variant="ghost"
-                size="xs"
-                className="text-primary hover:text-primary/80"
+                variant="outline"
+                size="sm"
               >
                 Copy
               </Button>
             )}
           </div>
           {fullApiKey && (
-            <p className="text-[10px] text-yellow-500 mt-1">
-              Save this key now, it will not be shown again.
-            </p>
+            <p className="text-xs text-ink">Save this key now, it will not be shown again.</p>
           )}
         </div>
-        <Separator />
         {!showRegenConfirm ? (
           <Button
             onClick={() => setShowRegenConfirm(true)}
             variant="destructive"
-            className="w-full"
+            className="w-full md:w-auto"
             size="lg"
           >
-            Regenerate API Key
+            Regenerate API key
           </Button>
         ) : (
-          <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2">
-            <p className="text-xs text-destructive/80">
-              This will invalidate the current key. Your agent will need the new key.
+          <div className="space-y-3 border-t border-g2 pt-4">
+            <p className="text-[15px] text-ink">
+              This invalidates the current key. Your agent will need the new key.
             </p>
             <div className="flex gap-2">
               <Button
                 onClick={regenerateKey}
                 disabled={regenerateApiKey.isPending}
-                variant="destructive"
-                className="flex-1"
+                size="lg"
+                className="flex-1 md:flex-none"
               >
-                {regenerateApiKey.isPending ? "Regenerating..." : "Confirm"}
+                {regenerateApiKey.isPending ? "Regenerating..." : "Regenerate key"}
               </Button>
               <Button
                 onClick={() => setShowRegenConfirm(false)}
                 variant="outline"
-                className="flex-1"
+                size="lg"
+                className="flex-1 md:flex-none"
               >
                 Cancel
               </Button>
@@ -90,6 +87,6 @@ export function ApiKeySection({ apiKeyMasked }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </SettingsSection>
   );
 }

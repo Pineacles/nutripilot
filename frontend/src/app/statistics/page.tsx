@@ -6,6 +6,9 @@ import { useStats, useSettings } from "@/hooks/queries";
 import { getErrorMessage } from "@/lib/api";
 import { ErrorState } from "@/components/ui/error-state";
 import { computeRollingAvg, type DailyNutritionLike } from "@/lib/chart-utils";
+import { SectionGroup } from "@/components/charts/section-card";
+import { plateOf } from "@/lib/plates";
+import { useTracked } from "@/hooks/use-tracked";
 import { PeriodSelector } from "@/components/statistics/period-selector";
 import { HeroStats } from "@/components/statistics/hero-stats";
 import { StatisticsSkeleton } from "@/components/statistics/statistics-skeleton";
@@ -20,7 +23,8 @@ import { CaffeineTrendCard } from "@/components/statistics/caffeine-trend-card";
 import { MicronutrientAveragesCard } from "@/components/statistics/micronutrient-averages-card";
 import { SupplementConsistencyCard } from "@/components/statistics/supplement-consistency-card";
 import { RecordsCard } from "@/components/statistics/records-card";
-import { CHART_COLORS } from "@/lib/chart-theme";
+
+const MICRO_KEYS = ["vit_d", "zinc", "omega3", "magnesium", "b12", "iron", "calcium", "vit_c", "potassium"];
 
 export default function StatisticsPage() {
   const [days, setDays] = useState(90);
@@ -30,6 +34,7 @@ export default function StatisticsPage() {
 
   const { data, isLoading: loading, isError, error, refetch } = useStats(days);
   const { data: settings } = useSettings();
+  const { shows } = useTracked();
 
   function applyCustomRange() {
     if (!customFrom || !customTo) return;
@@ -60,7 +65,7 @@ export default function StatisticsPage() {
 
   if (isError && !data) {
     return (
-      <DashboardLayout title="Analytics">
+      <DashboardLayout title="Statistics">
         <ErrorState message={getErrorMessage(error, "Couldn't load analytics data.")} onRetry={() => refetch()} />
       </DashboardLayout>
     );
@@ -68,7 +73,7 @@ export default function StatisticsPage() {
 
   if (loading || !data) {
     return (
-      <DashboardLayout title="Analytics">
+      <DashboardLayout title="Statistics">
         <StatisticsSkeleton />
       </DashboardLayout>
     );
@@ -82,7 +87,7 @@ export default function StatisticsPage() {
   const logPct = data.total_days > 0 ? Math.round((data.days_logged / data.total_days) * 100) : 0;
 
   return (
-    <DashboardLayout title="Analytics">
+    <DashboardLayout title="Statistics">
       <PeriodSelector
         activePreset={activePreset}
         onPreset={(d) => { setActivePreset(d); setDays(d); setCustomFrom(""); setCustomTo(""); }}
@@ -95,13 +100,11 @@ export default function StatisticsPage() {
 
       <HeroStats data={data} avgKcal={avgKcal} targetKcal={targetKcal} logPct={logPct} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-        <WeightHistoryCard weightData={weightData} targetWeight={targetWeight} />
-        <BodyCompTrendCard bodyCompData={bodyCompData} />
-
+      {/* Ruled sections, each a predictable grid: wide charts take the full row, small ones pair up
+          left to right. A hidden nutrient's card (or a whole empty section) just drops out. */}
+      <SectionGroup title="Energy" swatches={[plateOf("protein"), plateOf("carbs"), plateOf("fat")]}>
         <CalorieTrendCard nutritionLength={nutrition.length} rollingNutrition={rollingNutrition} targetKcal={targetKcal} />
         <MacroDistributionCard macroAvg={data.macro_avg} />
-
         <MacroTrendsCard
           nutritionLength={nutrition.length}
           rollingNutrition={rollingNutrition}
@@ -109,29 +112,47 @@ export default function StatisticsPage() {
           targetCarbs={targetCarbs}
           targetFat={targetFat}
         />
+      </SectionGroup>
 
-        <NutrientTrendCard title="Fiber" dataKey="fiber" unit="g" color={CHART_COLORS.green} target={targetFiber} nutritionLength={nutrition.length} rollingNutrition={rollingNutrition} />
-        <NutrientTrendCard title="Sugar" dataKey="sugar" unit="g" color={CHART_COLORS.pink} target={targetSugar} nutritionLength={nutrition.length} rollingNutrition={rollingNutrition} />
-        <NutrientTrendCard title="Sodium" dataKey="sodium" unit="mg" color={CHART_COLORS.orange} target={targetSodium} nutritionLength={nutrition.length} rollingNutrition={rollingNutrition} />
+      {["water", "caffeine", "alcohol"].some(shows) && (
+        <SectionGroup title="Drinks" swatches={[plateOf("water"), plateOf("caffeine"), plateOf("alcohol")]}>
+          <WaterTrendCard dailyWater={data.daily_water} targetWaterMl={targetWaterMl} />
+          <CaffeineTrendCard dailyCaffeine={data.daily_caffeine} targetCaffeineMg={targetCaffeineMg} />
+          <NutrientTrendCard
+            title="Alcohol"
+            dataKey="alcohol"
+            unit="g"
+            target={targetAlcohol}
+            showReferenceLine={targetAlcohol > 0}
+            nutritionLength={nutrition.length}
+            rollingNutrition={rollingNutrition}
+          />
+        </SectionGroup>
+      )}
 
-        <NutrientTrendCard
-          title="Alcohol"
-          dataKey="alcohol"
-          unit="g"
-          color={CHART_COLORS.orange}
-          target={targetAlcohol}
-          showReferenceLine={targetAlcohol > 0}
-          nutritionLength={nutrition.length}
-          rollingNutrition={rollingNutrition}
-        />
-        <WaterTrendCard dailyWater={data.daily_water} targetWaterMl={targetWaterMl} />
-        <CaffeineTrendCard dailyCaffeine={data.daily_caffeine} targetCaffeineMg={targetCaffeineMg} />
+      {["fiber", "sugar", "sodium"].some(shows) && (
+        <SectionGroup title="Details" swatches={[plateOf("fiber"), "var(--ink)"]}>
+          <NutrientTrendCard title="Fiber" dataKey="fiber" unit="g" target={targetFiber} nutritionLength={nutrition.length} rollingNutrition={rollingNutrition} />
+          <NutrientTrendCard title="Sugar" dataKey="sugar" unit="g" target={targetSugar} nutritionLength={nutrition.length} rollingNutrition={rollingNutrition} />
+          <NutrientTrendCard title="Sodium" dataKey="sodium" unit="mg" target={targetSodium} nutritionLength={nutrition.length} rollingNutrition={rollingNutrition} />
+        </SectionGroup>
+      )}
 
-        <MicronutrientAveragesCard microAvg={data.micro_avg} />
+      {MICRO_KEYS.some(shows) && (
+        <SectionGroup title="Vitamins and minerals">
+          <MicronutrientAveragesCard microAvg={data.micro_avg} />
+        </SectionGroup>
+      )}
 
+      <SectionGroup title="Body">
+        <WeightHistoryCard weightData={weightData} targetWeight={targetWeight} />
+        <BodyCompTrendCard bodyCompData={bodyCompData} />
+      </SectionGroup>
+
+      <SectionGroup title="Habits" swatches={["var(--done)"]}>
         <SupplementConsistencyCard supplementLog={data.supplement_log} days={days} />
         <RecordsCard data={data} />
-      </div>
+      </SectionGroup>
     </DashboardLayout>
   );
 }

@@ -5,8 +5,10 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { plateOf } from "@/lib/plates";
+import { SettingsSection, FieldRow } from "./section";
 import { useUpdateNutritionTargets } from "@/hooks/queries";
+import { useTracked } from "@/hooks/use-tracked";
 import { NUTRITION_TARGET_BOUNDS, GOAL_BOUNDS, validateBounds } from "@/lib/validation";
 import type { NutritionTargets } from "@/lib/types";
 
@@ -30,17 +32,20 @@ const TIMEZONES: string[] = typeof Intl !== "undefined" && "supportedValuesOf" i
   ? (Intl as unknown as { supportedValuesOf: (key: string) => string[] }).supportedValuesOf("timeZone")
   : [];
 
+// Nutrients with a plate ink get a swatch; sugar, sodium and calories have none.
+const PLATED = new Set(["protein", "carbs", "fat", "fiber", "water", "caffeine", "alcohol"]);
+
 const FIELDS = [
-  { label: "Daily Calorie Target", key: "target_kcal" as const, unit: "kcal" },
-  { label: "Protein Target", key: "target_protein_g" as const, unit: "g" },
-  { label: "Carbs Target", key: "target_carbs_g" as const, unit: "g" },
-  { label: "Fat Target", key: "target_fat_g" as const, unit: "g" },
-  { label: "Fiber Target", key: "target_fiber_g" as const, unit: "g" },
-  { label: "Sugar Limit", key: "target_sugar_g" as const, unit: "g" },
-  { label: "Sodium Limit", key: "target_sodium_mg" as const, unit: "mg" },
-  { label: "Alcohol Limit", key: "target_alcohol_g" as const, unit: "g" },
-  { label: "Water Target", key: "target_water_ml" as const, unit: "ml" },
-  { label: "Caffeine Limit", key: "target_caffeine_mg" as const, unit: "mg" },
+  { label: "Calories", key: "target_kcal" as const, unit: "kcal" },
+  { label: "Protein", key: "target_protein_g" as const, unit: "g" , track: "protein"},
+  { label: "Carbs", key: "target_carbs_g" as const, unit: "g" , track: "carbs"},
+  { label: "Fat", key: "target_fat_g" as const, unit: "g" , track: "fat"},
+  { label: "Fiber", key: "target_fiber_g" as const, unit: "g" , track: "fiber"},
+  { label: "Sugar limit", key: "target_sugar_g" as const, unit: "g" , track: "sugar"},
+  { label: "Sodium limit", key: "target_sodium_mg" as const, unit: "mg" , track: "salt"},
+  { label: "Alcohol limit", key: "target_alcohol_g" as const, unit: "g" , track: "alcohol"},
+  { label: "Water", key: "target_water_ml" as const, unit: "ml" , track: "water"},
+  { label: "Caffeine limit", key: "target_caffeine_mg" as const, unit: "mg" , track: "caffeine"},
 ];
 
 interface Props {
@@ -50,6 +55,11 @@ interface Props {
 export function NutritionTargetsForm({ initial }: Props) {
   const [nutrition, setNutrition] = useState<NutritionTargets>(DEFAULT_NUTRITION_TARGETS);
   const updateNutritionTargets = useUpdateNutritionTargets();
+  const { shows } = useTracked();
+  // Targets for hidden nutrients leave the list; calories always stay.
+  const fields = FIELDS.filter((f) => !("track" in f) || shows(f.track as string));
+  // Bumped after a save: the rows flash once.
+  const [saved, setSaved] = useState(0);
 
   useEffect(() => {
     if (!initial) return;
@@ -84,92 +94,107 @@ export function NutritionTargetsForm({ initial }: Props) {
       return;
     }
     updateNutritionTargets.mutate(nutrition, {
-      onSuccess: () => toast.success("Nutrition targets saved"),
+      onSuccess: () => {
+        toast.success("Nutrition targets saved");
+        setSaved((n) => n + 1);
+      },
     });
   }
 
   return (
-    <div className="clay-card p-5 md:col-span-1">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Nutrition Targets</h3>
-      <div className="space-y-3">
-        {FIELDS.map((field) => {
+    <SettingsSection title="Nutrition targets" description="Daily goals and limits shown on Today." className="md:col-span-1">
+      <div>
+        {fields.map((field) => {
           const bounds = NUTRITION_TARGET_BOUNDS[field.key];
-          const fieldError = nutritionErrors[field.key];
           return (
-            <div key={field.key} className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">{field.label}</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  value={nutrition[field.key]}
-                  min={bounds.min}
-                  max={bounds.max}
-                  aria-invalid={!!fieldError}
-                  onChange={(e) =>
-                    setNutrition((prev) => ({ ...prev, [field.key]: Number(e.target.value) }))
-                  }
-                  className="flex-1 tabular-nums"
-                />
-                <span className="text-xs text-muted-foreground w-8">{field.unit}</span>
-              </div>
-              {fieldError && <p className="text-[11px] text-destructive">{fieldError}</p>}
-            </div>
+            <FieldRow
+              key={`${field.key}-${saved}`}
+              label={
+                "track" in field && field.track && PLATED.has(field.track) ? (
+                  <span className="flex items-center gap-2.5">
+                    <span aria-hidden="true" className="inline-block size-[10px] shrink-0" style={{ background: plateOf(field.track) }} />
+                    {field.label}
+                  </span>
+                ) : (
+                  field.label
+                )
+              }
+              htmlFor={`nt-${field.key}`}
+              unit={field.unit}
+              error={nutritionErrors[field.key]}
+              lit={saved > 0}
+            >
+              <Input
+                id={`nt-${field.key}`}
+                type="number"
+                inputMode="decimal"
+                value={nutrition[field.key]}
+                min={bounds.min}
+                max={bounds.max}
+                aria-invalid={!!nutritionErrors[field.key]}
+                onChange={(e) =>
+                  setNutrition((prev) => ({ ...prev, [field.key]: Number(e.target.value) }))
+                }
+                className="w-28 text-right tabular-nums"
+              />
+            </FieldRow>
           );
         })}
-
-        <Separator className="my-1" />
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Goals (optional)</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Goal weight (kg)</Label>
-            <Input
-              type="number"
-              value={nutrition.target_weight_kg ?? ""}
-              onChange={(e) => setNutrition((prev) => ({ ...prev, target_weight_kg: e.target.value === "" ? null : Number(e.target.value) }))}
-              aria-invalid={!!goalWeightError}
-              placeholder="no goal"
-              className="tabular-nums"
-            />
-            {goalWeightError && <p className="text-[11px] text-destructive">{goalWeightError}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Goal body fat (%)</Label>
-            <Input
-              type="number"
-              value={nutrition.target_body_fat_pct ?? ""}
-              onChange={(e) => setNutrition((prev) => ({ ...prev, target_body_fat_pct: e.target.value === "" ? null : Number(e.target.value) }))}
-              aria-invalid={!!goalBfError}
-              placeholder="no goal"
-              className="tabular-nums"
-            />
-            {goalBfError && <p className="text-[11px] text-destructive">{goalBfError}</p>}
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Timezone</Label>
-          <Input
-            list="tz-options"
-            value={nutrition.timezone ?? ""}
-            onChange={(e) => setNutrition((prev) => ({ ...prev, timezone: e.target.value || null }))}
-            aria-invalid={!!tzError}
-            placeholder="e.g. Europe/Zurich"
-          />
-          <datalist id="tz-options">
-            {TIMEZONES.map((tz) => <option key={tz} value={tz} />)}
-          </datalist>
-          {tzError && <p className="text-[11px] text-destructive">{tzError}</p>}
-          <p className="text-[10px] text-muted-foreground/60">Used for day boundaries (when &quot;today&quot; rolls over).</p>
-        </div>
-
-        <Button
-          onClick={saveNutritionTargets}
-          disabled={updateNutritionTargets.isPending || hasNutritionErrors}
-          className="mt-2 w-full"
-          size="lg"
-        >
-          {updateNutritionTargets.isPending ? "Saving..." : "Save Targets"}
-        </Button>
       </div>
-    </div>
+
+      <h4 className="mt-6 text-[15px] font-medium text-ink">Goals (optional)</h4>
+      <div>
+        <FieldRow label="Goal weight" htmlFor="nt-goal-weight" unit="kg" error={goalWeightError}>
+          <Input
+            id="nt-goal-weight"
+            type="number"
+            inputMode="decimal"
+            value={nutrition.target_weight_kg ?? ""}
+            onChange={(e) => setNutrition((prev) => ({ ...prev, target_weight_kg: e.target.value === "" ? null : Number(e.target.value) }))}
+            aria-invalid={!!goalWeightError}
+            placeholder="no goal"
+            className="w-28 text-right tabular-nums"
+          />
+        </FieldRow>
+        <FieldRow label="Goal body fat" htmlFor="nt-goal-bf" unit="%" error={goalBfError}>
+          <Input
+            id="nt-goal-bf"
+            type="number"
+            inputMode="decimal"
+            value={nutrition.target_body_fat_pct ?? ""}
+            onChange={(e) => setNutrition((prev) => ({ ...prev, target_body_fat_pct: e.target.value === "" ? null : Number(e.target.value) }))}
+            aria-invalid={!!goalBfError}
+            placeholder="no goal"
+            className="w-28 text-right tabular-nums"
+          />
+        </FieldRow>
+      </div>
+
+      <div className="space-y-1.5 border-t border-g2 pt-4">
+        <Label htmlFor="nt-timezone">Timezone</Label>
+        <Input
+          id="nt-timezone"
+          list="tz-options"
+          value={nutrition.timezone ?? ""}
+          onChange={(e) => setNutrition((prev) => ({ ...prev, timezone: e.target.value || null }))}
+          aria-invalid={!!tzError}
+          placeholder="e.g. Europe/Zurich"
+        />
+        <datalist id="tz-options">
+          {TIMEZONES.map((tz) => <option key={tz} value={tz} />)}
+        </datalist>
+        {tzError && <p className="text-xs text-ink">{tzError}</p>}
+        <p className="text-xs text-g4">Used for day boundaries (when &quot;today&quot; rolls over).</p>
+      </div>
+
+      <Button
+        onClick={saveNutritionTargets}
+        disabled={updateNutritionTargets.isPending || hasNutritionErrors}
+        className="mt-5 w-full"
+        size="lg"
+      >
+        {updateNutritionTargets.isPending ? "Saving..." : "Save targets"}
+      </Button>
+    </SettingsSection>
   );
 }

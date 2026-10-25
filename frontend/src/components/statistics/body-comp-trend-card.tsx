@@ -1,10 +1,12 @@
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend,
-} from "recharts";
-import { SectionCard } from "@/components/charts/section-card";
+"use client";
+
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { endLabel } from "./end-label";
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
 import { MultiLineTooltip } from "./chart-tooltip";
-import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
-import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
+import { AXIS_TICK_PROPS, dateTickFormatter, useChartMotion } from "@/lib/chart-utils";
+import { POSTER, POSTER_ACTIVE_DOT, POSTER_CURSOR_LINE, POSTER_X_AXIS, POSTER_Y_AXIS } from "@/lib/chart-theme";
+import { fmt } from "@/lib/utils";
 import type { BodyCompEntry } from "@/lib/types";
 
 interface Props {
@@ -13,54 +15,36 @@ interface Props {
 
 /** Body-fat/muscle % lines on the statistics page (distinct from the body page's own charts). */
 export function BodyCompTrendCard({ bodyCompData }: Props) {
+  const motion = useChartMotion();
+  const last = (key: "body_fat_pct" | "muscle_mass_pct") => [...bodyCompData].reverse().find((d) => d[key] != null)?.[key] ?? null;
+  // Past ~30 points raw dots fuse into a beaded line; the line alone reads cleaner
+  const dotted = bodyCompData.length <= 30;
+  const lastIndex = (key: "body_fat_pct" | "muscle_mass_pct") => bodyCompData.reduce((acc, d, i) => (d[key] != null ? i : acc), -1);
+  const lastFat = lastIndex("body_fat_pct");
+  const lastMuscle = lastIndex("muscle_mass_pct");
+  const fat = last("body_fat_pct");
+  const muscle = last("muscle_mass_pct");
   return (
-    <SectionCard title="Body Composition">
+    <SectionCard title={fat != null || muscle != null ? `Body composition: ${[fat != null ? `fat ${fmt(fat)}%` : null, muscle != null ? `muscle ${fmt(muscle)}%` : null].filter(Boolean).join(", ")}` : "Body composition"}>
       {bodyCompData.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No body composition data</p>
+        <SectionEmpty>No body fat or muscle recorded in this period.</SectionEmpty>
       ) : (
-        <ResponsiveContainer minWidth={0} width="100%" height={240}>
-          <LineChart data={bodyCompData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-            <CartesianGrid strokeDasharray={CHART_GRID_DASH} stroke={CHART_GRID_SUBTLE} vertical={false} />
-            <XAxis
-              dataKey="date"
-              tick={CHART_TICK_X}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS}
-            />
-            <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} width={35} domain={["auto", "auto"]} />
-            <Tooltip content={<MultiLineTooltip />} />
-            <Legend
-              verticalAlign="top"
-              height={28}
-              iconType="circle"
-              iconSize={8}
-              formatter={(value: string) => <span style={{ color: "#aaa", fontSize: 11 }}>{value}</span>}
-            />
-            <Line
-              type="monotone"
-              dataKey="body_fat_pct"
-              name="Body Fat %"
-              stroke={CHART_COLORS.amber}
-              strokeWidth={2}
-              dot={{ fill: CHART_COLORS.amber, r: 2, strokeWidth: 0 }}
-              activeDot={{ r: 4, stroke: CHART_COLORS.amber, strokeWidth: 2, fill: "#1e1e22" }}
-              connectNulls
-              animationDuration={800}
-            />
-            <Line
-              type="monotone"
-              dataKey="muscle_mass_pct"
-              name="Muscle %"
-              stroke={CHART_COLORS.blue}
-              strokeWidth={2}
-              dot={{ fill: CHART_COLORS.blue, r: 2, strokeWidth: 0 }}
-              activeDot={{ r: 4, stroke: CHART_COLORS.blue, strokeWidth: 2, fill: "#1e1e22" }}
-              connectNulls
-              animationDuration={800}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <>
+          {/* One axis (both are percent of body weight); the legend row sits above and each line is also named at its end */}
+          <p className="-mt-2 mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] tabular-nums">
+            <span className="flex items-center gap-1.5 text-ink"><span className="h-0.5 w-3 bg-ink" />Body fat</span>
+            <span className="flex items-center gap-1.5 text-g5"><span className="h-0.5 w-3 bg-g5" />Muscle</span>
+          </p>
+          <ResponsiveContainer minWidth={0} width="100%" height={200}>
+            <LineChart data={bodyCompData} margin={{ top: 8, right: 48, bottom: 0, left: 0 }}>
+              <XAxis dataKey="date" {...POSTER_X_AXIS} tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} />
+              <YAxis {...POSTER_Y_AXIS} width={32} domain={["auto", "auto"]} />
+              <Tooltip content={<MultiLineTooltip />} cursor={POSTER_CURSOR_LINE} />
+              <Line type="monotone" dataKey="body_fat_pct" name="Body fat %" stroke={POSTER.ink} strokeWidth={2} dot={dotted ? { r: 2, fill: POSTER.ink, strokeWidth: 0 } : false} activeDot={POSTER_ACTIVE_DOT} connectNulls label={endLabel("Fat", POSTER.ink, lastFat)} {...motion} />
+              <Line type="monotone" dataKey="muscle_mass_pct" name="Muscle %" stroke={POSTER.quiet} strokeWidth={2} dot={dotted ? { r: 2, fill: POSTER.quiet, strokeWidth: 0 } : false} activeDot={POSTER_ACTIVE_DOT} connectNulls label={endLabel("Muscle", POSTER.quiet, lastMuscle)} {...motion} />
+            </LineChart>
+          </ResponsiveContainer>
+        </>
       )}
     </SectionCard>
   );

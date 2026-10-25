@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Host_Grotesk } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// One neo-grotesk for everything (docs/design-vision.md), served from the app itself.
+const hostGrotesk = Host_Grotesk({
+  variable: "--font-grotesk",
   subsets: ["latin"],
 });
 
@@ -28,11 +29,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#111114",
+  themeColor: "#0e0f0e",
   width: "device-width",
   initialScale: 1,
   // Lets the bottom tab bar pad itself for the iPhone home indicator (env(safe-area-inset-bottom)).
   viewportFit: "cover",
+  // The keyboard shrinks the page instead of covering it, so a sheet's bottom search bar and Log
+  // button stay above it (Android Chrome; iOS ignores it and already scrolls the field into view).
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
@@ -43,7 +47,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${hostGrotesk.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Providers>{children}</Providers>

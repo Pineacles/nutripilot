@@ -21,8 +21,8 @@ interface Props {
 }
 
 const chip = (active: boolean) =>
-  `h-10 px-3.5 rounded-full text-xs font-medium transition-colors duration-100 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
-    active ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"
+  `h-10 px-4 rounded-full border text-[13px] font-medium transition-[color,background-color,border-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out)] active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 ${
+    active ? "border-ink bg-ink text-g0" : "border-g3 text-g5 hover:border-g5 hover:text-ink"
   }`;
 
 /**
@@ -78,7 +78,7 @@ export function UnitPicker({ foodId, units, value, onChange, onAdded, servingLab
 
   return (
     <div className="space-y-2">
-      <div role="group" aria-label="Unit" className="flex flex-wrap gap-1.5">
+      <div role="group" aria-label="Unit" className="flex flex-wrap gap-2">
         {units.map((u) => (
           <button key={u.key} type="button" onClick={() => onChange(u.key)} aria-pressed={value === u.key} className={chip(value === u.key)}>
             {u.label}
@@ -88,7 +88,7 @@ export function UnitPicker({ foodId, units, value, onChange, onAdded, servingLab
           type="button"
           onClick={() => setAdding((a) => !a)}
           aria-expanded={adding}
-          className="flex h-10 items-center gap-1 rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50 border border-dashed border-border px-3 text-xs font-medium text-muted-foreground transition-colors duration-100 hover:border-primary/40 hover:text-foreground"
+          className="flex h-10 items-center gap-1 rounded-full border border-dashed border-g3 px-4 text-[13px] font-medium text-g5 transition-colors duration-[var(--dur-fast)] hover:border-g5 hover:text-ink"
         >
           <Plus className="h-3.5 w-3.5" />
           Unit
@@ -96,7 +96,7 @@ export function UnitPicker({ foodId, units, value, onChange, onAdded, servingLab
       </div>
 
       {selected && selected.key !== "g" && !adding && (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-g4 tabular-nums">
           <span>
             {selected.key === "serving" ? (!labelIsWeight && servingLabel) || "1 serving" : `1 ${selected.label}`} = {fmtGrams(selected.grams)} g
           </span>
@@ -106,7 +106,7 @@ export function UnitPicker({ foodId, units, value, onChange, onAdded, servingLab
               type="button"
               onClick={() => remove(selected)}
               disabled={deleteServing.isPending}
-              className="-my-2 rounded px-1.5 py-2 font-medium text-destructive/80 underline decoration-dotted underline-offset-2 hover:text-destructive disabled:opacity-50 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="-my-2 rounded px-1.5 py-2 font-medium text-g5 underline decoration-dotted underline-offset-2 hover:text-ink disabled:opacity-50"
             >
               Remove unit
             </button>
@@ -115,7 +115,7 @@ export function UnitPicker({ foodId, units, value, onChange, onAdded, servingLab
       )}
 
       {adding && (
-        <form onSubmit={submit} className="pill space-y-2 rounded-xl p-3">
+        <form onSubmit={submit} className="space-y-2 border-t border-g2 pt-3">
           <div className="grid grid-cols-[1fr_6.5rem] gap-2">
             <Input
               value={label}
@@ -139,19 +139,19 @@ export function UnitPicker({ foodId, units, value, onChange, onAdded, servingLab
                 aria-invalid={!!formError && grams !== ""}
                 className="pr-7 tabular-nums"
               />
-              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">g</span>
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-g4">g</span>
             </div>
           </div>
           {formError ? (
-            <p className="text-[11px] text-destructive">{formError}</p>
+            <p className="text-xs text-ink">{formError}</p>
           ) : (
-            <p className="text-[11px] text-muted-foreground">How much one weighs. Only you see your units.</p>
+            <p className="text-xs text-g4">How much one weighs. Only you see your units.</p>
           )}
           <div className="flex gap-2">
-            <Button type="submit" size="lg" className="h-10 px-4" disabled={!canAdd || addServing.isPending}>
+            <Button type="submit" size="sm" disabled={!canAdd || addServing.isPending}>
               {addServing.isPending ? "Adding..." : "Add unit"}
             </Button>
-            <Button type="button" size="lg" className="h-10 px-4" variant="ghost" onClick={() => setAdding(false)}>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setAdding(false)}>
               Cancel
             </Button>
           </div>

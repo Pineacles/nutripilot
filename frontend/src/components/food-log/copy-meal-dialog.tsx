@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useCopyFoodLogs, useRemoveFoodLogs } from "@/hooks/mutations/food-log";
 import { useFoodLogDay } from "@/hooks/queries";
 import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/meal-types";
@@ -18,7 +19,7 @@ export function dayName(date: string): string {
   if (date === today) return "today";
   if (date === addDays(today, 1)) return "tomorrow";
   if (date === addDays(today, -1)) return "yesterday";
-  return parseLocal(date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return parseLocal(date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 }
 
 /** Copies a meal and offers Undo in the toast, which removes exactly the entries the copy made. */
@@ -88,31 +89,27 @@ export function CopyMealDialog({ source, onClose }: Props) {
         </DialogHeader>
         {source && (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground tabular-nums">
+            <p className="text-[13px] text-g4 tabular-nums">
               {source.items} {source.items === 1 ? "item" : "items"} · {Math.round(source.kcal)} kcal, amounts as logged
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">To day</Label>
-                <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="tabular-nums" />
+                <Label htmlFor="copy-day">To day</Label>
+                <Input id="copy-day" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="tabular-nums" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">As meal</Label>
-                <select
-                  value={toMeal}
-                  onChange={(e) => setToMeal(e.target.value as MealType)}
-                  className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                >
+                <Label htmlFor="copy-meal">As meal</Label>
+                <NativeSelect id="copy-meal" value={toMeal} onChange={(e) => setToMeal(e.target.value as MealType)}>
                   {MEAL_TYPES.map((mt) => (
-                    <option key={mt} value={mt} className="bg-card">{MEAL_TYPE_LABELS[mt]}</option>
+                    <option key={mt} value={mt} className="bg-g1">{MEAL_TYPE_LABELS[mt]}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </div>
             </div>
             {sameSpot ? (
-              <p className="text-[11px] text-muted-foreground">Pick another day or meal, this is where it already is.</p>
+              <p className="text-xs text-g4">Pick another day or meal, this is where it already is.</p>
             ) : alreadyThere > 0 ? (
-              <p className="pill pill-amber rounded-lg px-2.5 py-1.5 text-[11px]">
+              <p className="border-t border-g2 pt-3 text-xs text-g5">
                 {MEAL_TYPE_LABELS[toMeal]} on {dayName(toDate)} already has {alreadyThere} {alreadyThere === 1 ? "item" : "items"}. Copying adds to them.
               </p>
             ) : null}

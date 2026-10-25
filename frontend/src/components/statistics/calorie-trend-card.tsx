@@ -1,10 +1,8 @@
-import {
-  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine,
-} from "recharts";
-import { SectionCard } from "@/components/charts/section-card";
-import { ChartTooltip } from "./chart-tooltip";
-import { fmtDateAxis, type DailyNutritionLike, AXIS_TICK_PROPS } from "@/lib/chart-utils";
-import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
+"use client";
+
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
+import { TrendChart } from "./trend-chart";
+import { countDays, daysWord, type DailyNutritionLike } from "@/lib/chart-utils";
 
 interface Props {
   nutritionLength: number;
@@ -12,62 +10,16 @@ interface Props {
   targetKcal: number;
 }
 
+/** Calories are ink (no plate); days over the target turn --alert and the title says how many. */
 export function CalorieTrendCard({ nutritionLength, rollingNutrition, targetKcal }: Props) {
+  const { n, total } = countDays(rollingNutrition.filter((d) => d.kcal > 0).map((d) => d.kcal), (v) => v > targetKcal);
+  const title = total === 0 ? "Calories" : n === 0 ? "Calories: never over target" : `Calories: over target on ${daysWord(n)} of ${total}`;
   return (
-    <SectionCard title="Calorie Trend" span="lg:col-span-2">
+    <SectionCard title={title} span="md:col-span-2" summary={`7-day average, target ${targetKcal.toLocaleString("en-US")}`}>
       {nutritionLength === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No calorie data</p>
+        <SectionEmpty>No calories logged in this period.</SectionEmpty>
       ) : (
-        <ResponsiveContainer minWidth={0} width="100%" height={280}>
-          <ComposedChart data={rollingNutrition} margin={{ top: 5, right: 10, bottom: 30, left: 0 }}>
-            <defs>
-              <linearGradient id="calAvgGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={CHART_COLORS.green} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={CHART_COLORS.green} stopOpacity={0.02} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray={CHART_GRID_DASH} stroke={CHART_GRID_SUBTLE} vertical={false} />
-            <XAxis
-              dataKey="date"
-              tick={CHART_TICK_X}
-              axisLine={false}
-              tickLine={false}
-              {...AXIS_TICK_PROPS}
-              tickFormatter={(v: string) => fmtDateAxis(v, rollingNutrition.length)}
-            />
-            <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} width={45} />
-            <Tooltip content={<ChartTooltip valueSuffix=" kcal" />} />
-            <ReferenceLine
-              y={targetKcal}
-              stroke={CHART_COLORS.amber}
-              strokeDasharray="6 3"
-              strokeWidth={1.5}
-              label={{ value: `Target ${targetKcal}`, fill: "#888", fontSize: 10, position: "insideTopRight" }}
-            />
-            <Area
-              type="monotone"
-              dataKey="avg_kcal"
-              name="7-day avg"
-              stroke={CHART_COLORS.green}
-              strokeWidth={2.5}
-              fill="url(#calAvgGrad)"
-              dot={false}
-              activeDot={{ r: 5, stroke: CHART_COLORS.green, strokeWidth: 2, fill: "#1e1e22" }}
-              animationDuration={800}
-            />
-            <Line
-              type="monotone"
-              dataKey="kcal"
-              name="Daily kcal"
-              stroke="transparent"
-              strokeWidth={0}
-              dot={{ fill: CHART_COLORS.green, r: 2, fillOpacity: 0.3, strokeWidth: 0 }}
-              activeDot={{ r: 4, stroke: CHART_COLORS.green, strokeWidth: 1, fill: "#1e1e22" }}
-              animationDuration={600}
-              legendType="none"
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+        <TrendChart data={rollingNutrition} rawKey="kcal" avgKey="avg_kcal" plate="kcal" unit="kcal" target={targetKcal} mode="range" height={240} />
       )}
     </SectionCard>
   );

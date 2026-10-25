@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SettingsSection } from "./section";
 import { useSyncIntegration, useUpdateIntegration, useDeleteIntegration } from "@/hooks/mutations/integrations";
 import { AddIntegrationDialog } from "./add-integration-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -44,32 +45,33 @@ function IntegrationRow({ integration }: { integration: Integration }) {
   }
 
   return (
-    <div className="pill rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap">
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground truncate">{integration.name}</p>
-        <p className="text-xs text-muted-foreground truncate">{integration.source_url}</p>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-[10px] text-muted-foreground">{cronToHuman(integration.schedule)}</span>
-          <Badge variant={integration.status === "active" ? "default" : integration.status === "paused" ? "secondary" : "destructive"} className="text-[10px]">
+    <div className="space-y-3 border-t border-g2 py-4">
+      <div className="min-w-0">
+        <p className="truncate text-[17px] font-medium text-ink">{integration.name}</p>
+        <p className="truncate text-xs text-g4">{integration.source_url}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Badge variant={integration.status === "active" ? "default" : integration.status === "paused" ? "secondary" : "destructive"}>
             {integration.status}
           </Badge>
-          <span className="text-[10px] text-muted-foreground">Synced: {timeAgo(integration.last_synced_at)}</span>
+          <span className="text-xs text-g4">{cronToHuman(integration.schedule)}</span>
+          <span className="text-xs text-g4">Synced: {timeAgo(integration.last_synced_at)}</span>
         </div>
       </div>
       {confirmingDelete ? (
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Button size="xs" variant="destructive" onClick={handleDelete} disabled={deleteIntegration.isPending}>Confirm</Button>
-          <Button size="xs" variant="ghost" onClick={() => setConfirmingDelete(false)}>Cancel</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="mr-1 text-[15px] text-ink">Remove this integration?</p>
+          <Button size="sm" onClick={handleDelete} disabled={deleteIntegration.isPending}>Delete</Button>
+          <Button size="sm" variant="ghost" onClick={() => setConfirmingDelete(false)}>Cancel</Button>
         </div>
       ) : (
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Button size="xs" variant="outline" onClick={handleSync} disabled={syncIntegration.isPending}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={handleSync} disabled={syncIntegration.isPending}>
             {syncIntegration.isPending ? "Syncing..." : "Sync now"}
           </Button>
-          <Button size="xs" variant="ghost" onClick={handleToggle} disabled={updateIntegration.isPending}>
+          <Button size="sm" variant="ghost" onClick={handleToggle} disabled={updateIntegration.isPending}>
             {isPaused ? "Enable" : "Disable"}
           </Button>
-          <Button size="xs" variant="destructive" onClick={() => setConfirmingDelete(true)}>Delete</Button>
+          <Button size="sm" variant="destructive" onClick={() => setConfirmingDelete(true)}>Delete</Button>
         </div>
       )}
     </div>
@@ -80,21 +82,21 @@ export function IntegrationsPanel({ integrations }: Props) {
   const [addOpen, setAddOpen] = useState(false);
 
   return (
-    <div className="clay-card p-5 md:col-span-2">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Connected Integrations</h3>
-        <Button onClick={() => setAddOpen(true)} size="sm">+ Add integration</Button>
-      </div>
+    <SettingsSection
+      title="Connected integrations"
+      className="md:col-span-2"
+      action={integrations.length > 0 ? <Button onClick={() => setAddOpen(true)} size="sm" variant="outline">Add integration</Button> : undefined}
+    >
       {integrations.length === 0 ? (
-        <EmptyState message="No integrations connected yet." actionLabel="+ Add integration" onAction={() => setAddOpen(true)} />
+        <EmptyState message="No integrations connected yet." actionLabel="Add integration" onAction={() => setAddOpen(true)} />
       ) : (
-        <div className="space-y-2">
+        <div>
           {integrations.map((integration) => (
             <IntegrationRow key={integration.id} integration={integration} />
           ))}
         </div>
       )}
       <AddIntegrationDialog open={addOpen} onOpenChange={setAddOpen} />
-    </div>
+    </SettingsSection>
   );
 }

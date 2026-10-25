@@ -1,74 +1,62 @@
 "use client";
 
 import { useMemo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { SectionCard } from "@/components/charts/section-card";
-import { TT_STYLE } from "./chart-tooltip";
-import { CHART_COLORS } from "@/lib/chart-theme";
-import { fmt } from "@/lib/utils";
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
+import { POSTER } from "@/lib/chart-theme";
 import type { MacroTotals } from "@/lib/types";
+import { useTracked } from "@/hooks/use-tracked";
 
 interface Props {
   macroAvg: MacroTotals | undefined;
 }
 
+/**
+ * Share of the day's macro grams: one square strip split in the three plate inks, and under it a
+ * ruled row with each macro's share in its own plate. No donut, no legend.
+ */
 export function MacroDistributionCard({ macroAvg }: Props) {
+  const { hidden } = useTracked();
   const macroPie = useMemo(() => {
     if (!macroAvg) return [];
-    const total = macroAvg.protein + macroAvg.carbs + macroAvg.fat;
+    const shown = (key: string) => !hidden.has(key);
+    const total = (shown("protein") ? macroAvg.protein : 0) + (shown("carbs") ? macroAvg.carbs : 0) + (shown("fat") ? macroAvg.fat : 0);
     if (total === 0) return [];
     return [
-      { name: "Protein", value: Math.round((macroAvg.protein / total) * 100), grams: Math.round(macroAvg.protein), fill: CHART_COLORS.blue },
-      { name: "Carbs", value: Math.round((macroAvg.carbs / total) * 100), grams: Math.round(macroAvg.carbs), fill: CHART_COLORS.green },
-      { name: "Fat", value: Math.round((macroAvg.fat / total) * 100), grams: Math.round(macroAvg.fat), fill: CHART_COLORS.amber },
-    ];
-  }, [macroAvg]);
+      { key: "protein", name: "Protein", share: (macroAvg.protein / total) * 100, value: Math.round((macroAvg.protein / total) * 100), grams: Math.round(macroAvg.protein), ink: POSTER.protein },
+      { key: "carbs", name: "Carbs", share: (macroAvg.carbs / total) * 100, value: Math.round((macroAvg.carbs / total) * 100), grams: Math.round(macroAvg.carbs), ink: POSTER.carbs },
+      { key: "fat", name: "Fat", share: (macroAvg.fat / total) * 100, value: Math.round((macroAvg.fat / total) * 100), grams: Math.round(macroAvg.fat), ink: POSTER.fat },
+    ].filter((m) => shown(m.key));
+  }, [macroAvg, hidden]);
+
+  const top = [...macroPie].sort((a, b) => b.share - a.share)[0];
+
+  // One macro is always 100%, which says nothing: the split needs at least two.
+  if (["protein", "carbs", "fat"].filter((k) => !hidden.has(k)).length < 2) return null;
 
   return (
-    <SectionCard title="Macro Distribution">
+    <SectionCard title={top ? `Macro split: mostly ${top.name.toLowerCase()} (${top.value}%)` : "Macro split"} span="md:col-span-2" summary="share of grams">
       {macroPie.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No macro data</p>
+        <SectionEmpty>No macros logged in this period.</SectionEmpty>
       ) : (
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-[180px] h-[180px]">
-            <ResponsiveContainer minWidth={0} width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={macroPie}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={52}
-                  outerRadius={78}
-                  dataKey="value"
-                  stroke="none"
-                  animationDuration={800}
-                >
-                  {macroPie.map((entry, i) => (
-                    <Cell key={i} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={TT_STYLE}
-                  formatter={(value: unknown, name: unknown) => [`${typeof value === "number" ? fmt(value) : value}%`, String(name)]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-2.5 w-full">
-            {macroPie.map(m => (
-              <div key={m.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.fill }} />
-                  <span className="text-sm text-muted-foreground">{m.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold tabular-nums text-foreground">{m.value}%</span>
-                  <span className="text-xs text-muted-foreground/60 tabular-nums">{m.grams}g</span>
-                </div>
-              </div>
+        <>
+          <div className="flex h-3 gap-px" role="img" aria-label={macroPie.map((m) => `${m.name} ${m.value}%`).join(", ")}>
+            {macroPie.map((m) => (
+              <div key={m.key} className="animate-bar h-full" style={{ width: `${m.share}%`, background: m.ink }} />
             ))}
           </div>
-        </div>
+          <dl className="mt-4 grid divide-x divide-g2" style={{ gridTemplateColumns: `repeat(${macroPie.length}, minmax(0, 1fr))` }}>
+            {macroPie.map((m, i) => (
+              <div key={m.key} className={i === 0 ? "pr-3" : "px-3"}>
+                <dt className="text-[12px] text-g4">{m.name}</dt>
+                <dd className="mt-0.5 whitespace-nowrap">
+                  <span className="text-[22px] font-medium tabular-nums" style={{ color: m.ink }}>{m.value}</span>
+                  <span className="text-[12px] text-g4">% </span>
+                  <span className="text-[12px] tabular-nums text-g4">{m.grams} g</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </>
       )}
     </SectionCard>
   );

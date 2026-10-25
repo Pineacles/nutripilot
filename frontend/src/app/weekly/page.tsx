@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useCountUp } from "@/hooks/use-count-up";
 import { useWeekSummary, useSettings } from "@/hooks/queries";
 import { getErrorMessage } from "@/lib/api";
 import { fmt } from "@/lib/utils";
+import { gapPhrase } from "@/lib/chart-utils";
 import { DashboardLayout } from "@/components/dashboard-layout";
+import { SectionGroup } from "@/components/charts/section-card";
+import { plateOf } from "@/lib/plates";
+import { useTracked } from "@/hooks/use-tracked";
 import { ErrorState } from "@/components/ui/error-state";
 import { CalorieChartCard } from "@/components/calorie-chart";
 import { WeightTrendCard } from "@/components/weight-trend";
@@ -13,11 +18,19 @@ import { MicronutrientSummaryCard } from "@/components/micronutrient-summary";
 import { BodyCompCard } from "@/components/body-comp";
 import { HydrationWeeklyCard } from "@/components/hydration-weekly";
 
+const CHIP = "h-11 rounded-full border px-4 text-[13px] font-medium transition-colors duration-150";
+const ICON_BTN = "flex h-11 w-11 items-center justify-center rounded-full text-g4 transition-colors hover:bg-g2 hover:text-ink disabled:text-g3 disabled:hover:bg-transparent";
+
+const MICRO_KEYS = ["vit_d", "zinc", "omega3", "magnesium", "b12", "iron", "calcium", "vit_c", "potassium"];
+
 export default function WeeklyPage() {
   const [mode, setMode] = useState<"last7" | "week">("week");
   const [offset, setOffset] = useState(0);
   const { data, isLoading, isError, error, refetch } = useWeekSummary(mode, offset);
   const { data: settings } = useSettings();
+  const { shows } = useTracked();
+  const avgKcal = Math.round(data?.daily_avg.kcal ?? 0);
+  const shownAvg = Math.round(useCountUp(avgKcal, 600, !!data));
 
   function goBack() { setOffset((o) => Math.min(o + 1, 52)); }
   function goForward() { setOffset((o) => Math.max(o - 1, 0)); }
@@ -26,167 +39,155 @@ export default function WeeklyPage() {
     if (!data) return "";
     const from = new Date(data.start_date + "T00:00:00");
     const to = new Date(data.end_date + "T00:00:00");
-    const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    if (offset === 0) return `${fmt(from)}-${fmt(to)} (current)`;
-    return `${fmt(from)}-${fmt(to)}`;
+    const f = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return `${f(from)} to ${f(to)}`;
   }
 
   const targetKcal = settings?.nutrition_targets.target_kcal ?? 2000;
+  const days = data?.daily_calories ?? [];
+  const loggedDays = days.filter((d) => d.kcal > 0).length;
+  const totalDays = Math.max(7, days.length);
+  const weekTotal = days.length > 0 ? Math.round(days.reduce((s, d) => s + d.kcal, 0)) : Math.round(avgKcal * 7);
+  const figure = shownAvg.toLocaleString("en-US");
+
+  const picker = (
+    <div>
+      <div role="group" aria-label="Range" className="flex gap-2">
+        {([
+          { value: "week" as const, label: "Mon to Sun" },
+          { value: "last7" as const, label: "Last 7 days" },
+        ]).map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={mode === opt.value}
+            onClick={() => { setMode(opt.value); setOffset(0); }}
+            className={`${CHIP} ${mode === opt.value ? "border-ink bg-ink text-g0" : "border-g3 text-g5 hover:border-g5 hover:text-ink"}`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center justify-between border-y border-g2 py-1">
+        <button type="button" onClick={goBack} disabled={offset >= 52} aria-label="Previous week" className={`${ICON_BTN} -ml-3`}>
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        </button>
+        <span className="text-[17px] font-medium tabular-nums text-ink">
+          {data ? weekLabel() : "\u00a0"}
+          {data && offset === 0 && <span className="ml-2 text-[12px] font-normal text-g4">current</span>}
+        </span>
+        <button type="button" onClick={goForward} disabled={offset <= 0} aria-label="Next week" className={`${ICON_BTN} -mr-3`}>
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+        </button>
+      </div>
+    </div>
+  );
 
   return (
-    <DashboardLayout title="Weekly Overview">
+    <DashboardLayout title="Weekly">
       {isError ? (
         <ErrorState message={getErrorMessage(error, "Couldn't load the weekly summary.")} onRetry={() => refetch()} />
       ) : isLoading || !data ? (
-        <div className="space-y-4">
-          {/* Skeleton hero row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="pill rounded-xl p-4 animate-pulse">
-                <div className="h-2 w-16 rounded bg-muted mb-2" />
-                <div className="h-6 w-20 rounded bg-muted" />
+        <div role="status" aria-label="Loading the week">
+          {picker}
+          <div className="flex min-h-[172px] flex-col justify-end gap-3 py-5 min-[400px]:min-h-[196px] sm:min-h-[260px]">
+            <div className="h-3 w-24 rounded-sm bg-g2 animate-pulse" />
+            <div className="h-24 w-56 rounded-sm bg-g1 animate-pulse" />
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-g2 border-y border-g2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="space-y-2 px-3 py-3 first:pl-0">
+                <div className="h-3 w-14 rounded-sm bg-g2 animate-pulse" />
+                <div className="h-6 w-12 rounded-sm bg-g1 animate-pulse" />
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="clay-card p-5 space-y-4 animate-pulse">
-                <div className="h-3 w-28 rounded bg-muted" />
-                <div className="h-40 rounded-xl bg-muted" />
-                <div className="space-y-2">
-                  <div className="h-2 w-full rounded bg-muted" />
-                  <div className="h-2 w-2/3 rounded bg-muted" />
-                </div>
-              </div>
-            ))}
+          <div className="mt-6 clay-card space-y-4 px-5 py-5">
+            <div className="h-4 w-28 rounded-sm bg-g3/60 animate-pulse" />
+            <div className="h-[200px] rounded-sm bg-g2 animate-pulse" />
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          {/* ── Mode toggle + week navigation ── */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 -mt-1">
-            <div className="flex items-center gap-1.5">
-              {([
-                { value: "last7" as const, label: "Last 7 days" },
-                { value: "week" as const, label: "Mon-Sun" },
-              ]).map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => { setMode(opt.value); setOffset(0); }}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
-                    mode === opt.value
-                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                      : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+        <div>
+          {picker}
+
+          {/* Hero: the week's one number, the average kcal a day */}
+          <div>
+            <div className="flex min-h-[172px] flex-col justify-end py-5 min-[400px]:min-h-[196px] sm:min-h-[260px]">
+              {loggedDays === 0 ? (
+                <>
+                  <p className="text-[22px] font-semibold tracking-[-0.01em] text-ink">Nothing logged this week</p>
+                  <p className="mt-1 text-[15px] text-g4">Log a meal on Today and the week fills in here.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[12px] text-g4">Average per day</p>
+                  <p
+                    className={`mt-2 font-bold leading-[0.8] tracking-[-0.045em] text-ink tabular-nums ${
+                      figure.length <= 3 ? "text-[6.5rem] min-[400px]:text-[7.5rem] sm:text-[8.5rem]" : "text-[5.5rem] min-[400px]:text-[6.25rem] sm:text-[8rem]"
+                    }`}
+                  >
+                    {figure}
+                  </p>
+                  <p className="mt-3 text-[13px] tabular-nums text-g5">
+                    kcal a day, target {targetKcal.toLocaleString("en-US")},{" "}
+                    <span className="text-ink">{gapPhrase(avgKcal, targetKcal)}</span>
+                  </p>
+                </>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={goBack}
-                disabled={offset >= 52}
-                className="p-1.5 rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <span className="text-xs text-muted-foreground min-w-[160px] text-center tabular-nums">
-                {weekLabel()}
-              </span>
-              <button
-                onClick={goForward}
-                disabled={offset <= 0}
-                className="p-1.5 rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
+            <dl className="grid grid-cols-3 divide-x divide-g2 border-y border-g2">
+              <div className="py-3 pr-3">
+                <dt className="text-[12px] text-g4">Total</dt>
+                <dd className="mt-0.5 whitespace-nowrap"><span className="text-[22px] font-medium tabular-nums text-ink">{weekTotal.toLocaleString("en-US")}</span><span className="ml-0.5 text-[12px] text-g4">kcal</span></dd>
+              </div>
+              <div className="px-3 py-3">
+                <dt className="text-[12px] text-g4">Weight change</dt>
+                <dd className="mt-0.5 whitespace-nowrap">
+                  {data.weight.delta != null ? (
+                    <><span className="text-[22px] font-medium tabular-nums text-ink">{data.weight.delta > 0 ? "+" : ""}{fmt(data.weight.delta)}</span><span className="ml-0.5 text-[12px] text-g4">kg</span></>
+                  ) : (
+                    <span className="text-[22px] font-medium text-g4">--</span>
+                  )}
+                </dd>
+              </div>
+              <div className="px-3 py-3">
+                <dt className="text-[12px] text-g4">Days logged</dt>
+                <dd className="mt-0.5 whitespace-nowrap"><span className="text-[22px] font-medium tabular-nums text-ink">{loggedDays}</span><span className="ml-0.5 text-[12px] text-g4">/{totalDays}</span></dd>
+              </div>
+            </dl>
           </div>
 
-          {/* ── Hero metrics row ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="pill pill-green rounded-xl p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Total Kcal</p>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
-                {Math.round(data.daily_avg.kcal * 7).toLocaleString()}
-              </p>
-              <p className="text-xs text-emerald-400 font-medium mt-0.5">this week</p>
-            </div>
-            <div className="pill pill-blue rounded-xl p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Avg Daily Kcal</p>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
-                {Math.round(data.daily_avg.kcal).toLocaleString()}
-              </p>
-              <p className="text-xs text-blue-400 font-medium mt-0.5">
-                {data.daily_avg.kcal > targetKcal ? "+" : ""}{Math.round(data.daily_avg.kcal - targetKcal)} vs target
-              </p>
-            </div>
-            <div className="pill pill-amber rounded-xl p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Weight Change</p>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
-                {data.weight.delta != null
-                  ? `${data.weight.delta > 0 ? "+" : ""}${fmt(data.weight.delta)} kg`
-                  : "--"}
-              </p>
-              <p className="text-xs text-amber-400 font-medium mt-0.5">
-                {data.weight.end_kg ? `${fmt(data.weight.end_kg)} kg current` : "no data"}
-              </p>
-            </div>
-            <div className="pill pill-purple rounded-xl p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Days Logged</p>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
-                {(() => {
-                  const todayIdx = (new Date().getDay() + 6) % 7;
-                  return todayIdx + 1;
-                })()}
-                <span className="text-sm font-normal text-muted-foreground">/7</span>
-              </p>
-              <p className="text-xs text-purple-400 font-medium mt-0.5">this week</p>
-            </div>
-          </div>
-
-          {/* ── Bento grid ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Calorie chart: 2 cols */}
-            <CalorieChartCard
-              dailyAvgKcal={data.daily_avg.kcal}
-              targetKcal={targetKcal}
-              dailyData={data.daily_calories}
-            />
-
-            {/* Weight trend: 1 col */}
-            <WeightTrendCard weight={data.weight} bodyComp={data.body_comp} goalKg={settings?.nutrition_targets.target_weight_kg} />
-
-            {/* Body composition: 1 col */}
-            {data.body_comp.length > 0 && (
-              <BodyCompCard data={data.body_comp} />
+          {/* Ruled sections, each a predictable grid; the calorie bars take the full row and a
+              hidden nutrient's card just drops out */}
+          <div className="mt-6">
+            <SectionGroup title="Energy" swatches={[plateOf("protein"), plateOf("carbs"), plateOf("fat")]}>
+              <CalorieChartCard dailyAvgKcal={data.daily_avg.kcal} targetKcal={targetKcal} dailyData={data.daily_calories} />
+              <MacroAveragesCard dailyAvg={data.daily_avg} targets={settings?.nutrition_targets} />
+            </SectionGroup>
+            {(shows("water") || shows("caffeine")) && (
+              <SectionGroup title="Drinks" swatches={[plateOf("water"), plateOf("caffeine")]}>
+                <HydrationWeeklyCard
+                  dailyWater={data.daily_water ?? []}
+                  dailyCaffeine={data.daily_caffeine ?? []}
+                  targetWater={settings?.nutrition_targets?.target_water_ml ?? 2500}
+                  targetCaffeine={settings?.nutrition_targets?.target_caffeine_mg ?? 400}
+                />
+              </SectionGroup>
             )}
-
-            {/* Macro averages: 1 col (or 2 if no body comp) */}
-            <MacroAveragesCard
-              dailyAvg={data.daily_avg}
-              targets={settings?.nutrition_targets}
-            />
-
-            {/* Hydration & Caffeine weekly */}
-            <HydrationWeeklyCard
-              dailyWater={data.daily_water ?? []}
-              dailyCaffeine={data.daily_caffeine ?? []}
-              targetWater={settings?.nutrition_targets?.target_water_ml ?? 2500}
-              targetCaffeine={settings?.nutrition_targets?.target_caffeine_mg ?? 400}
-            />
-
-            {/* Micronutrients: 2 cols */}
-            <MicronutrientSummaryCard
-              microAvg={data.micronutrient_avg}
-              microTargets={settings?.micronutrient_targets}
-              dateRange={{ from: data.start_date, to: data.end_date }}
-            />
+            {MICRO_KEYS.some(shows) && (
+              <SectionGroup title="Vitamins and minerals">
+                <MicronutrientSummaryCard
+                  microAvg={data.micronutrient_avg}
+                  microTargets={settings?.micronutrient_targets}
+                  dateRange={{ from: data.start_date, to: data.end_date }}
+                />
+              </SectionGroup>
+            )}
+            <SectionGroup title="Body">
+              <WeightTrendCard weight={data.weight} bodyComp={data.body_comp} goalKg={settings?.nutrition_targets.target_weight_kg} />
+              {data.body_comp.length > 0 && <BodyCompCard data={data.body_comp} />}
+            </SectionGroup>
           </div>
         </div>
       )}

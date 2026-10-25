@@ -1,34 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-  ReferenceLine,
-  Tooltip,
-  Cell,
-} from "recharts";
-import { DashboardCard } from "./dashboard-card";
-
-/* ── Shared tooltip style ── */
-const TT_STYLE = {
-  backgroundColor: "#1e1e22",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 10,
-  color: "#e8e8e8",
-  fontSize: 13,
-  padding: "10px 14px",
-  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-} as const;
-
-const COLOR_PRIMARY = "#22c55e";
-const COLOR_GRID = "rgba(255,255,255,0.05)";
-const COLOR_TICK = "rgba(255,255,255,0.3)";
-const COLOR_CURSOR = "rgba(255,255,255,0.03)";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Tooltip, Cell, LabelList } from "recharts";
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
+import { POSTER_CURSOR_BAR, POSTER_TARGET_LINE, POSTER_X_AXIS } from "@/lib/chart-theme";
+import { TT_STYLE } from "@/components/statistics/chart-tooltip";
+import { countDays, daysWord, todayKey, useChartMotion } from "@/lib/chart-utils";
+import { ALERT, plateOf } from "@/lib/plates";
 
 interface Props {
   dailyAvgKcal: number;
@@ -36,106 +14,82 @@ interface Props {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
   return (
     <div style={TT_STYLE}>
-      <p style={{ fontWeight: 600, marginBottom: 2 }}>{label}</p>
-      <p style={{ color: COLOR_PRIMARY }}>{typeof payload[0].value === "number" ? Math.round(payload[0].value).toLocaleString() : payload[0].value} kcal</p>
+      <p style={{ color: "var(--g4)", fontSize: 12 }}>{d.long}</p>
+      <p style={{ fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+        {Math.round(payload[0].value).toLocaleString("en-US")} kcal
+        {d.over > 0 && <span style={{ color: "var(--alert)", marginLeft: 8, fontWeight: 600 }}>{d.over.toLocaleString("en-US")} over</span>}
+      </p>
     </div>
   );
 }
 
+/** The day's figure set inside the foot of its bar, clear of the target rule; skipped when the bar is too short to hold it. */
+function BarFigure({ x, y, width, height, value }: any) {
+  if (!(Number(value) > 0) || height < 22) return null;
+  return (
+    <text x={x + width / 2} y={y + height - 8} textAnchor="middle" fill="var(--g0)" fontSize={12} style={{ fontVariantNumeric: "tabular-nums" }}>
+      {/* A narrow phone bar holds "2.0k", not "2,047" */}
+      {width < 46 ? `${(Number(value) / 1000).toFixed(1)}k` : Number(value).toLocaleString("en-US")}
+    </text>
+  );
+}
+
+/** Seven bars on one kcal scale, each labelled with its figure: calm g4 under target, today in full ink, a day over target filled --alert (and said "over" on hover and in the title). */
 export function CalorieChartCard({ dailyAvgKcal, targetKcal, dailyData }: Props & { dailyData?: { date: string; kcal: number }[] }) {
   const router = useRouter();
-  const todayIdx = (new Date().getDay() + 6) % 7; // Mon=0
+  const motion = useChartMotion();
+  const today = todayKey();
 
-  // Use real daily data if provided, otherwise show empty state
-  const data = dailyData && dailyData.length > 0
-    ? dailyData.map((d, i) => ({
-        day: new Date(d.date + "T00:00:00").toLocaleDateString("en", { weekday: "short" }),
-        dateStr: d.date,
-        kcal: Math.round(d.kcal),
-        isToday: i === dailyData.length - 1,
-      }))
-    : (() => {
-        // No real data: show empty bars
-        if (dailyAvgKcal < 1) return [];
-        const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-        return dayNames.map((day, i) => ({
-          day,
-          dateStr: "",
-          kcal: 0,
-          isToday: i === todayIdx,
-        }));
-      })();
+  const data = (dailyData ?? []).map((d) => ({
+    day: new Date(d.date + "T00:00:00").toLocaleDateString("en", { weekday: "short" }),
+    long: new Date(d.date + "T00:00:00").toLocaleDateString("en", { weekday: "long", month: "short", day: "numeric" }),
+    dateStr: d.date,
+    kcal: Math.round(d.kcal),
+    isToday: d.date === today,
+    over: Math.max(0, Math.round(d.kcal) - targetKcal),
+  }));
 
-  if (data.length === 0) {
+  if (data.length === 0 || (dailyAvgKcal < 1 && data.every((d) => d.kcal === 0))) {
     return (
-      <DashboardCard title="7-Day Calories" span="lg:col-span-2">
-        <p className="text-sm text-muted-foreground py-8 text-center">No calorie data this week</p>
-      </DashboardCard>
+      <SectionCard title="Calories by day">
+        <SectionEmpty>No calories logged this week. Log a meal on Today and it shows up here.</SectionEmpty>
+      </SectionCard>
     );
   }
 
+  const overDays = countDays(data.filter((d) => d.kcal > 0).map((d) => d.kcal), (v) => v > targetKcal).n;
+  const title = overDays === 0 ? "Calories by day: never over target" : `Calories by day: over target on ${daysWord(overDays)}`;
+  const max = Math.max(targetKcal, ...data.map((d) => d.kcal));
   return (
-    <DashboardCard title="7-Day Calories" span="lg:col-span-2">
-      <ResponsiveContainer minWidth={0} width="100%" height={260}>
-        <BarChart data={data} barCategoryGap="20%">
-          <defs>
-            <linearGradient id="calBarGreen" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#4ade80" stopOpacity={0.95} />
-              <stop offset="100%" stopColor="#22c55e" stopOpacity={0.6} />
-            </linearGradient>
-            <linearGradient id="calBarDim" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(255,255,255,0.18)" stopOpacity={1} />
-              <stop offset="100%" stopColor="rgba(255,255,255,0.06)" stopOpacity={1} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRID} vertical={false} />
-          <XAxis
-            dataKey="day"
-            tick={{ fill: COLOR_TICK, fontSize: 12 }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: COLOR_TICK, fontSize: 12 }}
-            axisLine={false}
-            tickLine={false}
-            width={45}
-          />
-          <Tooltip
-            content={<CustomTooltip />}
-            cursor={{ fill: COLOR_CURSOR }}
-          />
-          <ReferenceLine
-            y={targetKcal}
-            stroke={COLOR_PRIMARY}
-            strokeDasharray="6 3"
-            strokeWidth={1.5}
-            label={{ value: `${targetKcal} kcal target`, fill: COLOR_PRIMARY, fontSize: 10, position: "insideTopRight" }}
-          />
+    <SectionCard title={title} summary={`target ${targetKcal.toLocaleString("en-US")}, tap a day to open it`}>
+      <ResponsiveContainer minWidth={0} width="100%" height={240}>
+        <BarChart data={data} barCategoryGap="22%" margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
+          <XAxis dataKey="day" {...POSTER_X_AXIS} />
+          <YAxis hide domain={[0, Math.ceil((max * 1.05) / 100) * 100]} />
+          <Tooltip content={<CustomTooltip />} cursor={POSTER_CURSOR_BAR} />
+          <ReferenceLine y={targetKcal} {...POSTER_TARGET_LINE} />
           <Bar
             dataKey="kcal"
-            radius={[6, 6, 0, 0]}
+            radius={0}
             cursor="pointer"
+            {...motion}
             onClick={(_: unknown, index: number) => {
               const entry = data[index];
-              if (entry && "dateStr" in entry && entry.dateStr) {
-                router.push(`/today?date=${entry.dateStr}`);
-              }
+              if (entry?.dateStr) router.push(`/today?date=${entry.dateStr}`);
             }}
           >
             {data.map((entry, i) => (
-              <Cell
-                key={i}
-                fill={entry.isToday ? "url(#calBarGreen)" : "url(#calBarDim)"}
-              />
+              <Cell key={i} fill={entry.over > 0 ? ALERT : entry.isToday ? plateOf("kcal") : "var(--g4)"} />
             ))}
+            <LabelList dataKey="kcal" content={BarFigure} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </DashboardCard>
+    </SectionCard>
   );
 }

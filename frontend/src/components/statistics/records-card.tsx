@@ -1,77 +1,67 @@
 import { SectionCard } from "@/components/charts/section-card";
 import { fmtDate } from "@/lib/chart-utils";
-import { CHART_COLORS } from "@/lib/chart-theme";
+import { POSTER } from "@/lib/chart-theme";
+import { plateOf } from "@/lib/plates";
 import type { StatsSummary } from "@/lib/types";
+import { useTracked } from "@/hooks/use-tracked";
 
 interface Props {
   data: StatsSummary;
 }
 
+/** Best and worst days as ruled rows. A value takes a plate ink only when it is that macro's own figure. */
 export function RecordsCard({ data }: Props) {
+  const { shows } = useTracked();
   const records = [
     {
-      label: "Highest Protein Day",
+      label: "Highest protein day",
       data: data.highest_protein_day,
-      value: data.highest_protein_day ? `${data.highest_protein_day.protein}g` : null,
+      value: data.highest_protein_day ? `${Math.round(data.highest_protein_day.protein).toLocaleString("en-US")} g` : null,
       date: data.highest_protein_day?.date,
-      pill: "pill-blue",
-      color: CHART_COLORS.blue,
+      ink: POSTER.protein,
+      nutrient: "protein",
     },
     {
-      label: "Lowest Calorie Day",
+      label: "Lowest calorie day",
       data: data.lowest_calorie_day,
-      value: data.lowest_calorie_day ? `${data.lowest_calorie_day.kcal.toLocaleString()} kcal` : null,
+      value: data.lowest_calorie_day ? `${Math.round(data.lowest_calorie_day.kcal).toLocaleString("en-US")} kcal` : null,
       date: data.lowest_calorie_day?.date,
-      pill: "pill-green",
-      color: CHART_COLORS.green,
+      ink: POSTER.ink,
     },
     {
-      label: "Highest Calorie Day",
+      label: "Highest calorie day",
       data: data.highest_calorie_day,
-      value: data.highest_calorie_day ? `${data.highest_calorie_day.kcal.toLocaleString()} kcal` : null,
+      value: data.highest_calorie_day ? `${Math.round(data.highest_calorie_day.kcal).toLocaleString("en-US")} kcal` : null,
       date: data.highest_calorie_day?.date,
-      pill: "pill-amber",
-      color: CHART_COLORS.amber,
+      ink: POSTER.ink,
     },
     {
-      label: "Best Fiber Day",
+      label: "Best fiber day",
       data: data.best_fiber_day,
-      value: data.best_fiber_day ? `${data.best_fiber_day.fiber}g` : null,
+      value: data.best_fiber_day ? `${Math.round(data.best_fiber_day.fiber).toLocaleString("en-US")} g` : null,
       date: data.best_fiber_day?.date,
-      pill: "pill-green",
-      color: CHART_COLORS.teal,
+      ink: plateOf("fiber"),
+      nutrient: "fiber",
     },
-    {
-      label: "Longest Streak",
-      data: true,
-      value: `${data.current_streak} days`,
-      date: null,
-      pill: "pill-purple",
-      color: CHART_COLORS.purple,
-    },
-  ];
+  ].filter((r) => !("nutrient" in r) || shows(r.nutrient as string));
 
   return (
-    <SectionCard title="Personal Records">
-      <div className="space-y-3">
-        {records.map(record => (
-          <div key={record.label} className={`pill ${record.pill} rounded-lg p-3`}>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">{record.label}</p>
+    <SectionCard title="Records">
+      <ul className="divide-y divide-g2 border-t border-g2">
+        {records.map((record) => (
+          <li key={record.label} className="flex min-h-[60px] items-center justify-between gap-3 py-2">
+            <div>
+              <p className="text-[15px] text-ink">{record.label}</p>
+              {record.date && <p className="text-[12px] tabular-nums text-g4">{fmtDate(record.date)}</p>}
+            </div>
             {record.data && record.value ? (
-              <div className="flex items-baseline justify-between">
-                <span className="text-base font-bold tabular-nums" style={{ color: record.color }}>
-                  {record.value}
-                </span>
-                {record.date && (
-                  <span className="text-[10px] text-muted-foreground/60">{fmtDate(record.date)}</span>
-                )}
-              </div>
+              <span className="text-[17px] font-medium tabular-nums" style={{ color: record.ink }}>{record.value}</span>
             ) : (
-              <p className="text-sm text-muted-foreground/50">--</p>
+              <span className="text-[13px] text-g4">No data yet</span>
             )}
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </SectionCard>
   );
 }

@@ -7,10 +7,11 @@ import { useBodyDerived } from "@/hooks/use-body-derived";
 import { getErrorMessage } from "@/lib/api";
 import { ErrorState } from "@/components/ui/error-state";
 import { MeasurementsList } from "@/components/body/measurements-list";
-import { CHART_COLORS } from "@/lib/chart-theme";
+import { Plus } from "lucide-react";
 import { PeriodSelector } from "@/components/body/period-selector";
 import { HeroStats } from "@/components/body/hero-stats";
 import { BodySkeleton } from "@/components/body/body-skeleton";
+import { CompositionCard } from "@/components/body/composition-card";
 import { MetricTrendCard } from "@/components/body/metric-trend-card";
 import { WeightStatsCard } from "@/components/body/weight-stats-card";
 import { CompositionDonutCard } from "@/components/body/composition-donut-card";
@@ -23,6 +24,7 @@ export default function BodyCompositionPage() {
   const [activePreset, setActivePreset] = useState(90);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data, isLoading: loading, isError, error, refetch } = useStats(days);
   const { data: settings } = useSettings();
@@ -60,34 +62,46 @@ export default function BodyCompositionPage() {
   const targetWeight = settings?.nutrition_targets.target_weight_kg ?? null;
   const targetBf = settings?.nutrition_targets.target_body_fat_pct ?? null;
 
-  if (loading && !data) return <DashboardLayout title="Body Composition"><BodySkeleton /></DashboardLayout>;
+  if (loading && !data) return <DashboardLayout title="Body" hideTitle><BodySkeleton /></DashboardLayout>;
 
   if (isError && !data) {
     return (
-      <DashboardLayout title="Body Composition">
-        <ErrorState message={getErrorMessage(error, "Couldn't load body composition data.")} onRetry={() => refetch()} />
+      <DashboardLayout title="Body">
+        <ErrorState message={getErrorMessage(error, "Couldn't load body data. Check your connection and try again.")} onRetry={() => refetch()} />
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout title="Body Composition">
-      <div className="space-y-6">
-        <PeriodSelector
-          activePreset={activePreset}
-          onPreset={(d) => { setActivePreset(d); setDays(d); }}
-          customFrom={customFrom}
-          customTo={customTo}
-          onCustomFrom={setCustomFrom}
-          onCustomTo={setCustomTo}
-          onApplyCustomRange={applyCustomRange}
-        />
+    <DashboardLayout title="Body" hideTitle>
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-ink">Body</h1>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-g3 px-4 text-[13px] font-medium text-ink transition-colors hover:border-g5 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" /> Add measurement
+          </button>
+        </div>
 
-        <MeasurementsList />
+        <div className="mt-4">
+          <PeriodSelector
+            activePreset={activePreset}
+            onPreset={(d) => { setActivePreset(d); setDays(d); }}
+            customFrom={customFrom}
+            customTo={customTo}
+            onCustomFrom={setCustomFrom}
+            onCustomTo={setCustomTo}
+            onApplyCustomRange={applyCustomRange}
+          />
+        </div>
 
         <HeroStats
           currentWeight={currentWeight}
           weightChange={weightChange}
+          days={days}
           currentBf={currentBf}
           currentFatKg={currentFatKg}
           fatKgChange={fatKgChange}
@@ -96,17 +110,17 @@ export default function BodyCompositionPage() {
           muscleKgChange={muscleKgChange}
           bmi={bmi}
           weeklyAvgChange={weeklyAvgChange}
+          targetWeight={targetWeight}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 md:gap-4">
           <MetricTrendCard
-            title="Weight Trend" span="lg:col-span-2" data={enrichedData} hasData={enrichedData.length > 0}
-            emptyMessage="No weight data for this period" gradientId="weightGrad" dataKey="weight_kg" avgKey="weight_kg_avg"
-            color={CHART_COLORS.green} height={280} valueSuffix=" kg" referenceValue={targetWeight}
+            title="Weight" span="lg:col-span-2" data={enrichedData} hasData={enrichedData.length > 0}
+            emptyMessage="No weight logged in this period. Pick a longer one or add a measurement."
+            dataKey="weight_kg" avgKey="weight_kg_avg" height={260} valueSuffix=" kg" alwaysDots referenceValue={targetWeight}
           />
           <WeightStatsCard
             startingWeight={startingWeight}
-            currentWeight={currentWeight}
             lowestWeight={lowestWeight}
             highestWeight={highestWeight}
             weightChange={weightChange}
@@ -114,36 +128,16 @@ export default function BodyCompositionPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <MetricTrendCard
-            title="Body Fat % Trend" data={enrichedData} hasData={enrichedData.some(d => d.body_fat_pct != null)}
-            emptyMessage="No body fat data" gradientId="bfGrad" dataKey="body_fat_pct" avgKey="body_fat_pct_avg"
-            color={CHART_COLORS.amber} height={220} tickMaxLabels={5} valueSuffix="%"
-          />
-          <MetricTrendCard
-            title="Muscle Mass % Trend" data={enrichedData} hasData={enrichedData.some(d => d.muscle_mass_pct != null)}
-            emptyMessage="No muscle mass data" gradientId="muscleGrad" dataKey="muscle_mass_pct" avgKey="muscle_mass_pct_avg"
-            color={CHART_COLORS.blue} height={220} tickMaxLabels={5} valueSuffix="%"
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 md:mt-4 md:gap-4">
+          <CompositionCard data={enrichedData} span="lg:col-span-2" />
           <CompositionDonutCard compositionDonut={compositionDonut} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <MetricTrendCard
-            title="Fat Mass (kg)" data={enrichedData} hasData={enrichedData.some(d => d.body_fat_kg != null)}
-            emptyMessage="No fat mass data" gradientId="fatKgGrad" dataKey="body_fat_kg" avgKey="body_fat_kg_avg"
-            color={CHART_COLORS.amber} height={220} tickMaxLabels={6} valueSuffix=" kg"
-          />
-          <MetricTrendCard
-            title="Muscle Mass (kg)" data={enrichedData} hasData={enrichedData.some(d => d.muscle_mass_kg != null)}
-            emptyMessage="No muscle mass data" gradientId="muscleKgGrad" dataKey="muscle_mass_kg" avgKey="muscle_mass_kg_avg"
-            color={CHART_COLORS.blue} height={220} tickMaxLabels={6} valueSuffix=" kg"
-          />
+        <div className="md:mt-4">
+          <MeasurementsList onAdd={() => setAddOpen(true)} addOpen={addOpen} onAddOpenChange={setAddOpen} />
         </div>
 
-        <ProgressOverviewCard enrichedData={enrichedData} />
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 md:mt-4 md:gap-4">
           <MilestonesCard
             targetWeight={targetWeight}
             targetBf={targetBf}
@@ -153,6 +147,10 @@ export default function BodyCompositionPage() {
             startingBf={startingBfAll}
           />
           <RateOfChangeCard weeklyRateData={weeklyRateData} weeklyAvgChange={weeklyAvgChange} />
+        </div>
+
+        <div className="md:mt-4">
+          <ProgressOverviewCard enrichedData={enrichedData} />
         </div>
       </div>
     </DashboardLayout>

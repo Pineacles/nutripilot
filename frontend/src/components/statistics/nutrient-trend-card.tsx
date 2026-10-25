@@ -1,16 +1,14 @@
-import {
-  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine,
-} from "recharts";
-import { SectionCard } from "@/components/charts/section-card";
-import { ChartTooltip } from "./chart-tooltip";
-import { type DailyNutritionLike, AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
-import { CHART_GRID_SUBTLE, CHART_GRID_DASH } from "@/lib/chart-theme";
+"use client";
+
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
+import { TrendChart, type TargetMode } from "./trend-chart";
+import { type DailyNutritionLike, countDays, daysWord, meanOf } from "@/lib/chart-utils";
+import { useTracked } from "@/hooks/use-tracked";
 
 interface Props {
   title: string;
   dataKey: "fiber" | "sugar" | "sodium" | "alcohol";
   unit: string;
-  color: string;
   target: number;
   /** Fiber/sugar/sodium always render their reference line; alcohol only when a target is set. */
   showReferenceLine?: boolean;
@@ -18,56 +16,44 @@ interface Props {
   rollingNutrition: (DailyNutritionLike & Record<string, number>)[];
 }
 
-/** Small single-metric 7-day-average trend chart: shared by Fiber/Sugar/Sodium/Alcohol. */
-export function NutrientTrendCard({ title, dataKey, unit, color, target, showReferenceLine = true, nutritionLength, rollingNutrition }: Props) {
+/** Fiber is reached; the others are limits, where a day past the target is --alert and said in the word "over". */
+const IS_LIMIT: Record<Props["dataKey"], boolean> = { fiber: false, sugar: true, sodium: true, alcohol: true };
+
+/** The answer in the title: fiber says how many days reached it, a limit how many days broke it. */
+function answer(title: string, dataKey: Props["dataKey"], target: number, values: number[]): string {
+  if (values.length === 0) return title;
+  if (target <= 0) {
+    const { n, total } = countDays(values, (v) => v > 0);
+    return n === 0 ? `${title}: none in ${daysWord(total)}` : `${title}: on ${n} of ${total} days`;
+  }
+  if (IS_LIMIT[dataKey]) {
+    const { n } = countDays(values, (v) => v > target);
+    return n === 0 ? `${title}: never over the limit` : `${title}: over the limit on ${daysWord(n)}`;
+  }
+  const { n, total } = countDays(values, (v) => v >= target);
+  return `${title}: hit ${target.toLocaleString("en-US")} g on ${n} of ${total} days`;
+}
+
+/** Small single-metric trend chart shared by Fiber, Sugar, Sodium and Alcohol. Fiber wears its plate; the rest are ink. */
+export function NutrientTrendCard({ title, dataKey, unit, target, showReferenceLine = true, nutritionLength, rollingNutrition }: Props) {
+  const { shows } = useTracked();
+  if (!shows(dataKey)) return null;
+  const logged = rollingNutrition.filter((d) => d.kcal > 0);
+  const values = logged.map((d) => Number(d[dataKey]) || 0);
+  const avg = meanOf(rollingNutrition.map((d) => Number(d[dataKey])));
+  const none = nutritionLength > 0 && rollingNutrition.every((d) => !Number(d[dataKey]));
+  const mode: TargetMode = !showReferenceLine ? "none" : IS_LIMIT[dataKey] ? "limit" : "goal";
   return (
-    <SectionCard title={`${title} Trend`}>
+    <SectionCard
+      title={none ? title : answer(title, dataKey, showReferenceLine ? target : 0, values)}
+      summary={avg != null ? `avg ${Math.round(avg).toLocaleString("en-US")} ${unit}` : undefined}
+    >
       {nutritionLength === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">No data</p>
+        <SectionEmpty>Nothing logged in this period.</SectionEmpty>
+      ) : none ? (
+        <p className="border-y border-g2 py-3 text-[13px] text-g4">No {title.toLowerCase()} in this period</p>
       ) : (
-        <ResponsiveContainer minWidth={0} width="100%" height={140}>
-          <ComposedChart data={rollingNutrition} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-            <defs>
-              <linearGradient id={`${dataKey}Grad`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.2} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray={CHART_GRID_DASH} stroke={CHART_GRID_SUBTLE} vertical={false} />
-            <XAxis
-              dataKey="date"
-              tick={{ fill: "#888", fontSize: 9 }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS}
-            />
-            <YAxis tick={{ fill: "#aaa", fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-            <Tooltip content={<ChartTooltip valueSuffix={` ${unit}`} />} />
-            {showReferenceLine && (
-              <ReferenceLine y={target} stroke={color} strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.6} />
-            )}
-            <Line
-              type="monotone"
-              dataKey={dataKey}
-              stroke="transparent"
-              strokeWidth={0}
-              dot={{ fill: color, r: 1.5, fillOpacity: 0.25, strokeWidth: 0 }}
-              activeDot={false}
-              animationDuration={600}
-              legendType="none"
-            />
-            <Area
-              type="monotone"
-              dataKey={`avg_${dataKey}`}
-              name={`${title} (7d avg)`}
-              stroke={color}
-              strokeWidth={1.5}
-              fill={`url(#${dataKey}Grad)`}
-              dot={false}
-              animationDuration={600}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+        <TrendChart data={rollingNutrition} rawKey={dataKey} avgKey={`avg_${dataKey}`} plate={dataKey} unit={unit} target={target} mode={mode} yWidth={36} />
       )}
     </SectionCard>
   );

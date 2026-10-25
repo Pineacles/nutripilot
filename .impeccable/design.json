@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T12:36:24+00:00",
+  "title": "Design System: NutriPilot",
+  "extensions": {
+    "colorMeta": {
+      "g0": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "oklch(16.7% 0.003 145)",
+        "tonalRamp": [
+          "#0E0F0E",
+          "#171817",
+          "#232523",
+          "#3A3D3A",
+          "#7D817C",
+          "#A3A79F",
+          "#EDEEE8"
+        ]
+      },
+      "g1": {
+        "role": "neutral",
+        "displayName": "Raised Ground",
+        "tonalRamp": [
+          "#0E0F0E",
+          "#171817",
+          "#232523",
+          "#3A3D3A",
+          "#7D817C",
+          "#A3A79F",
+          "#EDEEE8"
+        ]
+      },
+      "g2": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "tonalRamp": [
+          "#0E0F0E",
+          "#171817",
+          "#232523",
+          "#3A3D3A",
+          "#7D817C",
+          "#A3A79F",
+          "#EDEEE8"
+        ]
+      },
+      "g3": {
+        "role": "neutral",
+        "displayName": "Control Edge",
+        "tonalRamp": [
+          "#0E0F0E",
+          "#171817",
+          "#232523",
+          "#3A3D3A",
+          "#7D817C",
+          "#A3A79F",
+          "#EDEEE8"
+        ]
+      },
+      "g4": {
+        "role": "neutral",
+        "displayName": "Quiet Text",
+        "canonical": "oklch(59.8% 0.009 139)",
+        "tonalRamp": [
+          "#0E0F0E",
+          "#171817",
+          "#232523",
+          "#3A3D3A",
+          "#7D817C",
+          "#A3A79F",
+          "#EDEEE8"
+        ]
+      },
+      "g5": {
+        "role": "neutral",
+        "displayName": "Stepped Text",
+        "tonalRamp": [
+          "#0E0F0E",
+          "#171817",
+          "#232523",
+          "#3A3D3A",
+          "#7D817C",
+          "#A3A79F",
+          "#EDEEE8"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Poster Ink",
+        "canonical": "oklch(94.7% 0.008 114)",
+        "tonalRamp": [
+          "#0E0F0E",
+          "#171817",
+          "#232523",
+          "#3A3D3A",
+          "#7D817C",
+          "#A3A79F",
+          "#EDEEE8"
+        ]
+      },
+      "protein": {
+        "role": "secondary",
+        "displayName": "Protein Plate",
+        "canonical": "oklch(62.5% 0.201 266)",
+        "tonalRamp": [
+          "#020726",
+          "#060A71",
+          "#1227A7",
+          "#294DCD",
+          "#4571F3",
+          "#6494FF",
+          "#8EBEFF",
+          "#DAEEFF"
+        ]
+      },
+      "carbs": {
+        "role": "secondary",
+        "displayName": "Carbs Plate",
+        "canonical": "oklch(66.0% 0.150 61)",
+        "tonalRamp": [
+          "#D2790E"
+        ]
+      },
+      "fat": {
+        "role": "secondary",
+        "displayName": "Fat Plate",
+        "canonical": "oklch(56.1% 0.180 18)",
+        "tonalRamp": [
+          "#C8384B"
+        ]
+      },
+      "done": {
+        "role": "tertiary",
+        "displayName": "Done Green",
+        "canonical": "oklch(74.9% 0.163 155)",
+        "tonalRamp": [
+          "#001103",
+          "#003400",
+          "#00550D",
+          "#00762F",
+          "#00984F",
+          "#27BB6F",
+          "#6BE099",
+          "#D4FADF"
+        ]
+      },
+      "fiber": {
+        "role": "secondary",
+        "displayName": "Fiber Plate",
+        "canonical": "oklch(66.1% 0.180 143)",
+        "tonalRamp": [
+          "#3FAD3E"
+        ]
+      },
+      "water": {
+        "role": "secondary",
+        "displayName": "Water Plate",
+        "canonical": "oklch(66.0% 0.120 230)",
+        "tonalRamp": [
+          "#299FCD"
+        ]
+      },
+      "caffeine": {
+        "role": "secondary",
+        "displayName": "Caffeine Plate",
+        "canonical": "oklch(55.9% 0.210 297)",
+        "tonalRamp": [
+          "#854CDD"
+        ]
+      },
+      "alcohol": {
+        "role": "secondary",
+        "displayName": "Alcohol Plate",
+        "canonical": "oklch(56.0% 0.139 358)",
+        "tonalRamp": [
+          "#B24C74"
+        ]
+      },
+      "alert": {
+        "role": "tertiary",
+        "displayName": "Alert",
+        "canonical": "oklch(72.5% 0.177 8)",
+        "tonalRamp": [
+          "#FF6F91"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The kcal left or over figure; one per screen, sized by digit count."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The amount being entered in the Log food sheet."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "The day name in the top row."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "A macro value in its plate ink."
+      },
+      "row": {
+        "displayName": "Row",
+        "purpose": "Meal names and kcal; the Log food bar."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Values in ruled cells, food and supplement names."
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "Line under the figure, item lists, chips."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Sentence-case cell labels and units in g4."
+      },
+      "nav-label": {
+        "displayName": "Nav label",
+        "purpose": "Tab bar labels."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "arc-fill",
+        "value": "d 500ms ease-out",
+        "purpose": "Arcs grow to the new value; off under prefers-reduced-motion."
+      },
+      {
+        "name": "press",
+        "value": "transform scale(0.98)",
+        "purpose": "The Log food bar on press; off under reduced motion."
+      },
+      {
+        "name": "state",
+        "value": "150ms colors",
+        "purpose": "Hover fill, edge and text steps on controls and ruled cells."
+      },
+      {
+        "name": "sheet",
+        "value": "slide in from bottom",
+        "purpose": "The phone Log food sheet; no animation under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide-phone",
+        "value": "400px"
+      },
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Log Food Bar",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action on phones: full-width ink pill naming the meal it logs to.",
+      "html": "<button class=\"ds-logbar\"><span class=\"ds-logbar-l\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg>Log food</span><span class=\"ds-logbar-r\">to lunch</span></button>",
+      "css": ":host{--g0:#0e0f0e;--g1:#171817;--g2:#232523;--g3:#3a3d3a;--g4:#7d817c;--g5:#a3a79f;--ink:#edeee8;--protein:#4f7cff;--carbs:#d2790e;--fat:#c8384b;--fiber:#3fad3e;--water:#299fcd;--caffeine:#854cdd;--alcohol:#b24c74;--alert:#ff6f91;--done:#3fcb7e;} .ds-logbar{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;display:flex;align-items:center;justify-content:space-between;width:320px;height:52px;padding:0 24px;border:0;border-radius:999px;background:var(--ink);color:var(--g0);font-size:17px;font-weight:500;cursor:pointer;transition:transform .15s ease-out;} .ds-logbar-l{display:flex;align-items:center;gap:8px;} .ds-logbar-r{font-size:13px;font-weight:400;color:var(--g3);} .ds-logbar:active{transform:scale(.98);} .ds-logbar:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary pill: one of several actions (Take, repeat meal).",
+      "html": "<button class=\"ds-btn-outline\">Take</button>",
+      "css": ":host{--g0:#0e0f0e;--g1:#171817;--g2:#232523;--g3:#3a3d3a;--g4:#7d817c;--g5:#a3a79f;--ink:#edeee8;--protein:#4f7cff;--carbs:#d2790e;--fat:#c8384b;--fiber:#3fad3e;--water:#299fcd;--caffeine:#854cdd;--alcohol:#b24c74;--alert:#ff6f91;--done:#3fcb7e;} .ds-btn-outline{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;height:40px;padding:0 16px;border:1px solid var(--g3);border-radius:999px;background:transparent;color:var(--ink);font-size:13px;font-weight:500;cursor:pointer;transition:border-color .15s;} .ds-btn-outline:hover{border-color:var(--g5);} .ds-btn-outline:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "44px round icon control (meal plus, previous/next day).",
+      "html": "<button class=\"ds-btn-icon\" aria-label=\"Log food to lunch\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></button>",
+      "css": ":host{--g0:#0e0f0e;--g1:#171817;--g2:#232523;--g3:#3a3d3a;--g4:#7d817c;--g5:#a3a79f;--ink:#edeee8;--protein:#4f7cff;--carbs:#d2790e;--fat:#c8384b;--fiber:#3fad3e;--water:#299fcd;--caffeine:#854cdd;--alcohol:#b24c74;--alert:#ff6f91;--done:#3fcb7e;} .ds-btn-icon{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:var(--g4);cursor:pointer;transition:background .15s,color .15s;} .ds-btn-icon:hover{background:var(--g2);color:var(--ink);} .ds-btn-icon:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}"
+    },
+    {
+      "name": "Unit Chips",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "Pill segment: selected in ink, others outlined.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip\">Servings</button><button class=\"ds-chip ds-chip-on\" aria-pressed=\"true\">Grams</button><button class=\"ds-chip ds-chip-add\">+ Unit</button></div>",
+      "css": ":host{--g0:#0e0f0e;--g1:#171817;--g2:#232523;--g3:#3a3d3a;--g4:#7d817c;--g5:#a3a79f;--ink:#edeee8;--protein:#4f7cff;--carbs:#d2790e;--fat:#c8384b;--fiber:#3fad3e;--water:#299fcd;--caffeine:#854cdd;--alcohol:#b24c74;--alert:#ff6f91;--done:#3fcb7e;} .ds-chips{display:flex;gap:8px;} .ds-chip{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;height:40px;padding:0 16px;border:1px solid var(--g3);border-radius:999px;background:transparent;color:var(--g5);font-size:13px;font-weight:500;cursor:pointer;} .ds-chip:hover{border-color:var(--g5);color:var(--ink);} .ds-chip-on{background:var(--ink);color:var(--g0);border-color:var(--ink);} .ds-chip-on:hover{color:var(--g0);} .ds-chip-add{border-style:dashed;} .ds-chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Pinned at the sheet's bottom: ground-filled pill.",
+      "html": "<label class=\"ds-search\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M21 21l-5.2-5.2M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z\"/></svg><input placeholder=\"Search foods\"></label>",
+      "css": ":host{--g0:#0e0f0e;--g1:#171817;--g2:#232523;--g3:#3a3d3a;--g4:#7d817c;--g5:#a3a79f;--ink:#edeee8;--protein:#4f7cff;--carbs:#d2790e;--fat:#c8384b;--fiber:#3fad3e;--water:#299fcd;--caffeine:#854cdd;--alcohol:#b24c74;--alert:#ff6f91;--done:#3fcb7e;} .ds-search{display:flex;align-items:center;gap:8px;width:300px;height:48px;padding:0 16px;border:1px solid var(--g3);border-radius:999px;background:var(--g0);color:var(--g4);} .ds-search input{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;flex:1;border:0;background:transparent;color:var(--ink);font-size:16px;outline:none;} .ds-search input::placeholder{color:var(--g4);} .ds-search:focus-within{border-color:var(--ink);}"
+    },
+    {
+      "name": "Amount Entry",
+      "kind": "input",
+      "refersTo": "input-amount",
+      "description": "The quantity as a headline numeral on a rule; no box.",
+      "html": "<input class=\"ds-amount\" value=\"7.8\" inputmode=\"decimal\">",
+      "css": ":host{--g0:#0e0f0e;--g1:#171817;--g2:#232523;--g3:#3a3d3a;--g4:#7d817c;--g5:#a3a79f;--ink:#edeee8;--protein:#4f7cff;--carbs:#d2790e;--fat:#c8384b;--fiber:#3fad3e;--water:#299fcd;--caffeine:#854cdd;--alcohol:#b24c74;--alert:#ff6f91;--done:#3fcb7e;} .ds-amount{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;width:300px;height:80px;padding:0;border:0;border-bottom:1px solid var(--g3);border-radius:0;background:transparent;color:var(--ink);font-size:4rem;font-weight:700;letter-spacing:-.04em;line-height:1;outline:none;} .ds-amount:focus-visible{border-bottom-color:var(--ink);} .ds-amount::selection{background:var(--g3);color:var(--ink);}"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "nav-tab-active",
+      "description": "Phone navigation: active tab marked by an ink rule on top.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab ds-tab-on\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z\"/></svg>Daily</a><a class=\"ds-tab\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M21 21l-5.2-5.2M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z\"/></svg>Foods</a><a class=\"ds-tab\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.1a7.5 7.5 0 0115 0\"/></svg>Body</a></nav>",
+      "css": ":host{--g0:#0e0f0e;--g1:#171817;--g2:#232523;--g3:#3a3d3a;--g4:#7d817c;--g5:#a3a79f;--ink:#edeee8;--protein:#4f7cff;--carbs:#d2790e;--fat:#c8384b;--fiber:#3fad3e;--water:#299fcd;--caffeine:#854cdd;--alcohol:#b24c74;--alert:#ff6f91;--done:#3fcb7e;} .ds-tabs{display:grid;grid-template-columns:repeat(3,1fr);width:300px;background:var(--g0);border-top:1px solid var(--g2);} .ds-tab{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:60px;color:var(--g4);font-size:10px;font-weight:500;text-decoration:none;transition:color .15s;} .ds-tab:hover{color:var(--g5);} .ds-tab-on{color:var(--ink);} .ds-tab-on::before{content:'';position:absolute;top:0;left:12px;right:12px;height:2px;background:var(--ink);} .ds-tab:focus-visible{outline:2px solid var(--ink);outline-offset:-2px;}"
+    },
+    {
+      "name": "Macro Row",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Signature: hairline columns, value in plate ink, one absolute gram scale with a target tick.",
+      "html": "<div class=\"ds-macros\"><button class=\"ds-mc\"><p class=\"ds-ml\">Protein</p><p><span class=\"ds-mv\" style=\"color:var(--protein)\">164</span><span class=\"ds-mt\">/170 g</span></p><div class=\"ds-bar\"><i style=\"width:39%;background:var(--protein)\"></i><b style=\"left:40%\"></b></div></button><button class=\"ds-mc\"><p class=\"ds-ml\">Carbs</p><p><span class=\"ds-mv\" style=\"color:var(--carbs)\">121</span><span class=\"ds-mt\">/230 g</span></p><div class=\"ds-bar\"><i style=\"width:29%;background:var(--carbs)\"></i><b style=\"left:55%\"></b></div></button><button class=\"ds-mc\"><p class=\"ds-ml\">Fat</p><p><span class=\"ds-mv\" style=\"color:var(--fat)\">54</span><span class=\"ds-mt\">/75 g</span></p><div class=\"ds-bar\"><i style=\"width:13%;background:var(--fat)\"></i><b style=\"left:18%\"></b></div></button></div>",
+      "css": ":host{--g0:#0e0f0e;--g1:#171817;--g2:#232523;--g3:#3a3d3a;--g4:#7d817c;--g5:#a3a79f;--ink:#edeee8;--protein:#4f7cff;--carbs:#d2790e;--fat:#c8384b;--fiber:#3fad3e;--water:#299fcd;--caffeine:#854cdd;--alcohol:#b24c74;--alert:#ff6f91;--done:#3fcb7e;} .ds-macros{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;display:grid;grid-template-columns:repeat(3,1fr);width:340px;background:var(--g0);border-bottom:1px solid var(--g2);} .ds-mc{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;padding:14px 12px;border:0;border-left:1px solid var(--g2);background:transparent;text-align:left;cursor:pointer;transition:background .15s;} .ds-mc:first-child{border-left:0;padding-left:0;} .ds-mc:hover{background:var(--g1);} .ds-mc p{margin:0;} .ds-ml{font-size:12px;color:var(--g4);} .ds-mv{font-size:22px;font-weight:500;} .ds-mt{margin-left:2px;font-size:12px;color:var(--g4);} .ds-bar{position:relative;height:3px;margin-top:10px;background:var(--g2);} .ds-bar i{position:absolute;inset:0 auto 0 0;} .ds-bar b{position:absolute;top:-4px;width:1px;height:11px;background:var(--g5);} .ds-mc:focus-visible{outline:2px solid var(--ink);outline-offset:-2px;}"
+    },
+    {
+      "name": "Meal Row",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Signature: hairline meal rows; current meal in ink, earlier in g5, empty in g4.",
+      "html": "<ol class=\"ds-meals\"><li><button class=\"ds-meal ds-past\"><span class=\"ds-mh\"><span>Breakfast</span><span>590</span></span><span class=\"ds-mi\">Oat flakes, Banana, Blueberries</span></button><button class=\"ds-btn-plus\" aria-label=\"Log food to breakfast\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></button></li><li><button class=\"ds-meal ds-now\"><span class=\"ds-mh\"><span>Lunch</span><span>761</span></span><span class=\"ds-mi\">Tofu, Rice, Bell pepper</span></button><button class=\"ds-btn-plus\" aria-label=\"Log food to lunch\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></button></li><li><span class=\"ds-empty\">Dinner</span><button class=\"ds-btn-plus\" aria-label=\"Log food to dinner\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></button></li></ol>",
+      "css": ":host{--g0:#0e0f0e;--g1:#171817;--g2:#232523;--g3:#3a3d3a;--g4:#7d817c;--g5:#a3a79f;--ink:#edeee8;--protein:#4f7cff;--carbs:#d2790e;--fat:#c8384b;--fiber:#3fad3e;--water:#299fcd;--caffeine:#854cdd;--alcohol:#b24c74;--alert:#ff6f91;--done:#3fcb7e;} .ds-meals{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;list-style:none;margin:0;padding:0;width:340px;background:var(--g0);border-bottom:1px solid var(--g2);} .ds-meals li{display:grid;grid-template-columns:1fr 44px;align-items:center;border-top:1px solid var(--g2);} .ds-meal{font-family:'Host Grotesk',system-ui,sans-serif;font-feature-settings:'tnum' 1;min-width:0;padding:14px 12px 14px 0;border:0;background:transparent;text-align:left;cursor:pointer;} .ds-mh{display:flex;justify-content:space-between;gap:12px;font-size:17px;font-weight:500;} .ds-now .ds-mh{color:var(--ink);} .ds-past .ds-mh{color:var(--g5);} .ds-mi{display:block;margin-top:2px;font-size:13px;color:var(--g4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .ds-empty{padding:16px 0;font-size:17px;color:var(--g4);} .ds-btn-plus{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:var(--g4);cursor:pointer;} .ds-btn-plus:hover{background:var(--g2);color:var(--ink);} .ds-meal:focus-visible,.ds-btn-plus:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Day Poster",
+    "overview": "Each day is one Swiss International Style poster set on a near-black ground. The single most important fact, how many kcal are left (or over), is set in enormous bold numerals flush left, and the rest of the day steps down a visible grid: a ruled row of macros on one absolute gram scale, ruled rows of details and drinks, then the meals as hairline rows. Concentric quarter arcs in the macro inks bleed off the top right edge, the only graphic flourish, and it carries data.\n\nThe palette is a fixed seven-step neutral ramp plus three macro inks used like poster printing plates, and one green that only ever means done. Type is one neo-grotesk, Host Grotesk, with tabular figures everywhere, so columns of numbers line up and days compare honestly. Depth is not a thing in this world: regions are divided by 1px hairlines, never lifted. On phones there are no boxes at all, one sheet divided by rules; on wider screens the secondary sections sit in quiet flat panels.\n\nDensity is planned, not packed. Every value has a fixed column and a fixed size, and state is shown by brightness on the ramp: the current meal burns in full ink, earlier ones step one ramp step down, empty ones sit two steps down. A food logged minutes ago stays lit with a small ink dot until it is seen.",
+    "keyCharacteristics": [
+      "Near-black ground with a seven-step neutral ramp and no other greys.",
+      "Swiss poster in full colour: every nutrient area wears its own validated plate ink, with one warm alert colour for over and low.",
+      "One typeface, tabular figures, one huge number per screen.",
+      "1px hairlines in ramp step g2 instead of cards and shadows.",
+      "Primary actions set in ink, like the poster's type.",
+      "Pill controls, square poster."
+    ],
+    "rules": [
+      {
+        "name": "The Seven Steps Rule",
+        "body": "The ramp g0 to ink is the only grey scale. No other neutral hex, no white or black alpha overlays standing in for a step.",
+        "section": "colors"
+      },
+      {
+        "name": "The Plate Rule",
+        "body": "A plate ink appears only on its own nutrient's data: value, bar, arc and source bars. Seven plates: protein, carbs, fat, fiber, water, caffeine, alcohol. A plate is never an error or \"over\" colour; sugar, salt and vitamins have no plate. Validated with validate_palette.js on g0.",
+        "section": "colors"
+      },
+      {
+        "name": "The Over In Alert Rule",
+        "body": "Over a limit, over a target or low on a goal is said with the word and the alert colour (#FF6F91) together: the kcal line reads \"N over\" in alert semibold while the figure stays ink; a limit cell shows \"over\" in alert beside its label and the overflow after the value, and its bar draws the overflow and tick in alert. Colour never carries it alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Green Means Done Rule",
+        "body": "Done Green marks completion only. It is not the primary action colour and does not mean \"on track\".",
+        "section": "colors"
+      },
+      {
+        "name": "The One Number Rule",
+        "body": "Each screen has one display-size number, and it answers the screen's question. Everything else is at least four times smaller.",
+        "section": "typography"
+      },
+      {
+        "name": "The Plain Label Rule",
+        "body": "Labels are sentence case at 12px in g4, sitting directly above their value. No uppercase tracked microlabels, no eyebrows above headings.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline Not Box Rule",
+        "body": "On phones a section is a band between two rules, not a box. If you reach for a border on four sides, a radius and a fill, you are building a card; use a top rule instead.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No Shadow Rule",
+        "body": "No `box-shadow` on any surface or control. State shows as a fill step (hover g1 or g2), an edge step (g3 to g5) or a brightness step in text.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use only g0, g1, g2, g3, g4, g5 and ink for every neutral; g4 (#7D817C) is the lightest text allowed on g0 and g1 for small labels.",
+      "Do set primary actions in ink with g0 text, and name where the action lands (\"Log food to lunch\", \"Log to lunch\").",
+      "Do divide regions with 1px g2 hairlines and keep phone sections boxless.",
+      "Do keep tabular figures on and put each quantity in its own fixed column of an equal-fraction grid.",
+      "Do show over a limit or target in alert together with the word \"over\" (or \"low\"), never colour alone.",
+      "Do show state by stepping brightness on the ramp (current in ink, past in g5, empty in g4).",
+      "Do draw every macro bar on one absolute gram scale for the day, with a g5 tick at the target.",
+      "Do keep touch targets at 44px and list rows at 60px or more."
+    ],
+    "donts": [
+      "Don't use a macro ink for anything other than that macro's own data; fat red is never an error or warning colour.",
+      "Don't use Done Green for buttons, links, progress or \"on track\".",
+      "Don't add box-shadows, gradients or tinted gradient tiles to any surface.",
+      "Don't introduce greys outside the seven-step ramp, or cyan, purple, pink and orange accents.",
+      "Don't put more than one display-size number on a screen.",
+      "Don't add uppercase tracked microlabels or eyebrows above headings; labels are plain 12px sentence case.",
+      "Don't wrap phone sections in rounded filled cards."
+    ]
+  }
+}

@@ -10,8 +10,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#111114",
-    theme_color: "#111114",
+    background_color: "#0e0f0e",
+    theme_color: "#0e0f0e",
     categories: ["health", "fitness", "food"],
     // Long press the app icon for these.
     shortcuts: [

@@ -75,18 +75,21 @@ export function NavBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md lg:hidden">
-      <div className="mx-auto flex max-w-lg items-center justify-around pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-g2 bg-g0 lg:hidden">
+      <div className="mx-auto grid max-w-lg grid-cols-7 pb-[env(safe-area-inset-bottom)]">
         {tabs.map((tab) => {
           const active = pathname === tab.href;
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium transition-colors duration-150 ${
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              aria-current={active ? "page" : undefined}
+              className={`relative flex h-[3.75rem] flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors duration-[var(--dur-fast)] ${
+                active ? "text-ink" : "text-g4 hover:text-g5"
               }`}
             >
+              {/* The current tab is marked by a rule on top, the way the grid marks everything else */}
+              {active && <span className="absolute inset-x-3 top-0 h-0.5 bg-ink" aria-hidden="true" />}
               {tab.icon}
               {tab.label}
             </Link>

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { SettingsSection, FieldRow } from "./section";
+import { useTracked } from "@/hooks/use-tracked";
 import { useUpdateMicronutrientTargets } from "@/hooks/queries";
 import type { MicronutrientTargetItem } from "@/lib/types";
 
@@ -37,6 +39,9 @@ interface Props {
 export function MicronutrientTargetsForm({ initial }: Props) {
   const [microTargets, setMicroTargets] = useState<MicronutrientTargetItem[]>(DEFAULT_MICRO_TARGETS);
   const updateMicroTargets = useUpdateMicronutrientTargets();
+  // Bumped after a save: the rows flash once.
+  const [saved, setSaved] = useState(0);
+  const { shows } = useTracked();
 
   useEffect(() => {
     if (!initial) return;
@@ -52,24 +57,42 @@ export function MicronutrientTargetsForm({ initial }: Props) {
 
   function saveMicroTargets() {
     updateMicroTargets.mutate(microTargets, {
-      onSuccess: () => toast.success("Micronutrient targets saved"),
+      onSuccess: () => {
+        toast.success("Micronutrient targets saved");
+        setSaved((n) => n + 1);
+      },
     });
   }
 
+  const visible = microTargets.map((t, i) => ({ t, i })).filter(({ t }) => shows(t.nutrient));
+  // Every vitamin and mineral hidden: one plain line instead of an empty form.
+  if (visible.length === 0) {
+    return (
+      <SettingsSection
+        title="Micronutrient daily targets"
+        description="All vitamins and minerals are hidden. Show them in Tracked nutrients to set targets."
+        className="md:col-span-2"
+      >
+        <span className="sr-only">No micronutrient targets to show</span>
+      </SettingsSection>
+    );
+  }
+
   return (
-    <div className="clay-card p-5 md:col-span-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Micronutrient Daily Targets</h3>
-      <div className="space-y-2">
-        <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground uppercase tracking-wide px-1">
-          <span>Micronutrient</span>
-          <span>Daily Target</span>
-          <span>Unit</span>
-        </div>
-        {microTargets.map((t, i) => (
-          <div key={t.nutrient} className="grid grid-cols-3 gap-2 items-center">
-            <span className="text-sm text-foreground/70">{MICRO_LABELS[t.nutrient] || t.nutrient}</span>
+    <SettingsSection title="Micronutrient daily targets" className="md:col-span-2">
+      <div className="md:grid md:grid-cols-2 md:gap-x-10">
+        {visible.map(({ t, i }) => (
+          <FieldRow
+            key={`${t.nutrient}-${saved}`}
+            label={MICRO_LABELS[t.nutrient] || t.nutrient}
+            htmlFor={`mt-${t.nutrient}`}
+            unit={t.unit}
+            lit={saved > 0}
+          >
             <Input
+              id={`mt-${t.nutrient}`}
               type="number"
+              inputMode="decimal"
               value={t.target_value}
               onChange={(e) => {
                 const val = Number(e.target.value);
@@ -77,20 +100,19 @@ export function MicronutrientTargetsForm({ initial }: Props) {
                   prev.map((mt, j) => (j === i ? { ...mt, target_value: val } : mt))
                 );
               }}
-              className="tabular-nums"
+              className="w-28 text-right tabular-nums"
             />
-            <span className="text-xs text-muted-foreground">{t.unit}</span>
-          </div>
+          </FieldRow>
         ))}
       </div>
       <Button
         onClick={saveMicroTargets}
         disabled={updateMicroTargets.isPending}
-        className="mt-3 w-full"
+        className="mt-5 w-full md:w-auto md:px-8"
         size="lg"
       >
         {updateMicroTargets.isPending ? "Saving..." : "Save micronutrient targets"}
       </Button>
-    </div>
+    </SettingsSection>
   );
 }

@@ -5,14 +5,13 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { NativeSelect } from "@/components/ui/native-select";
+import { SettingsSection } from "./section";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   useCreateSupplement,
@@ -28,6 +27,8 @@ interface Props {
 }
 
 export function SupplementsSection({ supplements }: Props) {
+  // The row that was just added or changed flashes once.
+  const [litId, setLitId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSupp, setEditingSupp] = useState<SupplementDefinition | null>(null);
   const [newSupp, setNewSupp] = useState({
@@ -61,7 +62,8 @@ export function SupplementsSection({ supplements }: Props) {
         micronutrients: microObj,
       },
       {
-        onSuccess: () => {
+        onSuccess: (created) => {
+          setLitId((created as { id?: string } | undefined)?.id ?? null);
           setShowAddModal(false);
           setNewSupp({ name: "", dose_amount: 0, dose_unit: "mg", time_of_day: "morning", micronutrients: "" });
           toast.success("Supplement added");
@@ -97,88 +99,75 @@ export function SupplementsSection({ supplements }: Props) {
   }
 
   return (
-    <div className="clay-card p-5 md:col-span-1">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Supplement Management</h3>
-      <div className="space-y-2 max-h-[320px] overflow-y-auto">
+    <SettingsSection
+      title="Supplements"
+      className="md:col-span-1"
+      action={
+        <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+          Add supplement
+        </Button>
+      }
+    >
+      <div>
         {supplements.length === 0 && (
-          <p className="text-sm text-muted-foreground">No supplements defined</p>
+          <p className="border-t border-g2 py-4 text-[13px] text-g4">No supplements defined</p>
         )}
         {supplements.map((s) => (
           <div
             key={s.id}
-            className="flex items-center gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2.5 transition-colors hover:bg-muted/50"
+            className={`flex min-h-[60px] items-center gap-1 border-t border-g2 ${litId === s.id ? "animate-lit" : ""}`}
           >
             <button
               onClick={() => toggleSuppActive(s.id, !s.active)}
               aria-label={s.active ? `Deactivate ${s.name}` : `Activate ${s.name}`}
               aria-pressed={s.active}
-              className="-m-2.5 flex h-10 w-10 shrink-0 items-center justify-center"
+              className="flex h-11 w-11 shrink-0 items-center justify-center"
             >
               <span
-                className={`h-5 w-5 rounded-md border flex items-center justify-center transition-colors ${
-                  s.active
-                    ? "border-primary/40 bg-primary/10"
-                    : "border-border bg-muted/50"
+                className={`flex h-[22px] w-[22px] items-center justify-center rounded-full border transition-colors duration-[var(--dur-fast)] ${
+                  s.active ? "border-ink bg-ink" : "border-g3"
                 }`}
               >
-              {s.active && (
-                <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
+                {s.active && (
+                  <svg className="h-3 w-3 text-g0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
               </span>
             </button>
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm truncate ${s.active ? "text-foreground/80" : "text-muted-foreground line-through"}`}>
-                {s.name}
+            <div className="min-w-0 flex-1 py-2">
+              <p className={`truncate text-[15px] ${s.active ? "text-ink" : "text-g4 line-through"}`}>{s.name}</p>
+              <p className="truncate text-xs text-g4 tabular-nums">
+                {s.dose_amount} {s.dose_unit}
+                {s.time_of_day ? ` · ${s.time_of_day}` : ""}
               </p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                  {s.dose_amount} {s.dose_unit}
-                </Badge>
-                {s.time_of_day && (
-                  <Badge variant="outline" className="text-[10px] h-4 px-1.5">
-                    {s.time_of_day}
-                  </Badge>
-                )}
-              </div>
             </div>
-            <button
-              onClick={() => setEditingSupp(s)}
-              aria-label={`Edit ${s.name}`}
-              className="flex h-10 min-w-10 items-center justify-center text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
-            >
+            <Button variant="outline" size="sm" onClick={() => setEditingSupp(s)} aria-label={`Edit ${s.name}`}>
               Edit
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => deleteSupplement(s)}
               aria-label={`Delete ${s.name}`}
-              className="flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </Button>
           </div>
         ))}
       </div>
-      <Separator className="my-3" />
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogTrigger
-          render={
-            <Button variant="outline" className="w-full" />
-          }
-        >
-          + Add Supplement
-        </DialogTrigger>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Supplement</DialogTitle>
+            <DialogTitle>Add supplement</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Name</Label>
+              <Label htmlFor="supp-name">Name</Label>
               <Input
+                id="supp-name"
                 type="text"
                 value={newSupp.name}
                 onChange={(e) => setNewSupp((p) => ({ ...p, name: e.target.value }))}
@@ -187,8 +176,10 @@ export function SupplementsSection({ supplements }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Dose</Label>
+                <Label htmlFor="supp-dose">Dose</Label>
                 <Input
+                  id="supp-dose"
+                  inputMode="decimal"
                   type="number"
                   value={newSupp.dose_amount}
                   onChange={(e) => setNewSupp((p) => ({ ...p, dose_amount: Number(e.target.value) }))}
@@ -196,44 +187,43 @@ export function SupplementsSection({ supplements }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Unit</Label>
-                <select
+                <Label htmlFor="supp-unit">Unit</Label>
+                <NativeSelect
+                  id="supp-unit"
                   value={newSupp.dose_unit}
                   onChange={(e) => setNewSupp((p) => ({ ...p, dose_unit: e.target.value }))}
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
                 >
                   {DOSE_UNITS.map((u) => (
-                    <option key={u} value={u} className="bg-card">{u}</option>
+                    <option key={u} value={u} className="bg-g1">{u}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Timing</Label>
-              <select
+              <Label htmlFor="supp-timing">Timing</Label>
+              <NativeSelect
+                id="supp-timing"
                 value={newSupp.time_of_day}
                 onChange={(e) => setNewSupp((p) => ({ ...p, time_of_day: e.target.value }))}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
               >
                 {TIMINGS.map((t) => (
-                  <option key={t} value={t} className="bg-card">{t}</option>
+                  <option key={t} value={t} className="bg-g1">{t}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Micronutrients contributed (JSON, optional)
-              </Label>
+              <Label htmlFor="supp-micros">Micronutrients contributed (JSON, optional)</Label>
               <Input
+                id="supp-micros"
                 type="text"
                 value={newSupp.micronutrients}
                 onChange={(e) => setNewSupp((p) => ({ ...p, micronutrients: e.target.value }))}
                 placeholder='{"vitamin_d": 50, "zinc": 10}'
-                className="text-xs font-mono"
+                className="font-mono text-[13px]"
               />
             </div>
           </div>
-          <div className="flex gap-3 mt-2">
+          <div className="mt-2 flex gap-2">
             <Button
               onClick={addSupplement}
               disabled={!newSupp.name || createSupplement.isPending}
@@ -254,6 +244,6 @@ export function SupplementsSection({ supplements }: Props) {
         </DialogContent>
       </Dialog>
       <EditSupplementDialog supplement={editingSupp} onClose={() => setEditingSupp(null)} />
-    </div>
+    </SettingsSection>
   );
 }

@@ -76,29 +76,25 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-56 flex-col bg-card" style={{ borderRight: '1px solid rgba(255,255,255,0.04)', boxShadow: 'inset -1px 0 0 0 rgba(255,255,255,0.03), 4px 0 16px -4px rgba(0,0,0,0.3)' }}>
+    <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-56 flex-col border-r border-g2 bg-g0">
       <div className="px-5 py-6">
-        <h1 className="text-lg font-bold tracking-tight text-foreground">
-          NutriPilot
-        </h1>
-        <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-widest">
-          Dashboard
-        </p>
+        <p className="text-lg font-bold tracking-tight text-ink">NutriPilot</p>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1">
+      <nav className="flex-1 space-y-0.5 px-3">
         {navItems.map((item) => {
           const active = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                active
-                  ? "pill-green text-primary"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              aria-current={active ? "page" : undefined}
+              className={`relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-[var(--dur-fast)] ${
+                active ? "text-ink" : "text-g4 hover:bg-g1 hover:text-g5"
               }`}
             >
+              {/* The current page is marked by an ink rule at the left edge, the way the tab bar marks it on top */}
+              {active && <span className="absolute inset-y-1.5 left-0 w-0.5 bg-ink" aria-hidden="true" />}
               {item.icon}
               {item.label}
             </Link>
@@ -109,7 +105,7 @@ export function Sidebar() {
       <div className="px-3 pb-5">
         <button
           onClick={signOut}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/50 transition-colors duration-150 hover:bg-secondary hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-g4 transition-colors duration-[var(--dur-fast)] hover:bg-g1 hover:text-ink"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />

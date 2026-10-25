@@ -11,13 +11,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useUpdateFoodLog, useDeleteFoodLog } from "@/hooks/mutations/food-log";
 import { useFoodDetail } from "@/hooks/queries";
+import { plateOf } from "@/lib/plates";
 import { FOOD_LOG_BOUNDS, validateBounds } from "@/lib/validation";
 import { MEAL_TYPES, MEAL_TYPE_LABELS } from "@/lib/meal-types";
 import { convertAmount, portionPayload, portionUnits, unitKeyFor } from "@/lib/portion";
 import type { FoodLogDetailEntry, MealType } from "@/lib/types";
 import { UnitPicker } from "./unit-picker";
+import { useTracked } from "@/hooks/use-tracked";
 
 interface Props {
   entry: FoodLogDetailEntry | null;
@@ -25,6 +28,14 @@ interface Props {
 }
 
 /** Edit (amount in grams or servings, meal, date = "move to another day") or delete a single food log entry. */
+const PREVIEW_TILES = [
+  ["kcal", "Kcal"],
+  ["protein", "Protein"],
+  ["carbs", "Carbs"],
+  ["fat", "Fat"],
+] as const;
+const PREVIEW_COLS = ["", "grid-cols-1", "grid-cols-2", "grid-cols-3", "grid-cols-4"];
+
 export function EditFoodLogDialog({ entry, onClose: close }: Props) {
   const [quantity, setQuantity] = useState("0");
   // null until the food's units have loaded: then the entry's own unit is picked.
@@ -45,6 +56,8 @@ export function EditFoodLogDialog({ entry, onClose: close }: Props) {
 
   const updateLog = useUpdateFoodLog();
   const deleteLog = useDeleteFoodLog();
+  const { shows } = useTracked();
+  const tiles = PREVIEW_TILES.filter(([key]) => shows(key));
   const { data: food, isError: foodError } = useFoodDetail(entry?.food_id ?? null);
   // Without the food (deleted, offline) the entry's own serving size is still enough for servings.
   const units = portionUnits(food ?? (foodError && entry ? { serving_size_g: entry.serving_size_g } : null));
@@ -132,26 +145,25 @@ export function EditFoodLogDialog({ entry, onClose: close }: Props) {
         </DialogHeader>
         {entry && (
           <div className="space-y-4">
-            <div className="grid grid-cols-4 gap-1.5">
-              {([
-                ["kcal", "Kcal"],
-                ["protein", "Protein"],
-                ["carbs", "Carbs"],
-                ["fat", "Fat"],
-              ] as const).map(([key, label]) => (
-                <div key={key} className="pill rounded-lg p-2 text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">{label}</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
+            {/* Live numbers for this amount: one ruled row, each quantity in its own equal column */}
+            {tiles.length > 0 && <div className={`grid border-y border-g2 ${PREVIEW_COLS[tiles.length]}`}>
+              {tiles.map(([key, label], i) => (
+                <div key={key} className={`py-3 ${i > 0 ? "border-l border-g2 pl-3" : ""}`}>
+                  <p className="text-xs text-g4">{label}</p>
+                  <p
+                    className="text-[22px] leading-tight font-medium tabular-nums"
+                    style={{ color: plateOf(key) }}
+                  >
                     {preview(key) != null ? Math.round(preview(key)!) : "--"}
                   </p>
                 </div>
               ))}
-            </div>
+            </div>}
 
             {!unitsReady || unitKey === null ? (
               <div className="space-y-2" aria-hidden>
-                <div className="h-9 w-48 rounded-full bg-muted/40 animate-pulse" />
-                <div className="h-8 rounded-lg bg-muted/40 animate-pulse" />
+                <div className="h-10 w-48 rounded-full bg-g2 animate-pulse motion-reduce:animate-none" />
+                <div className="h-11 rounded-[14px] bg-g2 animate-pulse motion-reduce:animate-none" />
               </div>
             ) : (
               <>
@@ -169,10 +181,11 @@ export function EditFoodLogDialog({ entry, onClose: close }: Props) {
                 />
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">
+                  <Label htmlFor="edit-amount">
                     {inGrams ? "Quantity (g)" : unit.key === "serving" ? "Servings" : `Amount (${unit.label})`}
                   </Label>
                   <Input
+                    id="edit-amount"
                     type="number"
                     value={quantity}
                     onChange={(e) => {
@@ -187,9 +200,9 @@ export function EditFoodLogDialog({ entry, onClose: close }: Props) {
                     className="tabular-nums"
                   />
                   {quantityError ? (
-                    <p className="text-[11px] text-destructive">{quantityError}</p>
+                    <p className="text-xs text-ink">{quantityError}</p>
                   ) : !inGrams ? (
-                    <p className="text-[11px] text-muted-foreground tabular-nums">{Math.round(grams * 10) / 10} g</p>
+                    <p className="text-xs text-g4 tabular-nums">{Math.round(grams * 10) / 10} g</p>
                   ) : null}
                 </div>
               </>
@@ -197,22 +210,18 @@ export function EditFoodLogDialog({ entry, onClose: close }: Props) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Meal</Label>
-                <select
-                  value={mealType}
-                  onChange={(e) => setMealType(e.target.value as MealType)}
-                  className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                >
+                <Label htmlFor="edit-meal">Meal</Label>
+                <NativeSelect id="edit-meal" value={mealType} onChange={(e) => setMealType(e.target.value as MealType)}>
                   {MEAL_TYPES.map((mt) => (
-                    <option key={mt} value={mt} className="bg-card">{MEAL_TYPE_LABELS[mt]}</option>
+                    <option key={mt} value={mt} className="bg-g1">{MEAL_TYPE_LABELS[mt]}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Date</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="tabular-nums" />
+                <Label htmlFor="edit-date">Date</Label>
+                <Input id="edit-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="tabular-nums" />
                 {date !== entry.date && (
-                  <p className="text-[10px] text-primary/80">Will move to {date}</p>
+                  <p className="text-xs text-g5">Will move to {date}</p>
                 )}
               </div>
             </div>
@@ -227,13 +236,13 @@ export function EditFoodLogDialog({ entry, onClose: close }: Props) {
                 </Button>
               </div>
             ) : (
-              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2">
-                <p className="text-xs text-destructive/80">Remove this entry from your log?</p>
+              <div className="space-y-3 border-t border-g2 pt-4">
+                <p className="text-[15px] text-ink">Remove this entry from your log?</p>
                 <div className="flex gap-2">
-                  <Button onClick={handleDelete} disabled={deleteLog.isPending} variant="destructive" className="flex-1">
-                    {deleteLog.isPending ? "Removing..." : "Confirm"}
+                  <Button onClick={handleDelete} disabled={deleteLog.isPending} variant="destructive" size="lg" className="flex-1">
+                    {deleteLog.isPending ? "Removing..." : "Delete"}
                   </Button>
-                  <Button onClick={() => setConfirmingDelete(false)} variant="outline" className="flex-1">
+                  <Button onClick={() => setConfirmingDelete(false)} variant="outline" size="lg" className="flex-1">
                     Cancel
                   </Button>
                 </div>

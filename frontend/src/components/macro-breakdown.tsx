@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useNutrientSources } from "@/hooks/queries";
 import { getErrorMessage } from "@/lib/api";
 import { fmt } from "@/lib/utils";
+import { useTracked } from "@/hooks/use-tracked";
 
 interface Props {
   totals: MacroTotals;
@@ -18,16 +19,18 @@ interface Props {
 // mode: "fill" = more is better (green when hitting target)
 // mode: "budget" = less is better (warns when approaching/exceeding limit)
 const allMacros = [
-  { key: "protein" as const, label: "Protein", gradient: "linear-gradient(90deg, #22c55e, #4ade80)", unit: "g", mode: "fill" as const },
-  { key: "carbs" as const, label: "Carbs", gradient: "linear-gradient(90deg, #3b82f6, #60a5fa)", unit: "g", mode: "fill" as const },
-  { key: "fat" as const, label: "Fat", gradient: "linear-gradient(90deg, #f59e0b, #fbbf24)", unit: "g", mode: "fill" as const },
-  { key: "fiber" as const, label: "Fiber", gradient: "linear-gradient(90deg, #84cc16, #a3e635)", unit: "g", mode: "fill" as const },
-  { key: "sugar" as const, label: "Sugar", gradient: "linear-gradient(90deg, #ec4899, #f472b6)", unit: "g", mode: "budget" as const },
-  { key: "sodium" as const, label: "Sodium", gradient: "linear-gradient(90deg, #a78bfa, #c4b5fd)", unit: "mg", mode: "budget" as const },
+  { key: "protein" as const, label: "Protein", gradient: "var(--protein)", unit: "g", mode: "fill" as const },
+  { key: "carbs" as const, label: "Carbs", gradient: "var(--carbs)", unit: "g", mode: "fill" as const },
+  { key: "fat" as const, label: "Fat", gradient: "var(--fat)", unit: "g", mode: "fill" as const },
+  { key: "fiber" as const, label: "Fiber", gradient: "var(--g5)", unit: "g", mode: "fill" as const },
+  { key: "sugar" as const, label: "Sugar", gradient: "var(--g5)", unit: "g", mode: "budget" as const },
+  { key: "sodium" as const, label: "Salt (sodium)", gradient: "var(--g5)", unit: "mg", mode: "budget" as const },
 ];
 
 export function MacroBreakdownCard({ totals, targets, span, dateRange }: Props) {
   const [selectedMacro, setSelectedMacro] = useState<{ key: string; label: string; unit: string } | null>(null);
+  const { shows } = useTracked();
+  const macros = allMacros.filter((m) => shows(m.key));
 
   const fromParam = dateRange?.from || new Date().toISOString().slice(0, 10);
   const toParam = dateRange?.to || new Date().toISOString().slice(0, 10);
@@ -44,18 +47,19 @@ export function MacroBreakdownCard({ totals, targets, span, dateRange }: Props) 
     setSelectedMacro({ key, label, unit });
   }
 
+  if (macros.length === 0) return null;
+
   return (
     <DashboardCard title="Macros" span={span}>
       <div className="flex flex-col gap-3 flex-1 justify-center">
-        {allMacros.map((m) => {
+        {macros.map((m) => {
           const current = Math.round(totals[m.key]);
           const target = Math.round(targets[m.key]);
           const rawPct = target > 0 ? (totals[m.key] / target) * 100 : 0;
           const barPct = Math.min(rawPct, 100);
 
           let barGradient = m.gradient;
-          if (m.mode === "budget" && rawPct > 100) barGradient = "linear-gradient(90deg, #ef4444, #f87171)";
-          else if (m.mode === "budget" && rawPct > 80) barGradient = "linear-gradient(90deg, #f59e0b, #fbbf24)";
+          if (m.mode === "budget" && rawPct > 100) barGradient = "var(--ink)";
 
           const isOver = m.mode === "budget" && rawPct > 100;
 
@@ -68,15 +72,15 @@ export function MacroBreakdownCard({ totals, targets, span, dateRange }: Props) 
               <div className="flex items-baseline justify-between mb-1.5">
                 <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors duration-150">{m.label}</span>
                 <span className="text-sm tabular-nums text-foreground">
-                  <span className={`font-semibold ${isOver ? "text-destructive" : ""}`}>
-                    {current}{m.unit}
+                  <span className={`${isOver ? "font-semibold" : ""} text-ink`}>
+                    {isOver && <span className="mr-1.5 text-[12px]">over</span>}{current}{m.unit}
                   </span>
                   <span className="text-muted-foreground/50"> / {target}{m.unit}</span>
                 </span>
               </div>
-              <div className="h-2.5 w-full rounded-full bg-muted/60 overflow-hidden">
+              <div className="h-[3px] w-full bg-g2 overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-700 ease-out"
+                  className="animate-bar h-full"
                   style={{ width: `${barPct}%`, background: barGradient }}
                 />
               </div>
@@ -129,7 +133,7 @@ export function MacroBreakdownCard({ totals, targets, span, dateRange }: Props) 
                         <div className="h-1.5 flex-1 rounded-full bg-muted/40 overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-500 ease-out"
-                            style={{ width: `${pct}%`, background: "linear-gradient(90deg, #22c55e, #4ade80)" }}
+                            style={{ width: `${pct}%`, background: "var(--ink)" }}
                           />
                         </div>
                         <span className="text-[10px] text-muted-foreground tabular-nums min-w-[28px] text-right">{Math.round(pct)}%</span>

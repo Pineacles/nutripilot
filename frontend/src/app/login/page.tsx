@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { login } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { InstallCard } from "@/components/install-card";
 
 export default function LoginPage() {
@@ -41,90 +40,77 @@ export default function LoginPage() {
     }
   }
 
+  const field =
+    "h-12 rounded-[14px] border-g3 px-3.5 text-base focus-visible:border-ink focus-visible:ring-0 aria-invalid:border-ink aria-invalid:ring-0";
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-primary">
-            NutriPilot
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Track your nutrition, hit your goals
-          </p>
-        </div>
+    <div className="min-h-screen bg-background px-4 py-10 sm:px-6">
+      <main className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md flex-col justify-center">
+        <h1 className="text-[3.25rem] font-bold leading-[0.9] tracking-[-0.045em] text-ink sm:text-[4.5rem]">
+          NutriPilot
+        </h1>
+        <p className="mt-4 text-[15px] text-g4">Track your nutrition, hit your goals.</p>
 
-        <div className="clay-card p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="h-10 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="h-10 transition-colors"
-                />
-              </div>
-
-              {error && (
-                <p className="text-sm text-destructive transition-opacity">
-                  {error}
-                </p>
-              )}
-
-              <Button
-                type="submit"
-                disabled={loading || demoLoading}
-                className="w-full h-10 text-sm font-semibold transition-all"
-                size="lg"
-              >
-                {loading ? "Signing in..." : "Sign in"}
-              </Button>
-            </form>
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border" />
+        <form onSubmit={handleSubmit} className="mt-10 space-y-4" aria-describedby={error ? "login-error" : undefined}>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-[12px] font-normal text-g4">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
+              aria-invalid={!!error}
+              className={field}
+            />
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              or
-            </span>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-[12px] font-normal text-g4">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
+              aria-invalid={!!error}
+              className={field}
+            />
           </div>
+
+          {error && (
+            <p id="login-error" role="alert" className="text-[13px] text-ink">
+              {error === "Invalid credentials" ? "That email and password don't match. Check both and try again." : error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || demoLoading}
+            className="h-[52px] w-full rounded-full bg-ink text-[17px] font-medium text-g0 transition-transform active:scale-[0.98] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:bg-g3 disabled:text-g5"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+
+        <div className="mt-8 border-t border-g2 pt-6">
+          <button
+            type="button"
+            onClick={handleDemo}
+            disabled={loading || demoLoading}
+            className="h-11 w-full rounded-full border border-g3 text-[13px] font-medium text-ink transition-colors hover:border-g5 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:text-g3"
+          >
+            {demoLoading ? "Loading demo..." : "Try the demo account"}
+          </button>
+          <p className="mt-2 text-[12px] text-g4">Explore with 90 days of sample data.</p>
         </div>
 
-        <Button
-          variant="outline"
-          onClick={handleDemo}
-          disabled={loading || demoLoading}
-          className="w-full h-10 text-sm font-medium transition-all"
-        >
-          {demoLoading ? "Loading demo..." : "Try Demo Account"}
-        </Button>
-        <p className="text-center text-xs text-muted-foreground">
-          Explore with 90 days of sample data
-        </p>
-
-        <InstallCard dismissible className="lg:hidden" />
-      </div>
+        <InstallCard dismissible className="mt-8 lg:hidden" />
+      </main>
     </div>
   );
 }

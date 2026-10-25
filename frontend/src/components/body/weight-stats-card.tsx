@@ -1,37 +1,36 @@
-import { SectionCard } from "@/components/charts/section-card";
+import { Band } from "./band";
 import { fmt } from "@/lib/utils";
 
 interface Props {
   startingWeight: number | null;
-  currentWeight: number | null;
   lowestWeight: number | null;
   highestWeight: number | null;
   weightChange: number | null;
   weeklyAvgChange: number | null;
 }
 
-export function WeightStatsCard({ startingWeight, currentWeight, lowestWeight, highestWeight, weightChange, weeklyAvgChange }: Props) {
-  const stats = [
-    { label: "Starting", value: startingWeight, unit: "kg", cls: "" },
-    { label: "Current", value: currentWeight, unit: "kg", cls: "" },
-    { label: "Lowest", value: lowestWeight, unit: "kg", cls: "text-green-400" },
-    { label: "Highest", value: highestWeight, unit: "kg", cls: "text-amber-400" },
-    { label: "Total Change", value: weightChange, unit: "kg", cls: weightChange != null && weightChange < 0 ? "text-green-400" : "text-amber-400" },
-    { label: "Weekly Rate", value: weeklyAvgChange, unit: "kg/w", cls: weeklyAvgChange != null && weeklyAvgChange < 0 ? "text-green-400" : "text-amber-400" },
+const signed = (v: number, d: number) => `${v > 0 ? "+" : v < 0 ? "-" : ""}${fmt(Math.abs(v), d)}`;
+
+/** The period's weight facts as ruled rows: label left in g4, value right in ink. */
+export function WeightStatsCard({ startingWeight, lowestWeight, highestWeight, weightChange, weeklyAvgChange }: Props) {
+  const stats: { label: string; value: string | null }[] = [
+    { label: "Starting", value: startingWeight != null ? `${fmt(startingWeight)} kg` : null },
+    { label: "Lowest", value: lowestWeight != null ? `${fmt(lowestWeight)} kg` : null },
+    { label: "Highest", value: highestWeight != null ? `${fmt(highestWeight)} kg` : null },
+    { label: "Total change", value: weightChange != null ? `${signed(weightChange, 1)} kg` : null },
+    { label: "Weekly rate", value: weeklyAvgChange != null ? `${signed(weeklyAvgChange, 2)} kg/w` : null },
   ];
 
   return (
-    <SectionCard title="Weight Stats">
-      <div className="space-y-3">
+    <Band title="Weight in this period">
+      <ul className="divide-y divide-g2 border-y border-g2">
         {stats.map((s) => (
-          <div key={s.label} className="pill flex items-center justify-between px-3 py-2">
-            <span className="text-xs text-muted-foreground">{s.label}</span>
-            <span className={`text-sm font-semibold ${s.cls || "text-foreground"}`}>
-              {s.value != null ? `${fmt(s.value, s.unit === "kg/w" ? 2 : 1)} ${s.unit}` : "--"}
-            </span>
-          </div>
+          <li key={s.label} className="flex min-h-11 items-center justify-between gap-3 text-[15px]">
+            <span className="text-g4">{s.label}</span>
+            <span className="tabular-nums text-ink">{s.value ?? "--"}</span>
+          </li>
         ))}
-      </div>
-    </SectionCard>
+      </ul>
+    </Band>
   );
 }

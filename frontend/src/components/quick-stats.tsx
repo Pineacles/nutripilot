@@ -1,33 +1,33 @@
 "use client";
 
-import { DashboardCard } from "./dashboard-card";
+import { SectionCard } from "@/components/charts/section-card";
 import type { TodaySummary } from "@/lib/types";
+import { useTracked } from "@/hooks/use-tracked";
 
 interface Props {
   data: TodaySummary;
 }
 
+/** A ruled row of small counts; hidden nutrients drop out and the columns recompute. */
 export function QuickStatsCard({ data }: Props) {
+  const { shows } = useTracked();
   const stats = [
-    { label: "Meals", value: data.meals.filter((m) => m.items.length > 0).length.toString(), pill: "pill-green" },
-    { label: "Supplements", value: data.supplements.length.toString(), pill: "pill-blue" },
-    { label: "Fiber (g)", value: Math.round(data.totals.fiber).toString(), pill: "pill-amber" },
-    { label: "Protein %", value: data.totals.kcal > 0 ? Math.round((data.totals.protein * 4 / data.totals.kcal) * 100).toString() : "0", pill: "pill-purple" },
+    { label: "Meals", value: data.meals.filter((m) => m.items.length > 0).length.toString() },
+    { label: "Supplements", value: data.supplements.length.toString() },
+    ...(shows("fiber") ? [{ label: "Fiber (g)", value: Math.round(data.totals.fiber).toString() }] : []),
+    ...(shows("protein") ? [{ label: "Protein %", value: data.totals.kcal > 0 ? Math.round((data.totals.protein * 4 / data.totals.kcal) * 100).toString() : "0" }] : []),
   ];
 
   return (
-    <DashboardCard title="Quick Stats">
-      <div className="grid grid-cols-2 gap-3 flex-1 content-center">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className={`${s.pill} p-4 text-center rounded-xl transition-all duration-200 hover:scale-[1.02]`}
-          >
-            <p className="text-3xl font-bold tabular-nums text-foreground">{s.value}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{s.label}</p>
+    <SectionCard title="Quick stats">
+      <dl className="grid divide-x divide-g2" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
+        {stats.map((s, i) => (
+          <div key={s.label} className={i === 0 ? "pr-3" : "px-3"}>
+            <dt className="text-[12px] text-g4">{s.label}</dt>
+            <dd className="mt-0.5 text-[22px] font-medium tabular-nums text-ink">{s.value}</dd>
           </div>
         ))}
-      </div>
-    </DashboardCard>
+      </dl>
+    </SectionCard>
   );
 }

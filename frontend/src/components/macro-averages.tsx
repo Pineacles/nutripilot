@@ -1,65 +1,50 @@
 "use client";
 
 import type { MacroTotals, NutritionTargets } from "@/lib/types";
-import { DashboardCard } from "./dashboard-card";
-
-/* ── Color constants matching globals.css tokens ── */
-const COLOR_PROTEIN = "#4ade80";
-const COLOR_CARBS = "#4f9cf9";
-const COLOR_FAT = "#f9c74f";
+import { SectionCard } from "@/components/charts/section-card";
+import { LimitBar } from "@/components/ui/limit-bar";
+import { POSTER } from "@/lib/chart-theme";
+import { useTracked } from "@/hooks/use-tracked";
 
 interface Props {
   dailyAvg: MacroTotals;
   targets?: NutritionTargets | null;
 }
 
+/**
+ * Average macros as a ruled row, like the Today poster: the figure in its plate ink with the
+ * target beside it, and under it a bar on one absolute gram scale with a tick at the target.
+ */
 export function MacroAveragesCard({ dailyAvg, targets }: Props) {
-  const targetProtein = targets?.target_protein_g ?? 150;
-  const targetCarbs = targets?.target_carbs_g ?? 250;
-  const targetFat = targets?.target_fat_g ?? 70;
-
-  const macros = [
-    { label: "Avg Protein", value: Math.round(dailyAvg.protein), unit: "g", color: COLOR_PROTEIN, pill: "pill-green", target: targetProtein },
-    { label: "Avg Carbs", value: Math.round(dailyAvg.carbs), unit: "g", color: COLOR_CARBS, pill: "pill-blue", target: targetCarbs },
-    { label: "Avg Fat", value: Math.round(dailyAvg.fat), unit: "g", color: COLOR_FAT, pill: "pill-amber", target: targetFat },
+  const { shows } = useTracked();
+  const all = [
+    { label: "Protein", key: "protein" as const, value: Math.round(dailyAvg.protein), target: targets?.target_protein_g ?? 150, ink: POSTER.protein, kind: "goal" as const },
+    { label: "Carbs", key: "carbs" as const, value: Math.round(dailyAvg.carbs), target: targets?.target_carbs_g ?? 250, ink: POSTER.carbs, kind: "limit" as const },
+    { label: "Fat", key: "fat" as const, value: Math.round(dailyAvg.fat), target: targets?.target_fat_g ?? 70, ink: POSTER.fat, kind: "limit" as const },
   ];
+  const macros = all.filter((m) => shows(m.key));
+  if (macros.length === 0) return null;
+  // One scale for every bar, so grams compare honestly
+  const scale = Math.max(...macros.flatMap((m) => [m.value, m.target * 1.15]));
+
+  // The answer: what is off, protein when under 90% of its goal, a limit macro when past it
+  const off = macros.flatMap((m) => (m.kind === "goal" ? (m.value < m.target * 0.9 ? [`${m.label.toLowerCase()} low`] : []) : m.value > m.target ? [`${m.label.toLowerCase()} over`] : []));
+  const title = macros.every((m) => m.value === 0) ? "Macros" : `Macros: ${off.length ? off.join(", ") : "all on target"}`;
 
   return (
-    <DashboardCard title="Weekly Macro Averages">
-      <div className="space-y-3">
-        {macros.map((m) => {
-          const pct = m.target > 0 ? Math.min((m.value / m.target) * 100, 100) : 0;
-          return (
-            <div key={m.label} className={`${m.pill} py-3 px-4 rounded-xl`}>
-              <div className="flex items-baseline justify-between mb-1.5">
-                <p className="text-2xl font-bold tabular-nums" style={{ color: m.color }}>
-                  {m.value}
-                  <span className="text-sm font-normal text-muted-foreground ml-0.5">{m.unit}</span>
-                </p>
-                <p className="text-xs text-muted-foreground tabular-nums">
-                  {m.target}{m.unit} target
-                </p>
-              </div>
-              {/* Progress bar */}
-              <div className="h-1.5 w-full rounded-full overflow-hidden bg-muted/40">
-                <div
-                  className="h-full rounded-full transition-all duration-500 ease-out"
-                  style={{
-                    width: `${pct}%`,
-                    background: `linear-gradient(90deg, ${m.color}, ${m.color}aa)`,
-                  }}
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">{m.label}</p>
-            </div>
-          );
-        })}
+    <SectionCard title={title} summary="daily average">
+      <div className="grid divide-x divide-g2" style={{ gridTemplateColumns: `repeat(${macros.length}, minmax(0, 1fr))` }}>
+        {macros.map((m, i) => (
+          <div key={m.key} className={i === 0 ? "pr-3" : "px-3"}>
+            <p className="text-[12px] text-g4">{m.label}</p>
+            <p className="mt-0.5 whitespace-nowrap">
+              <span className="text-[22px] font-medium tabular-nums" style={{ color: m.ink }}>{m.value}</span>
+              <span className="ml-0.5 text-[12px] text-g4">/{m.target} g</span>
+            </p>
+            <LimitBar className="mt-3" kind={m.kind} ink={m.ink} value={m.value} target={m.target} scale={scale} />
+          </div>
+        ))}
       </div>
-      <div className="text-center mt-3">
-        <p className="text-sm text-muted-foreground tabular-nums">
-          Avg daily intake: <span className="font-semibold text-foreground">{Math.round(dailyAvg.kcal)} kcal</span>
-        </p>
-      </div>
-    </DashboardCard>
+    </SectionCard>
   );
 }

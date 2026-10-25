@@ -2,23 +2,13 @@
 
 import { useState } from "react";
 import type { MicronutrientAverages, MicronutrientTargetItem } from "@/lib/types";
-import { DashboardCard } from "./dashboard-card";
+import { SectionCard } from "@/components/charts/section-card";
+import { MicroBar, StatusWord, microHeadline, microStatus, sortByStatus } from "@/components/statistics/micro-status";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNutrientSources } from "@/hooks/queries";
 import { getErrorMessage } from "@/lib/api";
 import { fmt } from "@/lib/utils";
-
-function getProgressGradient(pct: number): string {
-  if (pct >= 80) return "linear-gradient(90deg, #22c55e, #4ade80)";
-  if (pct >= 40) return "linear-gradient(90deg, #f59e0b, #fbbf24)";
-  return "linear-gradient(90deg, #ef4444, #f87171)";
-}
-
-function getProgressColor(pct: number): string {
-  if (pct >= 80) return "#4ade80";
-  if (pct >= 40) return "#fbbf24";
-  return "#f87171";
-}
+import { useTracked } from "@/hooks/use-tracked";
 
 // WHO/RDA recommended daily intake for adults (19-50 years)
 const NUTRIENT_MAP: { key: keyof MicronutrientAverages; settingsKey: string; label: string; defaultTarget: number; defaultUnit: string }[] = [
@@ -41,6 +31,8 @@ interface Props {
 
 export function MicronutrientSummaryCard({ microAvg, microTargets = [], dateRange }: Props) {
   const [selectedNutrient, setSelectedNutrient] = useState<{ key: string; label: string; unit: string } | null>(null);
+  const { shows } = useTracked();
+  const nutrients = NUTRIENT_MAP.filter((n) => shows(n.key));
 
   const fromParam = dateRange?.from || new Date().toISOString().slice(0, 10);
   const toParam = dateRange?.to || new Date().toISOString().slice(0, 10);
@@ -57,51 +49,43 @@ export function MicronutrientSummaryCard({ microAvg, microTargets = [], dateRang
     setSelectedNutrient({ key, label, unit });
   }
 
+  if (nutrients.length === 0) return null;
+
+  const rows = sortByStatus(nutrients.map((n) => {
+    const value = microAvg[n.key];
+    const userTarget = microTargets.find((t) => t.nutrient === n.settingsKey);
+    const target = userTarget?.target_value ?? n.defaultTarget;
+    return { n, value, target, unit: userTarget?.unit ?? n.defaultUnit, status: microStatus(n.key, value, target) };
+  }));
+
   return (
-    <DashboardCard title="Weekly Micronutrient Goals" span="lg:col-span-2">
-      <div className="grid grid-cols-3 gap-3">
-        {NUTRIENT_MAP.map((n) => {
-          const value = microAvg[n.key];
-          const userTarget = microTargets.find((t) => t.nutrient === n.settingsKey);
-          const target = userTarget?.target_value ?? n.defaultTarget;
-          const unit = userTarget?.unit ?? n.defaultUnit;
+    <SectionCard title={microHeadline(rows.map((r) => r.status))} summary="daily average">
+      <ul className="grid border-t border-g2 md:grid-cols-2 md:gap-x-8">
+        {rows.map(({ n, value, target, unit, status }) => {
           const displayVal = value != null ? (Math.abs(value) >= 100 ? Math.round(value) : Math.round(value * 10) / 10) : "\u2014";
-          const pct = value != null && target > 0 ? (value / target) * 100 : 0;
-          const barPct = Math.min(pct, 100);
-          const pctRounded = Math.round(pct);
+          const pct = value != null && target > 0 ? Math.round((value / target) * 100) : 0;
 
           return (
-            <button
-              key={n.key}
-              onClick={() => openSources(n.key, n.label, unit)}
-              className="pill p-4 rounded-xl text-left cursor-pointer transition-all duration-150 hover:ring-1 hover:ring-primary/30 hover:bg-muted/40"
-            >
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5">{n.label}</p>
-              <p className="text-xl font-bold tabular-nums text-foreground">
-                {displayVal}
-              </p>
-              <p className="text-[11px] text-muted-foreground whitespace-nowrap">/ {target} {unit}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="h-2 flex-1 rounded-full overflow-hidden bg-muted/60">
-                  <div
-                    className="h-full rounded-full transition-all duration-500 ease-out"
-                    style={{
-                      width: `${barPct}%`,
-                      background: getProgressGradient(pct),
-                    }}
-                  />
-                </div>
-                <span
-                  className="text-[11px] font-semibold tabular-nums min-w-[36px] text-right"
-                  style={{ color: getProgressColor(pct) }}
-                >
-                  {pctRounded}%
+            <li key={n.key} className="border-b border-g2">
+              <button
+                type="button"
+                onClick={() => openSources(n.key, n.label, unit)}
+                className="block min-h-[60px] w-full py-3 text-left transition-colors hover:bg-g1"
+              >
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="text-[15px] text-ink">{n.label}</span>
+                  <span className="whitespace-nowrap tabular-nums">
+                    <span className="text-[15px] font-medium text-ink">{displayVal}</span>
+                    <span className="ml-1 text-[12px] text-g4">/ {target} {unit}</span>
+                    <span className="ml-2 inline-block min-w-[3.25rem] text-right text-[12px]"><StatusWord status={status} />{status !== "none" && <span className="ml-1 text-g4">{pct}%</span>}</span>
+                  </span>
                 </span>
-              </div>
-            </button>
+                <MicroBar className="mt-2.5" value={value} target={target} status={status} />
+              </button>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
       <Dialog open={!!selectedNutrient} onOpenChange={() => setSelectedNutrient(null)}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
@@ -118,13 +102,13 @@ export function MicronutrientSummaryCard({ microAvg, microTargets = [], dateRang
             ) : loadingSources ? (
               <div className="space-y-2 py-2">
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="h-14 rounded-lg bg-muted/30 animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+                  <div key={i} className="h-14 rounded-sm bg-g2 animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
                 ))}
               </div>
             ) : sources.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No sources found for this period</p>
             ) : (
-              <div className="space-y-1.5 py-2">
+              <div className="py-1">
                 {sources.map((s, i) => {
                   const pct = sourcesTotal > 0 ? (s.amount / sourcesTotal) * 100 : 0;
                   const isSupplement = s.meal_type === "supplement";
@@ -132,29 +116,28 @@ export function MicronutrientSummaryCard({ microAvg, microTargets = [], dateRang
                   return (
                     <div
                       key={i}
-                      className="pill rounded-lg p-3 transition-all duration-200 hover:bg-muted/30"
+                      className="border-b border-g2 py-3"
                       style={{ animationDelay: `${i * 40}ms` }}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            {isSupplement && <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0 mt-1" />}
-                            <span className="text-sm text-foreground truncate">{s.food_name}</span>
+                                                        <span className="text-sm text-foreground truncate">{s.food_name}</span>
                           </div>
-                          <p className="text-[10px] text-muted-foreground/50 mt-0.5">{dateLabel} · {s.meal_type}</p>
+                          <p className="text-[12px] text-g4 mt-0.5">{dateLabel} · {s.meal_type}</p>
                         </div>
                         <span className="text-sm font-semibold tabular-nums text-foreground shrink-0">
                           {fmt(s.amount)} {selectedNutrient?.unit}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <div className="h-1.5 flex-1 rounded-full bg-muted/40 overflow-hidden">
+                        <div className="h-[3px] flex-1 bg-g2">
                           <div
-                            className="h-full rounded-full transition-all duration-500 ease-out"
-                            style={{ width: `${pct}%`, background: isSupplement ? "linear-gradient(90deg, #a78bfa, #c4b5fd)" : "linear-gradient(90deg, #22c55e, #4ade80)" }}
+                            className="animate-bar h-full"
+                            style={{ width: `${pct}%`, background: isSupplement ? "var(--g5)" : "var(--ink)" }}
                           />
                         </div>
-                        <span className="text-[10px] text-muted-foreground tabular-nums min-w-[28px] text-right">{Math.round(pct)}%</span>
+                        <span className="text-[12px] text-g4 tabular-nums min-w-[28px] text-right">{Math.round(pct)}%</span>
                       </div>
                     </div>
                   );
@@ -164,6 +147,6 @@ export function MicronutrientSummaryCard({ microAvg, microTargets = [], dateRang
           </div>
         </DialogContent>
       </Dialog>
-    </DashboardCard>
+    </SectionCard>
   );
 }

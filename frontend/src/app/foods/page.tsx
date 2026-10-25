@@ -4,12 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ErrorState } from "@/components/ui/error-state";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Plus, Search, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +19,9 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { getErrorMessage, ApiError } from "@/lib/api";
 import { sourceLabel } from "@/lib/format";
 import { todayStr } from "@/lib/dates";
-import { NUTRIENT_LABELS } from "@/lib/nutrient-labels";
+import { MACRO_NUTRIENT_LABELS, MICRO_NUTRIENT_LABELS, NUTRIENT_LABELS } from "@/lib/nutrient-labels";
+import { useTracked } from "@/hooks/use-tracked";
+import { plateOf } from "@/lib/plates";
 import type { FoodDetail } from "@/lib/types";
 
 export default function FoodsPage() {
@@ -68,6 +65,8 @@ function FoodsPageInner() {
   const { data: detail } = useFoodDetail(selectedId);
   const deleteFood = useDeleteFood();
   const cloneFood = useCloneFood();
+  const { shows } = useTracked();
+  const showProtein = shows("protein");
 
   function selectFood(id: string | null) {
     if (!id) return;
@@ -123,189 +122,205 @@ function FoodsPageInner() {
     );
   }
 
+  const pillOutline =
+    "inline-flex h-11 items-center justify-center rounded-full border border-g3 px-5 text-[13px] font-medium text-ink transition-colors hover:border-g5 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:text-g3 disabled:hover:border-g3";
+  const pillInk =
+    "inline-flex h-12 items-center justify-center gap-2 rounded-full bg-ink px-6 text-[15px] font-medium text-g0 transition-transform active:scale-[0.98] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:bg-g3 disabled:text-g5";
+
+  // Only the nutrients the owner tracks; kcal is always there. Vitamins and minerals get their own block.
+  const macroKeys = Object.keys(MACRO_NUTRIENT_LABELS);
+  const detailRows = (keys: string[]) =>
+    keys
+      .map((key) => ({ key, meta: NUTRIENT_LABELS[key], val: detail?.nutrients?.[key] }))
+      .filter((r) => r.val != null && (r.key === "kcal" || shows(r.key)));
+  const macroRows = detailRows(macroKeys);
+  const microRows = detailRows(Object.keys(MICRO_NUTRIENT_LABELS));
+  const plate = (key: string) => plateOf(key);
+  const nutrientRows = (rows: typeof macroRows) => (
+    <ul className="divide-y divide-g2 border-y border-g2">
+      {rows.map(({ key, meta, val }) => (
+        <li key={key} className="flex min-h-11 items-center justify-between gap-3 text-[15px]">
+          <span className="text-g4">{meta.label}</span>
+          <span className="tabular-nums text-ink" style={{ color: plate(key) }}>
+            {Math.round((val as number) * 10) / 10} <span className="text-[12px] text-g4">{meta.unit}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+
   const detailBody = (
     <>
-          {!detail ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <svg className="h-10 w-10 text-muted-foreground/30 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <p className="text-sm text-muted-foreground">Select a food to see nutrients</p>
-            </div>
-          ) : (
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="text-base font-semibold text-foreground">{detail.name}</h4>
-                {detail.is_mine && <Badge className="text-[10px]">My food</Badge>}
-              </div>
-              {detail.barcode && (
-                <p className="text-xs text-muted-foreground mb-3 font-mono">{detail.barcode}</p>
+      {!detail ? (
+        <p className="py-6 text-[15px] text-g4">Pick a food from the list to see what is in 100 g of it.</p>
+      ) : (
+        <div>
+          <h4 className="text-[22px] font-semibold leading-tight tracking-[-0.01em] text-ink">{detail.name}</h4>
+          <p className="mt-1 text-[12px] text-g4">
+            {sourceLabel(detail.source, detail.is_mine)}
+            {detail.is_mine && " · yours"}
+            {detail.barcode && <span className="font-mono"> · {detail.barcode}</span>}
+          </p>
+          {detail.nutrients ? (
+            <div className="mt-5">
+              <p className="mb-1 text-[12px] text-g4">Values per 100 g</p>
+              {nutrientRows(macroRows)}
+              {microRows.length > 0 && (
+                <>
+                  <p className="mb-1 mt-5 text-[12px] text-g4">Vitamins and minerals per 100 g</p>
+                  {nutrientRows(microRows)}
+                </>
               )}
               {detail.serving_size_g && (
-                <p className="text-xs text-muted-foreground mb-2">
-                  {detail.serving_label || "1 serving"} = {detail.serving_size_g}g
+                <p className="mt-3 text-[12px] text-g4">
+                  {detail.serving_label || "1 serving"} = {detail.serving_size_g} g. The values above are not per serving.
                 </p>
               )}
-              {detail.nutrients ? (
-                <div className="space-y-2">
-                  {Object.entries(NUTRIENT_LABELS).map(([key, meta]) => {
-                    const val = detail.nutrients?.[key];
-                    if (val == null) return null;
-                    return (
-                      <div key={key} className="flex items-center justify-between py-0.5">
-                        <span className="text-xs text-muted-foreground">{meta.label}</span>
-                        <span className="text-xs tabular-nums text-foreground font-medium">
-                          {Math.round(val * 10) / 10} {meta.unit}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  <Separator className="my-2" />
-                  <p className="text-[9px] text-muted-foreground/50">
-                    Values per 100 g, from {sourceLabel(detail.source, detail.is_mine)}
-                  </p>
+            </div>
+          ) : (
+            <p className="mt-4 text-[15px] text-g4">No nutrient values yet. Edit the food to add them.</p>
+          )}
+
+          <div className="mt-6 space-y-2">
+            <button onClick={() => setLogOpen(true)} className={`${pillInk} w-full`}>Log food</button>
+            {detail.editable ? (
+              !confirmingDelete ? (
+                <div className="flex gap-2">
+                  <button onClick={() => openEdit(detail)} className={`${pillOutline} flex-1`}>Edit</button>
+                  <button onClick={() => setConfirmingDelete(true)} className={`${pillOutline} flex-1`}>Delete</button>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No nutrient data available</p>
-              )}
-
-              <Separator className="my-3" />
-              <Button onClick={() => setLogOpen(true)} className="mb-2 h-10 w-full" size="lg">Log food</Button>
-              {detail.editable ? (
-                !confirmingDelete ? (
-                  <div className="flex gap-2">
-                    <Button onClick={() => openEdit(detail)} variant="outline" size="lg" className="h-10 flex-1">Edit</Button>
-                    <Button onClick={() => setConfirmingDelete(true)} variant="destructive" size="lg" className="h-10 flex-1">Delete</Button>
+                <div className="border-y border-g2 py-3">
+                  <p className="text-[15px] text-ink">Delete this food for good?</p>
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => handleDelete(detail.id)} disabled={deleteFood.isPending} className={`${pillOutline} flex-1 !border-alert !text-alert hover:bg-alert/12 disabled:!border-g2 disabled:!text-g3`}>
+                      {deleteFood.isPending ? "Deleting..." : "Delete"}
+                    </button>
+                    <button onClick={() => setConfirmingDelete(false)} className={`${pillOutline} flex-1 border-transparent text-g5`}>Keep</button>
                   </div>
-                ) : (
-                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2">
-                    <p className="text-xs text-destructive/80">Delete this food permanently?</p>
-                    <div className="flex gap-2">
-                      <Button onClick={() => handleDelete(detail.id)} disabled={deleteFood.isPending} variant="destructive" size="sm" className="flex-1">
-                        {deleteFood.isPending ? "Deleting..." : "Confirm"}
-                      </Button>
-                      <Button onClick={() => setConfirmingDelete(false)} variant="outline" size="sm" className="flex-1">Cancel</Button>
-                    </div>
-                  </div>
-                )
-              ) : (
-                <Button onClick={() => handleClone(detail)} disabled={cloneFood.isPending} variant="outline" size="sm" className="w-full">
-                  {cloneFood.isPending ? "Cloning..." : "Clone & customize"}
-                </Button>
-              )}
-            </div>
-          )}
+                </div>
+              )
+            ) : (
+              <button onClick={() => handleClone(detail)} disabled={cloneFood.isPending} className={`${pillOutline} w-full`}>
+                {cloneFood.isPending ? "Cloning..." : "Clone to edit"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 
   return (
-    <DashboardLayout title="Food Database">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Food list (2 cols) */}
-        <div className="clay-card p-5 lg:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Foods</h3>
-            <Button onClick={openCreate} size="sm">+ Add food</Button>
-          </div>
-          <div className="mb-3">
-            <Input
+    <DashboardLayout title="Foods" hideTitle>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-ink">Foods</h1>
+        <button onClick={openCreate} className={pillInk}>
+          <Plus className="h-4 w-4" aria-hidden="true" /> Add food
+        </button>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 lg:gap-4">
+        <div className="lg:col-span-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-g4" aria-hidden="true" />
+            <input
               type="text"
               value={query}
               onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-              placeholder="Search foods..."
-              className="h-10"
+              placeholder="Search foods"
+              aria-label="Search foods"
+              className="h-12 w-full rounded-full border border-g3 bg-g0 pl-10 pr-12 text-base text-ink outline-none placeholder:text-g4 focus:border-ink"
             />
+            {query && (
+              <button
+                type="button"
+                onClick={() => { setQuery(""); setPage(1); }}
+                aria-label="Clear search"
+                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-g4 hover:text-ink"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
+          <p className="mb-1 mt-3 flex justify-between text-[12px] text-g4">
+            <span>{data ? `${data.total} ${data.total === 1 ? "food" : "foods"}` : "\u00a0"}</span>
+            <span>Values per 100 g</span>
+          </p>
+
           {isError ? (
-            <ErrorState message={getErrorMessage(error, "Couldn't load foods.")} onRetry={() => refetch()} />
-          ) : loading ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-10 rounded-lg bg-muted/50 animate-pulse" />
+            <div className="border-y border-g2 py-8">
+              <p className="text-[15px] text-ink">{getErrorMessage(error, "Couldn't load foods.")}</p>
+              <button onClick={() => refetch()} className={`${pillOutline} mt-3`}>Try again</button>
+            </div>
+          ) : loading && !data ? (
+            <div className="space-y-px" aria-busy="true" aria-label="Loading foods">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-[60px] animate-pulse bg-g1" />
               ))}
             </div>
           ) : !data || data.items.length === 0 ? (
-            <EmptyState message="No foods found" actionLabel="+ Add food" onAction={openCreate} />
+            <div className="border-y border-g2 py-8">
+              <p className="text-[15px] text-g4">
+                {debouncedQuery ? `Nothing matches "${debouncedQuery}". Check the spelling or add it yourself.` : "No foods yet. Add the first one."}
+              </p>
+              <button onClick={openCreate} className={`${pillInk} mt-4`}>
+                <Plus className="h-4 w-4" aria-hidden="true" /> Add food
+              </button>
+            </div>
           ) : (
             <>
-              <div className="space-y-1">
-                {/* Header */}
-                <div className="hidden sm:grid grid-cols-12 gap-2 px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wide">
-                  <span className="col-span-5">Name</span>
-                  <span className="col-span-2">Source</span>
-                  <span className="col-span-2 text-right">Kcal</span>
-                  <span className="col-span-2 text-right">Protein</span>
-                  <span className="col-span-1"></span>
-                </div>
-                {data.items.map((food) => (
-                  <button
-                    key={food.id ?? food.name}
-                    onClick={() => selectFood(food.id)}
-                    className={`grid grid-cols-12 gap-x-2 gap-y-0.5 w-full min-h-10 items-center rounded-lg px-3 py-2 text-sm text-left transition-all duration-150 ${
-                      selectedId === food.id ? "bg-primary/10 clay-card-sm" : "hover:bg-muted/50"
-                    }`}
-                  >
-                    <span className="col-span-12 sm:col-span-5 text-foreground/80 truncate">{food.name}</span>
-                    <span className="col-span-12 text-xs text-muted-foreground tabular-nums sm:hidden">
-                      {food.kcal != null ? `${Math.round(food.kcal)} kcal` : "-- kcal"}
-                      {" · "}
-                      {food.protein != null ? `${Math.round(food.protein)}g protein` : "-- protein"}
-                    </span>
-                    <span className="hidden sm:block col-span-2 text-xs text-muted-foreground">{sourceLabel(food.source)}</span>
-                    <span className="hidden sm:block col-span-2 text-right tabular-nums text-foreground/60">
-                      {food.kcal != null ? Math.round(food.kcal) : "--"}
-                    </span>
-                    <span className="hidden sm:block col-span-2 text-right tabular-nums text-foreground/60">
-                      {food.protein != null ? `${Math.round(food.protein)}g` : "--"}
-                    </span>
-                    <span className="hidden sm:block col-span-1 text-right">
-                      <svg className={`h-3.5 w-3.5 text-muted-foreground/40 inline transition-transform duration-150 ${selectedId === food.id ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <ul className={`divide-y divide-g2 border-y border-g2 transition-opacity duration-150 ${loading ? "opacity-60" : ""}`}>
+                {data.items.map((food) => {
+                  const selected = selectedId === food.id;
+                  return (
+                    <li key={food.id ?? food.name}>
+                      <button
+                        onClick={() => selectFood(food.id)}
+                        aria-pressed={selected}
+                        className={`grid min-h-[60px] w-full grid-cols-[1fr_auto] items-center gap-x-4 px-3 py-2 text-left transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink hover:bg-g1 ${selected ? "bg-g1" : ""}`}
+                      >
+                        <span className="min-w-0">
+                          <span className={`block truncate text-base ${selected ? "font-medium text-ink" : "text-ink"}`}>{food.name}</span>
+                          <span className="block truncate text-[12px] text-g4">
+                            {sourceLabel(food.source)}
+                            {food.serving_size_g ? ` · ${food.serving_label || "serving"} ${Math.round(food.serving_size_g)} g` : ""}
+                          </span>
+                        </span>
+                        <span className="text-right tabular-nums">
+                          <span className="block text-[17px] font-medium text-ink">
+                            {food.kcal != null ? Math.round(food.kcal) : "--"}
+                            <span className="ml-1 text-[12px] font-normal text-g4">kcal</span>
+                          </span>
+                          {showProtein && (
+                            <span className="block text-[12px]" style={{ color: food.protein != null ? plateOf("protein") : "var(--g4)" }}>
+                              {food.protein != null ? `${Math.round(food.protein)} g protein` : "-- protein"}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
 
-              {/* Pagination */}
               {data.pages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-                  <span className="text-xs text-muted-foreground">{data.total} foods total</span>
-                  <div className="flex gap-1">
-                    <Button
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      variant="ghost"
-                      size="xs"
-                      className="h-10 px-3"
-                    >
-                      Prev
-                    </Button>
-                    <span className="flex items-center px-2 text-xs text-muted-foreground tabular-nums">
-                      {page} / {data.pages}
-                    </span>
-                    <Button
-                      onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
-                      disabled={page === data.pages}
-                      variant="ghost"
-                      size="xs"
-                      className="h-10 px-3"
-                    >
-                      Next
-                    </Button>
-                  </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className={pillOutline}>Previous</button>
+                  <span className="text-[12px] tabular-nums text-g4">{page} / {data.pages}</span>
+                  <button onClick={() => setPage((p) => Math.min(data.pages, p + 1))} disabled={page === data.pages} className={pillOutline}>Next</button>
                 </div>
               )}
             </>
           )}
         </div>
 
-        {/* Nutrient detail (1 col) */}
-        <div className="clay-card p-5 lg:col-span-1 hidden lg:block">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Nutrient Breakdown</h3>
+        {/* The breakdown sits beside the list from 1024px; below that it opens as a dialog. */}
+        <aside className="clay-card hidden self-start p-5 lg:block lg:sticky lg:top-6">
+          <h2 className="mb-3 text-[15px] font-medium text-ink">What is in it</h2>
           {detailBody}
-        </div>
+        </aside>
       </div>
 
       <Dialog
@@ -314,7 +329,7 @@ function FoodsPageInner() {
       >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nutrient breakdown</DialogTitle>
+            <DialogTitle>What is in it</DialogTitle>
           </DialogHeader>
           {detailBody}
         </DialogContent>

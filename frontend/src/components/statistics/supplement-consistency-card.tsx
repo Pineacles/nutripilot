@@ -1,8 +1,10 @@
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { SectionCard } from "@/components/charts/section-card";
+"use client";
+
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
 import { ChartTooltip } from "./chart-tooltip";
-import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
-import { CHART_COLORS, CHART_GRID_SUBTLE, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
+import { AXIS_TICK_PROPS, dateTickFormatter, useChartMotion } from "@/lib/chart-utils";
+import { POSTER_ACTIVE_DOT, POSTER_CURSOR_LINE, POSTER_X_AXIS, POSTER_Y_AXIS } from "@/lib/chart-theme";
 import type { SupplementLogEntry } from "@/lib/types";
 
 interface Props {
@@ -11,69 +13,48 @@ interface Props {
 }
 
 export function SupplementConsistencyCard({ supplementLog, days }: Props) {
+  const motion = useChartMotion();
+  const daysWithSupps = supplementLog.filter((s) => s.count > 0).length;
+  const adherencePct = days > 0 ? Math.round((daysWithSupps / days) * 100) : 0;
+
+  // Per-supplement frequency
+  const suppFreq: Record<string, number> = {};
+  for (const entry of supplementLog) {
+    for (const name of entry.names) suppFreq[name] = (suppFreq[name] || 0) + 1;
+  }
+  const suppList = Object.entries(suppFreq)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count, pct: days > 0 ? Math.min(100, Math.round((count / days) * 100)) : 0 }));
+
   return (
-    <SectionCard title="Supplement Consistency" span="lg:col-span-2">
+    <SectionCard title={supplementLog.length > 0 ? `Supplements: taken on ${adherencePct}% of days` : "Supplements"}>
       {supplementLog.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">No supplement data</p>
-      ) : (() => {
-        const daysWithSupps = supplementLog.filter(s => s.count > 0).length;
-        const adherencePct = days > 0 ? Math.round((daysWithSupps / days) * 100) : 0;
-
-        // Per-supplement frequency
-        const suppFreq: Record<string, number> = {};
-        for (const entry of supplementLog) {
-          for (const name of entry.names) {
-            suppFreq[name] = (suppFreq[name] || 0) + 1;
-          }
-        }
-        const suppList = Object.entries(suppFreq)
-          .sort((a, b) => b[1] - a[1])
-          .map(([name, count]) => ({ name, count, pct: days > 0 ? Math.round((count / days) * 100) : 0 }));
-
-        return (
-          <div className="flex flex-col lg:flex-row gap-5">
-            {/* Left: trend chart */}
-            <div className="flex-1 min-w-0">
-              <ResponsiveContainer minWidth={0} width="100%" height={160}>
-                <AreaChart data={supplementLog} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-                  <defs>
-                    <linearGradient id="suppGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.green} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={CHART_COLORS.green} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray={CHART_GRID_DASH} stroke={CHART_GRID_SUBTLE} vertical={false} />
-                  <XAxis dataKey="date" tick={CHART_TICK_X} axisLine={false} tickLine={false}
-                    tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} />
-                  <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} width={25} allowDecimals={false} />
-                  <Tooltip content={<ChartTooltip valueSuffix=" supplements" />} />
-                  <Area type="monotone" dataKey="count" stroke={CHART_COLORS.green} strokeWidth={2}
-                    fill="url(#suppGrad)" dot={false} animationDuration={600} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Right: per-supplement breakdown */}
-            <div className="lg:w-56 shrink-0 space-y-2">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-muted-foreground">Overall</span>
-                <span className="text-xs font-bold text-primary tabular-nums">{adherencePct}%</span>
-              </div>
-              {suppList.map(s => (
-                <div key={s.name}>
-                  <div className="flex items-center justify-between text-[11px] mb-0.5">
-                    <span className="text-foreground/80 truncate mr-2">{s.name}</span>
-                    <span className="text-muted-foreground tabular-nums shrink-0">{s.pct}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${s.pct}%`, background: s.pct >= 80 ? "linear-gradient(90deg, #22c55e, #4ade80)" : s.pct >= 50 ? "linear-gradient(90deg, #f59e0b, #fbbf24)" : "linear-gradient(90deg, #ef4444, #f87171)" }} />
-                  </div>
+        <SectionEmpty>No supplements taken in this period.</SectionEmpty>
+      ) : (
+        <>
+          <ResponsiveContainer minWidth={0} width="100%" height={120}>
+            <LineChart data={supplementLog} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
+              <XAxis dataKey="date" {...POSTER_X_AXIS} tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} />
+              <YAxis {...POSTER_Y_AXIS} width={24} allowDecimals={false} />
+              <Tooltip content={<ChartTooltip valueSuffix=" taken" />} cursor={POSTER_CURSOR_LINE} />
+              <Line type="stepAfter" dataKey="count" stroke="var(--done)" strokeWidth={2} dot={false} activeDot={{ ...POSTER_ACTIVE_DOT, fill: "var(--done)" }} {...motion} />
+            </LineChart>
+          </ResponsiveContainer>
+          <ul className="mt-3 divide-y divide-g2 border-t border-g2">
+            {suppList.map((s) => (
+              <li key={s.name} className="py-2.5">
+                <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                  <span className={`truncate ${s.pct >= 80 ? "text-ink" : "text-g5"}`}>{s.name}</span>
+                  <span className="shrink-0 tabular-nums text-g4">{s.pct}%</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+                <div className="mt-2 h-[3px] bg-g2">
+                  <div className="animate-bar h-full" style={{ width: `${s.pct}%`, background: s.pct >= 80 ? "var(--done)" : "var(--g5)" }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </SectionCard>
   );
 }

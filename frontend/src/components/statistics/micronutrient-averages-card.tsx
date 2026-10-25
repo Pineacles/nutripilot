@@ -1,6 +1,8 @@
-import { SectionCard } from "@/components/charts/section-card";
+import { SectionCard, SectionEmpty } from "@/components/charts/section-card";
+import { MicroBar, StatusWord, microHeadline, microStatus, sortByStatus } from "./micro-status";
 import { fmt } from "@/lib/utils";
 import type { MicronutrientAverages } from "@/lib/types";
+import { useTracked } from "@/hooks/use-tracked";
 
 const MICROS: { key: keyof MicronutrientAverages; label: string; target: number; unit: string }[] = [
   { key: "vit_d", label: "Vitamin D", target: 100, unit: "µg" },
@@ -18,42 +20,39 @@ interface Props {
   microAvg: MicronutrientAverages | null | undefined;
 }
 
+/** Daily averages against their targets, Low first: each row a name, a figure, a status word and a 3px bar. */
 export function MicronutrientAveragesCard({ microAvg }: Props) {
+  const { shows } = useTracked();
+  const micros = MICROS.filter((m) => shows(m.key));
+  if (micros.length === 0) return null;
+  const rows = sortByStatus(micros.map((micro) => {
+    const avg = microAvg?.[micro.key];
+    return { micro, avg, status: microStatus(micro.key, avg, micro.target) };
+  }));
+
   return (
-    <SectionCard title="Micronutrient Averages" span="lg:col-span-3">
+    <SectionCard title={microAvg ? microHeadline(rows.map((r) => r.status)) : "Vitamins and minerals"} span="md:col-span-2" summary="daily average">
       {!microAvg ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No micronutrient data</p>
+        <SectionEmpty>No micronutrients logged in this period.</SectionEmpty>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {MICROS.map(micro => {
-            const avg = microAvg[micro.key] ?? 0;
-            const pct = micro.target > 0 ? Math.round((avg / micro.target) * 100) : 0;
-            const barColor = pct >= 80 ? "from-green-500 to-green-400" : pct >= 40 ? "from-amber-500 to-amber-400" : "from-red-500 to-red-400";
-            const badgeColor = pct >= 80 ? "bg-green-500/15 text-green-400" : pct >= 40 ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400";
+        <ul className="grid border-t border-g2 md:grid-cols-2 md:gap-x-8">
+          {rows.map(({ micro, avg, status }) => {
+            const pct = avg != null && micro.target > 0 ? Math.round((avg / micro.target) * 100) : 0;
             return (
-              <div key={micro.key} className="pill rounded-lg p-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-foreground">{micro.label}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold tabular-nums text-foreground">
-                      {typeof avg === "number" ? fmt(avg) : avg} {micro.unit}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/60">/ {micro.target} {micro.unit}</span>
-                    <span className={`text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full ${badgeColor}`}>
-                      {pct}%
-                    </span>
-                  </div>
+              <li key={micro.key} className="border-b border-g2 py-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[15px] text-ink">{micro.label}</span>
+                  <span className="whitespace-nowrap tabular-nums">
+                    <span className="text-[15px] font-medium text-ink">{avg != null ? fmt(avg) : "\u2014"}</span>
+                    <span className="ml-1 text-[12px] text-g4">/ {micro.target} {micro.unit}</span>
+                    <span className="ml-2 inline-block min-w-[3.25rem] text-right text-[12px]"><StatusWord status={status} />{status !== "none" && <span className="ml-1 text-g4">{pct}%</span>}</span>
+                  </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-muted/30 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full bg-gradient-to-r ${barColor} transition-all duration-500`}
-                    style={{ width: `${Math.min(100, pct)}%` }}
-                  />
-                </div>
-              </div>
+                <MicroBar className="mt-2.5" value={avg} target={micro.target} status={status} />
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </SectionCard>
   );

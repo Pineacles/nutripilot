@@ -1,6 +1,6 @@
-import { SectionCard } from "@/components/charts/section-card";
+import Link from "next/link";
+import { Band } from "./band";
 import { fmt } from "@/lib/utils";
-import { CHART_COLORS } from "@/lib/chart-theme";
 
 interface Props {
   targetWeight: number | null;
@@ -20,80 +20,63 @@ interface Props {
 function goalProgress(start: number, current: number, target: number) {
   const dir = start >= target ? 1 : -1;
   const toGo = (current - target) * dir;
-  if (toGo <= 0) return { reached: true, toGo: 0, pct: 100 };
+  if (toGo <= 0) return { reached: true, toGo: 0, pct: 100, span: Math.abs(start - target), done: Math.abs(start - target) };
   const span = (start - target) * dir;
   const pct = span > 0 ? Math.max(0, Math.min(99, Math.floor(((start - current) * dir / span) * 100))) : 0;
-  return { reached: false, toGo, pct };
+  return { reached: false, toGo, pct, span, done: Math.max(0, (start - current) * dir) };
 }
 
-function GoalProgress({ start, current, target, unit, gradient }: { start: number; current: number; target: number; unit: string; gradient: string }) {
-  const { reached, toGo, pct } = goalProgress(start, current, target);
+function GoalProgress({ label, current, target, start, unit }: { label: string; current: number | null; target: number; start: number | null; unit: string }) {
+  const p = current != null && start != null ? goalProgress(start, current, target) : null;
+  const shown = (n: number) => `${fmt(n)}${unit === "%" ? "%" : ` ${unit}`}`;
   return (
-    <>
-      <div className="w-full h-3 rounded-full bg-secondary overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: gradient }} />
+    <div className="py-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[15px] text-ink">{label}</span>
+        <span className="text-[15px] tabular-nums text-ink">
+          {current != null ? shown(current) : "--"} <span className="text-[12px] text-g4">goal {shown(target)}</span>
+        </span>
       </div>
-      <p className="text-[10px] text-muted-foreground mt-1">
-        {reached ? "Goal reached" : `${fmt(toGo)} ${unit} to go (${pct}% of the way)`}
-      </p>
-    </>
+      {p ? (
+        <>
+          {/* Ink while on the way, --done once the goal is reached */}
+          <div className="mt-3 h-[3px] w-full bg-g2" role="img" aria-label={p.reached ? "Goal reached" : `${p.pct}% of the way to the goal`}>
+            <div className={`animate-bar h-full ${p.reached ? "bg-done" : "bg-ink"}`} style={{ width: `${p.reached ? 100 : p.pct}%` }} />
+          </div>
+          <p className={`mt-2 text-[12px] ${p.reached ? "text-done" : "text-g4"}`}>
+            {p.reached ? "Goal reached" : `${fmt(p.toGo)} ${unit} to go, ${p.pct}% of the way`}
+          </p>
+        </>
+      ) : (
+        <p className="mt-2 text-[12px] text-g4">Log a measurement to see the way to your goal.</p>
+      )}
+    </div>
+  );
+}
+
+function NoGoal({ what }: { what: string }) {
+  return (
+    <p className="py-4 text-[13px] text-g4">
+      No {what} goal set. <Link href="/settings" className="text-ink underline underline-offset-4">Add one in Settings</Link>
+    </p>
   );
 }
 
 export function MilestonesCard({ targetWeight, targetBf, currentWeight, startingWeight, currentBf, startingBf }: Props) {
   return (
-    <SectionCard title="Milestones" span="lg:col-span-2">
-      <div className="space-y-5">
-        {/* Weight progress: hidden entirely when no goal weight is set */}
+    <Band title="Goals" className="lg:col-span-2">
+      <div className="divide-y divide-g2 border-y border-g2">
         {targetWeight == null ? (
-          <p className="text-xs text-muted-foreground">No weight goal set, add one in Settings</p>
+          <NoGoal what="weight" />
         ) : (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground">Weight</span>
-              <span className="text-xs font-medium text-foreground">
-                {currentWeight != null ? `${fmt(currentWeight)} kg` : "--"} / {targetWeight} kg
-              </span>
-            </div>
-            {currentWeight != null && startingWeight != null ? (
-              <GoalProgress
-                start={startingWeight}
-                current={currentWeight}
-                target={targetWeight}
-                unit="kg"
-                gradient={`linear-gradient(90deg, ${CHART_COLORS.green}, ${CHART_COLORS.greenLight})`}
-              />
-            ) : (
-              <div className="w-full h-3 rounded-full bg-secondary" />
-            )}
-          </div>
+          <GoalProgress label="Weight" current={currentWeight} target={targetWeight} start={startingWeight} unit="kg" />
         )}
-
-        {/* Body fat progress: hidden entirely when no goal body fat % is set */}
         {targetBf == null ? (
-          <p className="text-xs text-muted-foreground">No body fat goal set, add one in Settings</p>
+          <NoGoal what="body fat" />
         ) : (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground">Body Fat</span>
-              <span className="text-xs font-medium text-foreground">
-                {currentBf != null ? `${fmt(currentBf)}%` : "--"} / {targetBf}%
-              </span>
-            </div>
-            {currentBf != null && startingBf != null ? (
-              <GoalProgress
-                start={startingBf}
-                current={currentBf}
-                target={targetBf}
-                unit="%"
-                gradient={`linear-gradient(90deg, ${CHART_COLORS.amber}, ${CHART_COLORS.orange})`}
-              />
-            ) : (
-              <div className="w-full h-3 rounded-full bg-secondary" />
-            )}
-          </div>
+          <GoalProgress label="Body fat" current={currentBf} target={targetBf} start={startingBf} unit="%" />
         )}
       </div>
-    </SectionCard>
+    </Band>
   );
 }

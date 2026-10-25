@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import type {
   DailyFoodLogResponse,
@@ -12,6 +12,7 @@ import type {
   NutrientSourcesResponse,
   RecentFood,
   StatsSummary,
+  MealType,
   SupplementDefinition,
   SupplementDefinitionUpdateInput,
   SupplementIntakeLog,
@@ -134,11 +135,14 @@ export function useFoodsSearch(query: string, page: number, limit: number = 20, 
 }
 
 /** Foods the user logged lately, offered before any typing in the Log food dialog. */
-export function useRecentFoods(enabled = true) {
+/** With a meal, the foods usually eaten at that meal come first. */
+export function useRecentFoods(enabled = true, meal?: MealType) {
   return useQuery({
-    queryKey: queryKeys.recentFoods(),
-    queryFn: () => apiFetch<RecentFood[]>("/api/dashboard/foods/recent?limit=12"),
+    queryKey: [...queryKeys.recentFoods(), meal ?? "any"],
+    queryFn: () => apiFetch<RecentFood[]>(`/api/dashboard/foods/recent?limit=12${meal ? `&meal=${meal}` : ""}`),
     enabled,
+    // Switching meal keeps the old list on screen until the new order arrives.
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -147,6 +151,8 @@ export function useFoodDetail(id: string | null) {
     queryKey: queryKeys.foodDetail(id),
     queryFn: () => apiFetch<FoodDetail>(`/api/dashboard/foods/${id}`),
     enabled: !!id,
+    // Offline: fail into the error state (Try again) instead of waiting silently.
+    networkMode: "always",
   });
 }
 

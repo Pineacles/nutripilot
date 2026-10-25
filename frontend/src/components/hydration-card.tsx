@@ -18,6 +18,7 @@ import { useWaterLogDay } from "@/hooks/queries";
 import { useLogWater, useUpdateWaterLog, useDeleteWaterLog } from "@/hooks/mutations/water";
 import { WATER_LOG_BOUNDS, validateBounds } from "@/lib/validation";
 import { getErrorMessage } from "@/lib/api";
+import { useTracked } from "@/hooks/use-tracked";
 
 interface Props {
   water: WaterTotals;
@@ -65,20 +66,21 @@ function WaterEntryRow({ entry, date }: { entry: WaterLogRow; date: string }) {
           min={WATER_LOG_BOUNDS.min}
           max={WATER_LOG_BOUNDS.max}
           aria-invalid={!!error}
-          className="h-10 flex-1 tabular-nums"
+          className="flex-1 tabular-nums"
+          inputMode="numeric"
         />
-        <Button size="xs" className="h-10 px-3" onClick={save} disabled={!!error || updateLog.isPending}>Save</Button>
-        <Button size="xs" variant="ghost" className="h-10 px-3" onClick={() => setEditing(false)}>Cancel</Button>
+        <Button size="sm" onClick={save} disabled={!!error || updateLog.isPending}>Save</Button>
+        <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-10 items-center justify-between py-0.5 group">
-      <span className="text-sm tabular-nums text-foreground">{fmt(entry.amount_ml, 0)} ml</span>
-      <div className="flex items-center opacity-80 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => setEditing(true)} className="h-10 text-xs text-muted-foreground hover:text-foreground px-3">Edit</button>
-        <button onClick={remove} disabled={deleteLog.isPending} className="h-10 text-xs text-muted-foreground hover:text-destructive px-3">Delete</button>
+    <div className="group flex min-h-[60px] items-center justify-between">
+      <span className="text-[17px] font-medium tabular-nums text-ink">{fmt(entry.amount_ml, 0)} ml</span>
+      <div className="flex items-center">
+        <button onClick={() => setEditing(true)} className="h-11 rounded-full px-3 text-[13px] text-g5 transition-colors hover:text-ink">Edit</button>
+        <button onClick={remove} disabled={deleteLog.isPending} className="h-11 rounded-full px-3 text-[13px] text-g5 transition-colors hover:text-ink disabled:opacity-50">Delete</button>
       </div>
     </div>
   );
@@ -88,6 +90,9 @@ export function HydrationCard({ water, caffeine, date }: Props) {
   const [showCustom, setShowCustom] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [showEntries, setShowEntries] = useState(false);
+  const { shows } = useTracked();
+  const showWater = shows("water");
+  const showCaffeine = shows("caffeine");
 
   const waterPct = water.target_ml > 0 ? Math.min((water.total_ml / water.target_ml) * 100, 100) : 0;
   const caffPct = caffeine.target_mg > 0 ? Math.min((caffeine.total_mg / caffeine.target_mg) * 100, 100) : 0;
@@ -116,73 +121,75 @@ export function HydrationCard({ water, caffeine, date }: Props) {
     );
   }
 
+  if (!showWater && !showCaffeine) return null;
+
   return (
     <DashboardCard title="Hydration & Caffeine">
-      <div className="space-y-4">
-        {/* Water */}
+      <div className="space-y-6">
+        {/* Water wears its plate ink on a g2 track */}
+        {showWater && (
         <div>
-          <div className="flex items-baseline justify-between mb-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#06b6d4" }} />
-              <span className="text-sm text-muted-foreground">Water</span>
-            </div>
-            <span className="text-sm tabular-nums text-foreground">
-              <span className="font-semibold">{fmt(water.total_ml, 0)} ml</span>
-              <span className="text-muted-foreground/50"> / {fmt(water.target_ml, 0)} ml</span>
+          <div className="mb-2 flex items-baseline justify-between">
+            <span className="text-xs text-g4">Water</span>
+            <span className="text-[15px] tabular-nums text-ink">
+              <span className="font-medium text-water">{fmt(water.total_ml, 0)} ml</span>
+              <span className="text-xs text-g4"> / {fmt(water.target_ml, 0)} ml</span>
             </span>
           </div>
-          <div className="h-2.5 w-full rounded-full bg-muted/60 overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${waterPct}%`, background: "linear-gradient(90deg, #06b6d4, #22d3ee)" }} />
+          <div className="h-[3px] w-full bg-g2">
+            <div className="animate-bar h-full bg-water" style={{ width: `${waterPct}%` }} />
           </div>
 
           {/* Quick add */}
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <Button size="xs" variant="secondary" className="h-10 px-3" onClick={() => quickAdd(250)} disabled={logWater.isPending}>+250ml</Button>
-            <Button size="xs" variant="secondary" className="h-10 px-3" onClick={() => quickAdd(500)} disabled={logWater.isPending}>+500ml</Button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => quickAdd(250)} disabled={logWater.isPending}>+250 ml</Button>
+            <Button size="sm" variant="outline" onClick={() => quickAdd(500)} disabled={logWater.isPending}>+500 ml</Button>
             {!showCustom ? (
-              <Button size="xs" variant="ghost" className="h-10 px-3" onClick={() => setShowCustom(true)}>Custom</Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowCustom(true)}>Custom</Button>
             ) : (
               <div className="flex items-center gap-1">
                 <Input
                   type="number"
+                  inputMode="numeric"
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   placeholder="ml"
-                  className="h-10 w-20 text-xs"
+                  className="h-10 w-20"
                   aria-invalid={!!customError}
                   autoFocus
                 />
-                <Button size="xs" className="h-10 px-3" onClick={submitCustom} disabled={!!customError || !customAmount || logWater.isPending}>Add</Button>
-                <Button size="xs" variant="ghost" className="h-10 px-3" aria-label="Cancel custom amount" onClick={() => { setShowCustom(false); setCustomAmount(""); }}>✕</Button>
+                <Button size="sm" onClick={submitCustom} disabled={!!customError || !customAmount || logWater.isPending}>Add</Button>
+                <Button size="icon-sm" variant="ghost" aria-label="Cancel custom amount" onClick={() => { setShowCustom(false); setCustomAmount(""); }}>✕</Button>
               </div>
             )}
             <button
               onClick={() => setShowEntries(true)}
-              className="ml-auto flex h-10 items-center px-1 text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+              className="ml-auto flex h-11 items-center px-1 text-xs text-g4 underline underline-offset-2 transition-colors hover:text-ink"
             >
               {entries.length > 0 ? `${entries.length} entries` : "No entries"}
             </button>
           </div>
         </div>
-        {/* Caffeine */}
+        )}
+        {/* Caffeine: over a limit is said in words and weight */}
+        {showCaffeine && (
         <div>
-          <div className="flex items-baseline justify-between mb-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#92400e" }} />
-              <span className="text-sm text-muted-foreground">Caffeine</span>
-            </div>
-            <span className="text-sm tabular-nums text-foreground">
-              <span className={`font-semibold ${caffOver ? "text-destructive" : ""}`}>{fmt(caffeine.total_mg, 0)} mg</span>
-              <span className="text-muted-foreground/50"> / {fmt(caffeine.target_mg, 0)} mg</span>
+          <div className="mb-2 flex items-baseline justify-between">
+            <span className="text-xs text-g4">
+              Caffeine
+              {caffOver && <span className="font-medium text-alert"> (over)</span>}
+            </span>
+            <span className="text-[15px] tabular-nums text-ink">
+              <span className={caffOver ? "font-semibold text-alert" : "font-medium text-caffeine"}>{fmt(caffeine.total_mg, 0)} mg</span>
+              <span className="text-xs text-g4"> / {fmt(caffeine.target_mg, 0)} mg</span>
             </span>
           </div>
-          <div className="h-2.5 w-full rounded-full bg-muted/60 overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${caffPct}%`, background: caffOver ? "linear-gradient(90deg, #ef4444, #f87171)" : "linear-gradient(90deg, #92400e, #b45309)" }} />
+          <div className="h-[3px] w-full bg-g2">
+            <div className={`animate-bar h-full ${caffOver ? "bg-alert" : "bg-caffeine"}`} style={{ width: `${caffPct}%` }} />
           </div>
-          <p className="text-[10px] text-muted-foreground/60 mt-1">Tracked automatically from logged food/drinks</p>
+          <p className="mt-1.5 text-xs text-g4">Tracked automatically from logged food and drinks</p>
         </div>
+        )}
       </div>
 
       <Dialog open={showEntries} onOpenChange={setShowEntries}>
@@ -191,14 +198,14 @@ export function HydrationCard({ water, caffeine, date }: Props) {
             <DialogTitle>Water entries</DialogTitle>
           </DialogHeader>
           {isError ? (
-            <p className="text-sm text-destructive">
+            <p className="text-[15px] text-ink">
               {getErrorMessage(error, "Couldn't load entries.")}{" "}
               <button onClick={() => refetch()} className="underline">Retry</button>
             </p>
           ) : entries.length === 0 ? (
             <EmptyState message="No water logged for this day yet" className="py-2" />
           ) : (
-            <div className="max-h-[50vh] overflow-y-auto thin-scrollbar divide-y divide-border">
+            <div className="max-h-[50vh] overflow-y-auto thin-scrollbar divide-y divide-g2">
               {entries.map((entry) => <WaterEntryRow key={entry.id} entry={entry} date={date} />)}
             </div>
           )}

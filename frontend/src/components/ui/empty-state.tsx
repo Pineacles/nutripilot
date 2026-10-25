@@ -12,22 +12,22 @@ interface EmptyStateProps {
 }
 
 const DEFAULT_ICON = (
-  <svg className="h-8 w-8 text-muted-foreground/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+  <svg className="h-7 w-7 text-g3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25} aria-hidden="true">
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
   </svg>
 );
 
 /**
  * Small, consistent "nothing here yet" state: icon + one line + optional
- * action button. Reuses the same visual language as error-state.tsx.
+ * outline action. Reuses the same visual language as error-state.tsx.
  */
 export function EmptyState({ message, actionLabel, onAction, className = "", icon }: EmptyStateProps) {
   return (
     <div className={`flex flex-col items-center justify-center gap-2 py-8 text-center ${className}`}>
       {icon ?? DEFAULT_ICON}
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="text-[13px] text-g4">{message}</p>
       {actionLabel && onAction && (
-        <Button onClick={onAction} variant="secondary" size="sm" className="mt-1">
+        <Button onClick={onAction} variant="outline" size="sm" className="mt-1">
           {actionLabel}
         </Button>
       )}

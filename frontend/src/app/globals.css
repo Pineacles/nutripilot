@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-grotesk);
   --font-mono: var(--font-geist-mono);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -30,9 +30,22 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --color-protein: #4f9cf9;
-  --color-carbs: #f9c74f;
-  --color-fat: #f94f4f;
+  --color-protein: var(--protein);
+  --color-carbs: var(--carbs);
+  --color-fat: var(--fat);
+  --color-fiber: var(--fiber);
+  --color-water: var(--water);
+  --color-caffeine: var(--caffeine);
+  --color-alcohol: var(--alcohol);
+  --color-alert: var(--alert);
+  --color-g0: var(--g0);
+  --color-g1: var(--g1);
+  --color-g2: var(--g2);
+  --color-g3: var(--g3);
+  --color-g4: var(--g4);
+  --color-g5: var(--g5);
+  --color-ink: var(--ink);
+  --color-done: var(--done);
   --color-goal: #4ade80;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -41,34 +54,55 @@
   --radius-2xl: calc(var(--radius) * 1.8);
 }
 
-/* Dark-first: no light mode */
+/* Dark-first: no light mode. Swiss grid on black (docs/design-vision.md): a fixed seven-step
+   neutral ramp (no other greys), the macro inks as poster plates, one green for "done". */
 :root {
-  --background: #111114;
-  --foreground: #e8e8e8;
-  --card: #1e1e22;
-  --card-foreground: #e8e8e8;
-  --popover: #1a1a1a;
-  --popover-foreground: #e8e8e8;
-  --primary: #22c55e;
-  --primary-foreground: #0f0f0f;
-  --secondary: #2a2a30;
-  --secondary-foreground: #e8e8e8;
-  --muted: #2a2a30;
-  --muted-foreground: #888888;
-  --accent: #2a2a30;
-  --accent-foreground: #e8e8e8;
-  --destructive: #f94f4f;
-  --border: #2a2a30;
-  --input: #2a2a30;
-  --ring: #4f9cf9;
-  --chart-1: #4f9cf9;
-  --chart-2: #f9c74f;
-  --chart-3: #f94f4f;
+  --g0: #0e0f0e;
+  --g1: #171817;
+  --g2: #232523;
+  --g3: #3a3d3a;
+  --g4: #7d817c;
+  --g5: #a3a79f;
+  --ink: #edeee8;
+  --protein: #4f7cff;
+  /* Plate inks, checked with the dataviz validator on g0 (lightness band, chroma, CVD, contrast) */
+  --carbs: #d2790e;
+  --fat: #c8384b;
+  --fiber: #3fad3e;
+  --water: #299fcd;
+  --caffeine: #854cdd;
+  --alcohol: #b24c74;
+  /* Attention: over a limit, or low on a goal. Always with a word ("over", "low"), never alone. */
+  --alert: #ff6f91;
+
+  --background: var(--g0);
+  --foreground: var(--ink);
+  --card: var(--g1);
+  --card-foreground: var(--ink);
+  --popover: var(--g1);
+  --popover-foreground: var(--ink);
+  /* Primary actions are set in ink, like the poster's type; green only means "done". */
+  --primary: var(--ink);
+  --primary-foreground: var(--g0);
+  --done: #3fcb7e;
+  --secondary: var(--g2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--g2);
+  --muted-foreground: var(--g4);
+  --accent: var(--g2);
+  --accent-foreground: var(--ink);
+  /* Errors and destructive actions speak in ink and words: fat red is fat (Plate Rule). */
+  --destructive: var(--ink);
+  --border: var(--g2);
+  --input: var(--g3);
+  --ring: var(--ink);
+  --chart-1: var(--protein);
+  --chart-2: var(--carbs);
+  --chart-3: var(--fat);
   --chart-4: #4ade80;
   --chart-5: #888888;
-  --radius: 1rem;
-  --sidebar: #111113;
-  --success: #4ade80;
+  --radius: 0.875rem;
+  --sidebar: var(--g0);
   --warning: #f9c74f;
 
   /* Recharts theme tokens (statistics + body pages): same hex values the
@@ -100,6 +134,23 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "tnum" 1;
+    caret-color: var(--ink);
+  }
+  ::selection {
+    background: var(--ink);
+    color: var(--g0);
+  }
+  input::selection {
+    background: var(--g3);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  html {
+    scrollbar-color: var(--g3) var(--g0);
   }
   html {
     @apply font-sans scroll-smooth;
@@ -127,14 +178,21 @@
 }
 
 @layer utilities {
+  /* Phones: no boxes, one sheet divided by hairlines. Wider screens: quiet flat panels. */
   .clay-card {
-    background: var(--card);
-    border-radius: 1.25rem;
-    box-shadow:
-      inset 0 1px 1px 0 rgba(255, 255, 255, 0.05),
-      0 8px 24px -4px rgba(0, 0, 0, 0.4),
-      0 2px 8px -2px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--g1);
+    border-radius: 0.875rem;
+    border: 1px solid var(--g2);
+  }
+  @media (max-width: 767px) {
+    .clay-card {
+      background: transparent;
+      border: 0;
+      border-top: 1px solid var(--g2);
+      border-radius: 0;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
   }
   .clay-card-sm {
     background: var(--card);
@@ -149,41 +207,37 @@
     transition: box-shadow 0.2s ease-out, transform 0.2s ease-out;
   }
   .clay-card-hover:hover {
-    box-shadow:
-      inset 0 1px 2px 0 rgba(255, 255, 255, 0.07),
-      0 12px 32px -4px rgba(0, 0, 0, 0.5),
-      0 4px 12px -2px rgba(0, 0, 0, 0.35);
-    transform: translateY(-1px);
+    border-color: var(--g3);
   }
 
   /* Inner pills: flat gradient tiles for stats/items inside clay cards */
   .pill {
-    background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+    background: var(--g1);
     border-radius: 0.75rem;
-    border: 1px solid rgba(255,255,255,0.05);
+    border: 1px solid var(--g2);
   }
-  .pill-green {
-    background: linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0.03) 100%);
-    border: 1px solid rgba(34,197,94,0.1);
-  }
-  .pill-blue {
-    background: linear-gradient(135deg, rgba(79,156,249,0.12) 0%, rgba(79,156,249,0.03) 100%);
-    border: 1px solid rgba(79,156,249,0.1);
-  }
-  .pill-amber {
-    background: linear-gradient(135deg, rgba(249,199,79,0.12) 0%, rgba(249,199,79,0.03) 100%);
-    border: 1px solid rgba(249,199,79,0.1);
-  }
-  .pill-red {
-    background: linear-gradient(135deg, rgba(249,79,79,0.12) 0%, rgba(249,79,79,0.03) 100%);
-    border: 1px solid rgba(249,79,79,0.1);
-  }
-  .pill-purple {
-    background: linear-gradient(135deg, rgba(167,139,250,0.12) 0%, rgba(167,139,250,0.03) 100%);
-    border: 1px solid rgba(167,139,250,0.1);
-  }
-  .pill-pink {
-    background: linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgba(236,72,153,0.03) 100%);
-    border: 1px solid rgba(236,72,153,0.1);
-  }
+}
+
+/* Motion: things that changed move, nothing else. Short, eased out, off with reduced motion. */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur: 220ms;
+  --dur-draw: 700ms;
+}
+@keyframes bar-grow { from { transform: scaleX(0); } }
+@keyframes rule-draw { from { transform: scaleX(0); } }
+@keyframes lit { from { background-color: var(--g2); } }
+@keyframes check-draw { from { stroke-dashoffset: 1; } }
+@layer utilities {
+  /* A scale bar or rule that draws from its left edge on first paint */
+  .animate-bar { transform-origin: left; animation: bar-grow var(--dur-draw) var(--ease-out) both; }
+  .animate-rule { transform-origin: left; animation: rule-draw var(--dur-draw) var(--ease-out) both; }
+  /* A row that just changed: flashes one step up the ramp, then settles */
+  .animate-lit { animation: lit 900ms var(--ease-out) both; }
+  /* A check mark that draws itself when something is marked done */
+  .animate-check { stroke-dasharray: 1; animation: check-draw var(--dur) var(--ease-out) both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-bar, .animate-rule, .animate-lit, .animate-check { animation: none; }
 }

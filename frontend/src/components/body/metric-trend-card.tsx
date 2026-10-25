@@ -1,65 +1,74 @@
 import {
-  AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine,
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine,
 } from "recharts";
-import { SectionCard } from "@/components/charts/section-card";
+import { Band, BandEmpty } from "./band";
 import { ChartTooltip } from "./chart-tooltip";
 import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
-import { CHART_GRID_SOLID, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
+import { BODY_INK, BODY_QUIET, BODY_RULE, BODY_SOFT, BODY_TICK, MAX_DOT_POINTS, niceDomain, usePrefersReducedMotion } from "@/lib/body-chart-utils";
+import { fmt } from "@/lib/utils";
 
 type DataRow = Record<string, unknown>;
 
-interface Props {
-  title: string;
-  span?: string;
+interface ChartProps {
   data: DataRow[];
-  hasData: boolean;
-  emptyMessage: string;
-  gradientId: string;
   dataKey: string;
   avgKey: string;
-  color: string;
   height: number;
-  tickMaxLabels?: number;
   valueSuffix: string;
-  /** Only the Weight Trend card renders a goal reference line. */
+  /** Raw dots for every length (Weight); otherwise only for 30 points or fewer. */
+  alwaysDots?: boolean;
+  /** Only the Weight trend draws a goal rule. */
   referenceValue?: number | null;
 }
 
+/** The latest 7 day average of a series, or undefined when there is none. */
+export function latestAvg(data: DataRow[], avgKey: string): number | undefined {
+  return [...data].reverse().find((d) => typeof d[avgKey] === "number")?.[avgKey] as number | undefined;
+}
+
 /**
- * One shape, five charts: Weight/Body Fat %/Muscle %/Fat kg/Muscle kg trends on
- * the body-composition page all render the same area+scatter+rolling-avg-line
- * combination, parameterized here instead of five near-identical blocks.
+ * One shape for every trend: raw readings as small g4 dots, the 7 day average as an ink line,
+ * the goal as a 1px g5 rule. Hairline guides only, ticks in g4 at 12px. The Y domain holds every
+ * raw value, every average point and the goal.
  */
-export function MetricTrendCard({
-  title, span, data, hasData, emptyMessage, gradientId, dataKey, avgKey, color, height,
-  tickMaxLabels = 8, valueSuffix, referenceValue,
-}: Props) {
+export function TrendChart({ data, dataKey, avgKey, height, valueSuffix, alwaysDots, referenceValue }: ChartProps) {
+  const still = usePrefersReducedMotion();
+  const nice = niceDomain([
+    ...data.map((d) => d[dataKey] as number | null | undefined),
+    ...data.map((d) => d[avgKey] as number | null | undefined),
+    referenceValue,
+  ]);
+  const points = data.filter((d) => d[dataKey] != null).length;
+  const dots = alwaysDots || points <= MAX_DOT_POINTS;
   return (
-    <SectionCard title={title} span={span}>
-      {hasData ? (
-        <ResponsiveContainer minWidth={0} width="100%" height={height}>
-          <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-            <defs>
-              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-                <stop offset="100%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid stroke={CHART_GRID_SOLID} strokeDasharray={CHART_GRID_DASH} />
-            <XAxis dataKey="date" tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} tick={CHART_TICK_X} axisLine={false} tickLine={false} />
-            <YAxis domain={["dataMin - 1", "dataMax + 1"]} tick={CHART_TICK_Y} axisLine={false} tickLine={false} />
-            <Tooltip content={<ChartTooltip valueSuffix={valueSuffix} valueKey={avgKey} />} />
-            {referenceValue != null && (
-              <ReferenceLine y={referenceValue} stroke={color} strokeDasharray="6 4" strokeOpacity={0.5} />
-            )}
-            <Area type="monotone" dataKey={dataKey} stroke="none" fill={`url(#${gradientId})`} fillOpacity={1} />
-            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={0} dot={{ r: 2, fill: color, fillOpacity: 0.3, strokeWidth: 0 }} activeDot={false} connectNulls />
-            <Line type="monotone" dataKey={avgKey} stroke={color} strokeWidth={2.5} dot={false} connectNulls />
-          </AreaChart>
-        </ResponsiveContainer>
-      ) : (
-        <p className="text-sm text-muted-foreground py-12 text-center">{emptyMessage}</p>
-      )}
-    </SectionCard>
+    <ResponsiveContainer minWidth={0} width="100%" height={height}>
+      <ComposedChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+        <CartesianGrid stroke={BODY_RULE} vertical={false} />
+        <XAxis dataKey="date" tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} tick={BODY_TICK} axisLine={false} tickLine={false} tickMargin={8} />
+        <YAxis domain={nice?.domain ?? ["auto", "auto"]} ticks={nice?.ticks} allowDataOverflow tick={BODY_TICK} axisLine={false} tickLine={false} width={36} tickFormatter={(v: number) => String(Math.round(v * 10) / 10)} />
+        <Tooltip content={<ChartTooltip valueSuffix={valueSuffix} valueKey={avgKey} />} cursor={{ stroke: BODY_SOFT, strokeWidth: 1 }} />
+        {referenceValue != null && (
+          <ReferenceLine y={referenceValue} stroke={BODY_SOFT} strokeWidth={1} label={{ value: `Goal ${referenceValue}`, position: "insideTopRight", fill: BODY_SOFT, fontSize: 12 }} />
+        )}
+        <Line type="linear" dataKey={dataKey} stroke="none" dot={dots ? { r: 2, fill: BODY_QUIET, strokeWidth: 0 } : false} activeDot={false} connectNulls isAnimationActive={false} />
+        <Line type="monotone" dataKey={avgKey} stroke={BODY_INK} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: BODY_INK, stroke: "var(--g1)", strokeWidth: 2 }} connectNulls isAnimationActive={!still} animationDuration={700} animationEasing="ease-out" />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
+interface Props extends ChartProps {
+  title: string;
+  span?: string;
+  hasData: boolean;
+  emptyMessage: string;
+}
+
+export function MetricTrendCard({ title, span, hasData, emptyMessage, ...chart }: Props) {
+  const latest = latestAvg(chart.data, chart.avgKey);
+  return (
+    <Band title={title} aside={latest != null ? `7-day avg ${fmt(latest)}${chart.valueSuffix}` : undefined} className={span}>
+      {hasData ? <TrendChart {...chart} /> : <BandEmpty>{emptyMessage}</BandEmpty>}
+    </Band>
   );
 }

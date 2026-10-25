@@ -522,6 +522,8 @@ export interface UserSettings {
   micronutrient_targets: MicronutrientTargetItem[];
   supplement_definitions: SupplementDefinition[];
   api_key_masked: string;
+  /** Nutrients switched off in Settings, Tracked nutrients (keys from lib/nutrients.ts). */
+  hidden_nutrients: string[];
 }
 
 export interface Integration {

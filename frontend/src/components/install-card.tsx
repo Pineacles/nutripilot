@@ -3,7 +3,6 @@
 import { EllipsisVertical, Menu, Share, SquarePlus, X } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { chromeIntentUrl, iosBrowser, isSamsungInternet, promptInstall, useInstallWay } from "@/lib/install";
 import { cn } from "@/lib/utils";
 
@@ -44,14 +43,14 @@ function useDismissed(): [number, () => void] {
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2.5">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">{n}</span>
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-g3 text-[11px] font-medium text-ink">{n}</span>
       <span className="leading-6">{children}</span>
     </li>
   );
 }
 
 const Key = ({ children }: { children: React.ReactNode }) => (
-  <span className="pill mx-0.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-px align-middle font-medium text-foreground">{children}</span>
+  <span className="mx-0.5 inline-flex items-center gap-1 rounded-full border border-g3 px-2 py-px align-middle font-medium text-ink">{children}</span>
 );
 
 /**
@@ -69,12 +68,12 @@ export function InstallCard({ dismissible = false, className }: { dismissible?: 
   if (way === "installed") {
     if (dismissible) return null;
     return (
-      <div className={cn("clay-card flex items-center gap-3.5 p-5", className)}>
+      <div className={cn("clay-card flex items-center gap-3.5 py-5 md:p-5", className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icons/icon.svg" alt="" className="h-11 w-11 shrink-0 rounded-xl ring-1 ring-white/5" />
+        <img src="/icons/icon.svg" alt="" className="h-11 w-11 shrink-0 rounded-[14px]" />
         <div className="text-sm">
-          <div className="font-semibold text-foreground">NutriPilot is installed</div>
-          <p className="text-muted-foreground">You&apos;re using the app version.</p>
+          <div className="font-medium text-ink">NutriPilot is installed</div>
+          <p className="text-g4">You&apos;re using the app version.</p>
         </div>
       </div>
     );
@@ -90,38 +89,38 @@ export function InstallCard({ dismissible = false, className }: { dismissible?: 
           : "Add it to your home screen to open it full screen, like any other app.";
 
   return (
-    <div className={cn("clay-card relative p-5", className)}>
+    <div className={cn("clay-card relative py-5 md:p-5", className)}>
       <div className="flex items-start gap-3.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icons/icon.svg" alt="" className="h-11 w-11 shrink-0 rounded-xl ring-1 ring-white/5" />
+        <img src="/icons/icon.svg" alt="" className="h-11 w-11 shrink-0 rounded-[14px]" />
         <div className={cn("min-w-0 flex-1", dismissible && "pr-8")}>
-          <h2 className="font-semibold text-foreground">Get NutriPilot on your phone</h2>
-          <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{intro}</p>
+          <h2 className="font-medium text-ink">Get NutriPilot on your phone</h2>
+          <p className="mt-0.5 text-sm leading-snug text-g4">{intro}</p>
         </div>
       </div>
 
       {way === "prompt" && (
-        <Button
-          size="lg"
-          className="mt-4 h-11 w-full sm:h-9 sm:w-auto sm:px-5"
+        <button
+          type="button"
+          className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-ink px-6 text-[15px] font-medium text-g0 transition-transform active:scale-[0.98] sm:w-auto"
           onClick={async () => {
             if (await promptInstall()) toast.success("NutriPilot is being added to your apps");
             else dismiss();
           }}
         >
           Install app
-        </Button>
+        </button>
       )}
       {way === "use-chrome" && (
-        <a href={chromeIntentUrl()} className={cn(buttonVariants({ size: "lg" }), "mt-4 h-11 w-full sm:h-9 sm:w-auto sm:px-5")}>
+        <a href={chromeIntentUrl()} className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-ink px-6 text-[15px] font-medium text-g0 transition-transform active:scale-[0.98] sm:w-auto">
           Open in Chrome
         </a>
       )}
       {way === "ios" && iosBrowser() === "other" && (
-        <p className="mt-3 text-sm text-muted-foreground">Open this page in Safari, then tap Share and Add to Home Screen.</p>
+        <p className="mt-3 text-sm text-g4">Open this page in Safari, then tap Share and Add to Home Screen.</p>
       )}
       {way === "ios" && iosBrowser() !== "other" && (
-        <ol className="mt-4 space-y-2.5 text-sm text-muted-foreground">
+        <ol className="mt-4 space-y-2.5 text-sm text-g4">
           <Step n={1}>
             Tap <Key><Share className="h-3.5 w-3.5" />Share</Key>{" "}
             {iosBrowser() === "chrome" ? "in the address bar" : iosBrowser() === "firefox" ? "in the menu" : "in Safari"}
@@ -136,7 +135,7 @@ export function InstallCard({ dismissible = false, className }: { dismissible?: 
         </ol>
       )}
       {way === "android-menu" && (
-        <ol className="mt-4 space-y-2.5 text-sm text-muted-foreground">
+        <ol className="mt-4 space-y-2.5 text-sm text-g4">
           <Step n={1}>
             {isSamsungInternet() ? (
               <>Tap <Key><Menu className="h-3.5 w-3.5" />menu</Key> at the bottom right</>
@@ -154,8 +153,8 @@ export function InstallCard({ dismissible = false, className }: { dismissible?: 
       )}
       {way === "none" && host && (
         <p className="mt-3 text-sm">
-          <span className="text-muted-foreground">Address: </span>
-          <span className="font-medium text-foreground">{host}</span>
+          <span className="text-g4">Address: </span>
+          <span className="font-medium text-ink">{host}</span>
         </p>
       )}
 
@@ -164,7 +163,7 @@ export function InstallCard({ dismissible = false, className }: { dismissible?: 
           type="button"
           onClick={dismiss}
           aria-label="Not now"
-          className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full text-g4 transition-colors hover:bg-g2 hover:text-ink"
         >
           <X className="h-4 w-4" />
         </button>

@@ -1,8 +1,8 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
-import { SectionCard } from "@/components/charts/section-card";
+import { Band, BandEmpty } from "./band";
 import { ChartTooltip } from "./chart-tooltip";
 import { AXIS_TICK_PROPS, dateTickFormatter } from "@/lib/chart-utils";
-import { CHART_COLORS, CHART_GRID_SOLID, CHART_GRID_DASH, CHART_TICK_X, CHART_TICK_Y } from "@/lib/chart-theme";
+import { BODY_INK, BODY_RULE, BODY_SOFT, BODY_TICK, niceDomain, usePrefersReducedMotion } from "@/lib/body-chart-utils";
 import { fmt } from "@/lib/utils";
 
 interface Props {
@@ -11,30 +11,27 @@ interface Props {
 }
 
 export function RateOfChangeCard({ weeklyRateData, weeklyAvgChange }: Props) {
+  const still = usePrefersReducedMotion();
+  const nice = niceDomain([0, ...weeklyRateData.map((d) => d.rate)]);
   return (
-    <SectionCard title="Rate of Change">
+    <Band
+      title="Rate of change"
+      aside={weeklyAvgChange != null ? `${weeklyAvgChange > 0 ? "+" : weeklyAvgChange < 0 ? "-" : ""}${fmt(Math.abs(weeklyAvgChange), 2)} kg/w` : undefined}
+    >
       {weeklyRateData.length > 0 ? (
-        <div className="space-y-3">
-          <ResponsiveContainer minWidth={0} width="100%" height={140}>
-            <LineChart data={weeklyRateData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-              <CartesianGrid stroke={CHART_GRID_SOLID} strokeDasharray={CHART_GRID_DASH} />
-              <XAxis dataKey="date" tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} tick={CHART_TICK_X} axisLine={false} tickLine={false} />
-              <YAxis tick={CHART_TICK_Y} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTooltip valueSuffix=" kg/w" valueKey="rate" />} />
-              <ReferenceLine y={0} stroke="#555" strokeDasharray="3 3" />
-              <Line type="monotone" dataKey="rate" stroke={CHART_COLORS.purple} strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-          <div className="pill flex items-center justify-between px-3 py-2">
-            <span className="text-xs text-muted-foreground">Avg weekly rate</span>
-            <span className={`text-xs font-semibold ${weeklyAvgChange != null && weeklyAvgChange < 0 ? "text-green-400" : "text-amber-400"}`}>
-              {weeklyAvgChange != null ? `${weeklyAvgChange > 0 ? "+" : ""}${fmt(weeklyAvgChange, 2)} kg/w` : "--"}
-            </span>
-          </div>
-        </div>
+        <ResponsiveContainer minWidth={0} width="100%" height={140}>
+          <LineChart data={weeklyRateData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+            <CartesianGrid stroke={BODY_RULE} vertical={false} />
+            <XAxis dataKey="date" tickFormatter={dateTickFormatter()} {...AXIS_TICK_PROPS} tick={BODY_TICK} axisLine={false} tickLine={false} tickMargin={8} />
+            <YAxis domain={nice?.domain ?? ["auto", "auto"]} ticks={nice?.ticks} allowDataOverflow tick={BODY_TICK} axisLine={false} tickLine={false} width={36} />
+            <Tooltip content={<ChartTooltip valueSuffix=" kg/w" valueKey="rate" />} cursor={{ stroke: BODY_SOFT, strokeWidth: 1 }} />
+            <ReferenceLine y={0} stroke={BODY_SOFT} strokeWidth={1} />
+            <Line type="monotone" dataKey="rate" stroke={BODY_INK} strokeWidth={2} dot={false} isAnimationActive={!still} animationDuration={700} animationEasing="ease-out" />
+          </LineChart>
+        </ResponsiveContainer>
       ) : (
-        <p className="text-sm text-muted-foreground py-12 text-center">Need 8+ data points</p>
+        <BandEmpty>Needs 8 or more weigh-ins in the period. Pick a longer one.</BandEmpty>
       )}
-    </SectionCard>
+    </Band>
   );
 }
