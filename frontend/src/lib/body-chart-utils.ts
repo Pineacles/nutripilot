@@ -4,10 +4,19 @@ import { rnd } from "@/lib/utils";
 
 type DataRow = Record<string, unknown>;
 
+/**
+ * Average of `key` over the `window` calendar days ending at each row (rows sorted by `date`).
+ * Counted in days, not rows: with a scale every few weeks, a row count would average months
+ * of weigh-ins and pull the line away from where you are now.
+ */
 export function rollingAvg<T extends DataRow>(data: T[], key: string, window: number = 7): (T & DataRow)[] {
+  const DAY = 86_400_000;
+  const time = (x: T) => Date.parse(String(x.date));
   return data.map((d, i) => {
-    const start = Math.max(0, i - window + 1);
-    const slice = data.slice(start, i + 1).filter(x => x[key] != null);
+    const end = time(d);
+    const slice = data
+      .slice(0, i + 1)
+      .filter(x => x[key] != null && (Number.isNaN(end) || end - time(x) < window * DAY));
     const avg = slice.length > 0 ? slice.reduce((sum: number, x: T) => sum + (x[key] as number), 0) / slice.length : null;
     return { ...d, [`${key}_avg`]: avg != null ? rnd(avg, 1) : null };
   });

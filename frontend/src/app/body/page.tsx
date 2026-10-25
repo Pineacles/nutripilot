@@ -29,15 +29,12 @@ export default function BodyCompositionPage() {
 
   const { data, isLoading: loading, isError, error, refetch } = useStats(days);
   const { data: settings } = useSettings();
-  // Goal progress is measured from the earliest entries on record, not the chart period.
+  // Goal progress looks at every entry on record, not only the chart period.
   const { data: allLogs } = useWeightLogList();
-  const { startingWeightAll, startingBfAll } = useMemo(() => {
-    const sorted = [...(allLogs ?? [])].sort((a, b) => a.date.localeCompare(b.date));
-    return {
-      startingWeightAll: sorted[0]?.weight_kg ?? null,
-      startingBfAll: sorted.find((r) => r.body_fat_pct != null)?.body_fat_pct ?? null,
-    };
-  }, [allLogs]);
+  const { weightsOnRecord, bfOnRecord } = useMemo(() => ({
+    weightsOnRecord: (allLogs ?? []).map((r) => r.weight_kg),
+    bfOnRecord: (allLogs ?? []).flatMap((r) => (r.body_fat_pct != null ? [r.body_fat_pct] : [])),
+  }), [allLogs]);
 
   const {
     enrichedData,
@@ -111,9 +108,9 @@ export default function BodyCompositionPage() {
           targetWeight={targetWeight}
           targetBf={targetBf}
           currentWeight={currentWeight}
-          startingWeight={startingWeightAll}
+          weightsOnRecord={weightsOnRecord}
           currentBf={currentBf}
-          startingBf={startingBfAll}
+          bfOnRecord={bfOnRecord}
           weeklyAvgChange={weeklyAvgChange}
         />
 
