@@ -154,6 +154,21 @@
     outline: 2px solid var(--ink);
     outline-offset: 2px;
   }
+  /* No grey flash on Android when something is tapped; pressed states are styled where they matter. */
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Recharts makes the chart focusable, so a tap on a phone drew the browser's thick focus frame
+     around the whole chart. The tooltip already shows what was picked; keyboard focus keeps a hairline. */
+  .recharts-wrapper:focus,
+  .recharts-surface:focus,
+  .recharts-wrapper *:focus {
+    outline: none;
+  }
+  .recharts-surface:focus-visible {
+    outline: 1px solid var(--g4);
+    outline-offset: 0;
+  }
   html {
     scrollbar-color: var(--g3) var(--g0);
   }
