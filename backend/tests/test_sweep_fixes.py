@@ -125,3 +125,38 @@ def test_barcode_checks():
     assert barcode_problem("7610200337425") == "misread"
     assert barcode_problem("7610200337429") is None
     assert barcode_problem("ABC-123") is None  # not a retail code: just look it up
+
+
+async def test_blank_imported_food_is_looked_up_again(db_session, monkeypatch):
+    from app.external import openfoodfacts
+    from app.schemas.food import NutrientData
+    from app.services import barcode_service
+    from app.services.food_service import create_food_from_external
+
+    code = "7640151718060"
+    await create_food_from_external(db_session, "Millionaire's Dream (Chiefs)", code, "openfoodfacts", NutrientData())
+
+    async def label_added_since(barcode):
+        return "Millionaire's Dream (Chiefs)", NutrientData(kcal=84, protein=10, carbs=7, fat=2.3), 200, "1 cup"
+
+    monkeypatch.setattr(openfoodfacts, "lookup_barcode", label_added_since)
+    food = await barcode_service.lookup_barcode(db_session, code)
+    assert food.nutrients.kcal == 84 and food.serving_size_g == 200
+
+    # Values someone typed in are never overwritten by a later lookup.
+    food.nutrients.kcal = None
+    food.corrected_at = __import__("datetime").datetime.now()
+    await db_session.commit()
+    food = await barcode_service.lookup_barcode(db_session, code)
+    assert food.nutrients.kcal is None
+
+
+async def test_barcode_spacing_does_not_make_a_twin(async_client, api_key_headers):
+    first = await _food(async_client, api_key_headers, barcode="7610000000031")
+    resp = await async_client.post(
+        "/api/foods", json={"name": "Twin", "barcode": "7 610000 000031", "nutrients": {"kcal": 1}}, headers=api_key_headers
+    )
+    assert resp.status_code == 409 and resp.json()["detail"]["code"] == "BARCODE_EXISTS"
+    created = await _food(async_client, api_key_headers, barcode="7610 000000048")
+    assert created["barcode"] == "7610000000048"
+    assert first["barcode"] == "7610000000031"

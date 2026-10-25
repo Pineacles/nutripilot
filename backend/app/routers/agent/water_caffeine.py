@@ -111,7 +111,7 @@ async def delete_water_log(
         "(e.g. 'espresso', 'coffee', 'energy drink', 'green tea'). Foods with caffeine data will "
         "automatically count toward the user's daily caffeine total.\n\n"
         "If a food doesn't have caffeine data yet, create it with `POST /api/foods` and include "
-        "`caffeine_mg` in the nutrients object (value per 100g)."
+        "`caffeine_mg` in the nutrients object (value per 100g or 100ml, not per can or serving: a 500 ml can with 160 mg is 32)."
     ),
     deprecated=True,
 )

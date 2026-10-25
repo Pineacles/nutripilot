@@ -1,6 +1,6 @@
 """OFF nutriments are normalised the way OFF's own data quality rules expect."""
 
-from app.external.openfoodfacts import parse_nutrients, serving_grams
+from app.external.openfoodfacts import lookup_barcode, parse_nutrients, parse_product_nutrients, serving_grams
 
 
 def test_plain_per_100g_values_pass_through():
@@ -44,3 +44,63 @@ def test_serving_grams():
     assert serving_grams({"serving_quantity": 0}) is None
     assert serving_grams({"serving_quantity": None}) is None
     assert serving_grams({}) is None
+
+
+def _product(**fields):
+    return {"nutriments": {"energy-kcal_100g": 45}, **fields}
+
+
+def test_caffeine_filled_for_energy_drink_without_value():
+    p = _product(categories_tags=["en:beverages", "en:energy-drinks"])
+    assert parse_product_nutrients(p, None).caffeine_mg == 32
+
+
+def test_caffeine_by_category():
+    assert parse_product_nutrients(_product(categories_tags=["en:colas"]), None).caffeine_mg == 10
+    assert parse_product_nutrients(_product(categories_tags=["en:iced-teas", "en:teas"]), None).caffeine_mg == 12
+    assert parse_product_nutrients(_product(categories_tags=["en:iced-coffees"]), None).caffeine_mg == 25
+    assert parse_product_nutrients(_product(categories_tags=["en:coffees"]), None).caffeine_mg == 40
+
+
+def test_off_caffeine_value_wins_over_estimate_even_zero():
+    p = _product(categories_tags=["en:energy-drinks"])
+    p["nutriments"]["caffeine_100g"] = 0.03
+    assert parse_product_nutrients(p, None).caffeine_mg == 30
+    p["nutriments"]["caffeine_100g"] = 0
+    assert parse_product_nutrients(p, None).caffeine_mg == 0
+
+
+def test_caffeine_from_ingredients_only_for_drinks():
+    drink = _product(categories_tags=["en:beverages"], ingredients_text="Water, sugar, Koffein, Taurin")
+    assert parse_product_nutrients(drink, None).caffeine_mg == 32
+    food = _product(categories_tags=["en:snacks"], ingredients_text="Sugar, caffeine")
+    assert parse_product_nutrients(food, None).caffeine_mg is None
+
+
+def test_no_caffeine_estimate_for_decaf_herbal_or_unrelated():
+    assert parse_product_nutrients(_product(categories_tags=["en:coffees", "en:decaffeinated-coffees"]), None).caffeine_mg is None
+    assert parse_product_nutrients(_product(product_name="Decaf Espresso", categories_tags=["en:coffees"]), None).caffeine_mg is None
+    assert parse_product_nutrients(_product(categories_tags=["en:teas", "en:herbal-teas"]), None).caffeine_mg is None
+    assert parse_product_nutrients(_product(categories_tags=["en:sodas"]), None).caffeine_mg is None
+    assert parse_product_nutrients(_product(), None).caffeine_mg is None
+
+
+def test_estimate_reaches_barcode_lookup(monkeypatch):
+    import asyncio
+
+    class Resp:
+        status_code = 200
+
+        def json(self):
+            return {"status": 1, "product": {"product_name": "Power Can", "nutriments": {"energy-kcal_100g": 45},
+                                             "categories_tags": ["en:energy-drinks"]}}
+
+    class Client:
+        def __init__(self, *a, **k): ...
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def get(self, *a, **k): return Resp()
+
+    monkeypatch.setattr("app.external.openfoodfacts.httpx.AsyncClient", Client)
+    _, nutrients, _, _ = asyncio.run(lookup_barcode("1234567890123"))
+    assert nutrients.caffeine_mg == 32

@@ -164,11 +164,13 @@ async def dashboard_foods(
 @router.get("/foods/recent")
 async def dashboard_recent_foods(
     limit: int = Query(12, ge=1, le=50),
+    meal: str | None = Query(None, pattern="^(breakfast|lunch|dinner|snack)$"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    """Foods this user logged lately, newest first, with the amount they used last time,
-    so the Log food dialog can offer them before any typing."""
+    """Foods this user logged lately, with the amount they used last time, so the Log food dialog
+    can offer them before any typing. With `meal`, what is usually eaten at that meal comes first
+    (oats at breakfast, not last night's pasta), then the newest."""
     ranked = (
         select(
             FoodLog.food_id,
@@ -180,6 +182,7 @@ async def dashboard_recent_foods(
             FoodLog.logged_at,
             func.row_number().over(partition_by=FoodLog.food_id, order_by=FoodLog.logged_at.desc()).label("rn"),
             func.count().over(partition_by=FoodLog.food_id).label("uses"),
+            func.sum(case((FoodLog.meal_type == meal, 1), else_=0)).over(partition_by=FoodLog.food_id).label("meal_uses"),
         )
         .where(FoodLog.user_id == user.id)
         .subquery()
@@ -192,7 +195,7 @@ async def dashboard_recent_foods(
         .join(Food, Food.id == ranked.c.food_id)
         .outerjoin(Nutrient, Nutrient.food_id == Food.id)
         .where(ranked.c.rn == 1)
-        .order_by(ranked.c.logged_at.desc())
+        .order_by(*((ranked.c.meal_uses.desc(),) if meal else ()), ranked.c.logged_at.desc())
         .limit(limit)
     )
     rows = (await db.execute(stmt)).all()

@@ -62,7 +62,14 @@ async def get_settings(db: AsyncSession, user: User) -> UserSettingsResponse:
         micronutrient_targets=micro_targets,
         supplement_definitions=[SupplementDefinitionResponse.model_validate(s) for s in supps],
         api_key_masked=f"...{user.api_key[-6:]}",
+        hidden_nutrients=user.hidden_nutrients or [],
     )
+
+
+async def update_tracked_nutrients(db: AsyncSession, user: User, hidden: list[str]) -> list[str]:
+    user.hidden_nutrients = hidden
+    await db.commit()
+    return hidden
 
 
 async def update_nutrition_targets(

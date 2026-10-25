@@ -104,8 +104,29 @@ class ApiKeyResponse(BaseModel):
     api_key: Optional[str] = None  # only returned on regenerate
 
 
+# What Settings, Tracked nutrients can switch off. Calories always stay.
+TRACKABLE_NUTRIENTS = (
+    "protein", "carbs", "fat", "fiber", "sugar", "sat_fat", "salt",
+    "calcium", "potassium", "omega3", "zinc", "vit_d", "vit_k2", "vit_c", "magnesium", "b12", "iron",
+    "water", "caffeine", "alcohol",
+)
+
+
+class TrackedNutrientsUpdate(BaseModel):
+    hidden: list[str] = Field(max_length=len(TRACKABLE_NUTRIENTS))
+
+    @field_validator("hidden")
+    @classmethod
+    def known_nutrients(cls, value: list[str]) -> list[str]:
+        unknown = sorted(set(value) - set(TRACKABLE_NUTRIENTS))
+        if unknown:
+            raise ValueError(f"unknown nutrients: {', '.join(unknown)}")
+        return [n for n in TRACKABLE_NUTRIENTS if n in value]
+
+
 class UserSettingsResponse(BaseModel):
     nutrition_targets: NutritionTargetsResponse
     micronutrient_targets: list[MicronutrientTargetItem]
     supplement_definitions: list[SupplementDefinitionResponse]
     api_key_masked: str
+    hidden_nutrients: list[str] = []

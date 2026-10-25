@@ -19,6 +19,7 @@ from app.schemas.settings import (
     SupplementDefinitionCreate,
     SupplementDefinitionResponse,
     SupplementDefinitionUpdate,
+    TrackedNutrientsUpdate,
     UserSettingsResponse,
 )
 from app.services import settings_service
@@ -45,6 +46,17 @@ async def update_nutrition_targets(
     user: User = Depends(get_current_user_jwt),
 ):
     return await settings_service.update_nutrition_targets(db, user, body)
+
+
+# --- Tracked nutrients (which ones the dashboard shows) ---
+
+@router.put("/settings/tracked-nutrients", response_model=TrackedNutrientsUpdate)
+async def update_tracked_nutrients(
+    body: TrackedNutrientsUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt),
+):
+    return TrackedNutrientsUpdate(hidden=await settings_service.update_tracked_nutrients(db, user, body.hidden))
 
 
 # --- Micronutrient targets ---

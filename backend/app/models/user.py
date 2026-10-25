@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, String, func
+from sqlalchemy import JSON, DateTime, Float, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,6 +27,8 @@ class User(Base):
     target_caffeine_mg: Mapped[float] = mapped_column(Float, nullable=False, server_default="400")
     target_weight_kg: Mapped[float | None] = mapped_column(Float)
     target_body_fat_pct: Mapped[float | None] = mapped_column(Float)
+    # Nutrients the owner chose not to see (Settings, Tracked nutrients). Data is still stored.
+    hidden_nutrients: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     timezone: Mapped[str] = mapped_column(
         String(64), nullable=False, default="Europe/Zurich", server_default="Europe/Zurich"
     )

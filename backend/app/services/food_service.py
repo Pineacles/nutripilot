@@ -13,7 +13,10 @@ from app.schemas.food import FoodCorrectionUpdate, FoodCreate, NutrientData
 async def create_food(
     db: AsyncSession, data: FoodCreate, source: str = "manual", created_by: UUID | None = None
 ) -> Food:
-    food = Food(name=data.name, barcode=data.barcode, source=source,
+    # "7 627536694478" and "7627536694478" are the same pack: store one spelling so the unique
+    # barcode constraint catches the twin instead of saving a duplicate food.
+    barcode = "".join(data.barcode.split()) if data.barcode else data.barcode
+    food = Food(name=data.name, barcode=barcode, source=source,
                 serving_size_g=data.serving_size_g, serving_label=data.serving_label,
                 created_by=created_by)
     db.add(food)

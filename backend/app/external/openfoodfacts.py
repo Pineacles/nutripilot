@@ -82,6 +82,49 @@ def parse_nutrients(n: dict, serving_g: float | None) -> NutrientData:
     return clean_imported(NutrientData(kcal=_round(kcal), salt=_round(salt), vit_k2=None, **values), kj=kj)
 
 
+# OFF rarely has a caffeine value, even for products that plainly contain it. When it gives none, a
+# conservative per 100 g / 100 ml figure by category is used instead (first matching entry wins, so the
+# specific categories come before the general ones). An explicit value from OFF, even 0, always wins.
+_CAFFEINE_BY_CATEGORY: tuple[tuple[tuple[str, ...], float], ...] = (
+    (("en:energy-drinks", "en:energy-drinks-with-sugar", "en:sweetened-energy-drinks", "en:artificially-sweetened-energy-drinks"), 32),
+    (("en:instant-coffees", "en:instant-coffee-powders"), 3000),
+    (("en:colas", "en:cola-sodas", "en:sweetened-colas", "en:artificially-sweetened-colas"), 10),
+    (("en:iced-teas", "en:ice-teas", "en:tea-based-beverages", "en:sweetened-iced-teas"), 12),
+    (("en:iced-coffees", "en:coffee-drinks", "en:coffee-beverages", "en:coffee-based-beverages"), 25),
+    (("en:coffees", "en:ground-coffees", "en:roasted-coffees"), 40),
+    (("en:teas", "en:black-teas", "en:green-teas", "en:herbal-teas-with-caffeine", "en:mate-teas"), 20),
+)
+# Herbal teas and infusions sit under en:teas in OFF's tree but contain no caffeine.
+_DECAF_TAGS = {
+    "en:decaffeinated-coffees", "en:decaffeinated-teas", "en:decaffeinated-products",
+    "en:herbal-teas", "en:infusions", "en:fruit-teas", "en:rooibos-teas", "en:caffeine-free",
+}
+_DECAF_WORDS = ("decaf", "entkoffeiniert", "koffeinfrei", "d\u00e9caf\u00e9in\u00e9", "decaffeinato")
+_CAFFEINE_WORDS = ("caffeine", "koffein", "caf\u00e9ine", "caffeina")
+
+
+def estimate_caffeine_mg(product: dict) -> float | None:
+    """A conservative caffeine estimate per 100 g / 100 ml for a clearly caffeinated product, else None."""
+    tags = {t for t in product.get("categories_tags") or [] if isinstance(t, str)}
+    text = " ".join(str(product.get(f) or "") for f in (*_NAME_FIELDS, "ingredients_text")).lower()
+    if tags & _DECAF_TAGS or any(word in text for word in _DECAF_WORDS):
+        return None
+    for categories, mg in _CAFFEINE_BY_CATEGORY:
+        if tags.intersection(categories):
+            return mg
+    if any(word in text for word in _CAFFEINE_WORDS) and "en:beverages" in tags:
+        return 32  # a drink that lists caffeine as an ingredient is an energy drink in practice
+    return None
+
+
+def parse_product_nutrients(product: dict, serving_g: float | None) -> NutrientData:
+    """parse_nutrients, plus the caffeine estimate when OFF has no caffeine value for the product."""
+    nutrients = parse_nutrients(product.get("nutriments", {}), serving_g)
+    if nutrients.caffeine_mg is None:
+        nutrients.caffeine_mg = estimate_caffeine_mg(product)
+    return nutrients
+
+
 
 # OFF asks every app to name itself. No contact details: they would identify the owner.
 HEADERS = {"User-Agent": "NutriPilot/1.0 (self-hosted nutrition tracker)"}
@@ -169,6 +212,6 @@ async def lookup_barcode(barcode: str) -> tuple[str, NutrientData, float | None,
     product = data.get("product", {})
     name = product_name(product) or "Unknown"
     serving_size_g = serving_grams(product)
-    nutrients = parse_nutrients(product.get("nutriments", {}), serving_size_g)
+    nutrients = parse_product_nutrients(product, serving_size_g)
     serving_label = product.get("serving_size") if serving_size_g else None  # text like "1 slice (30g)"
     return name, nutrients, serving_size_g, serving_label
