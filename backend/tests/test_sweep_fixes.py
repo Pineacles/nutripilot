@@ -121,6 +121,8 @@ def test_barcode_checks():
     assert check_digit_ok("7610200337429")  # a Swiss EAN-13
     assert not check_digit_ok("7610200337425")
     assert check_digit_ok("036000291452")  # UPC-A
+    assert check_digit_ok("04252614")  # UPC-E of 042100005264
+    assert not check_digit_ok("04252615")
     assert barcode_problem("2112345012345") == "store_label"  # Migros/Coop counter label
     assert barcode_problem("7610200337425") == "misread"
     assert barcode_problem("7610200337429") is None

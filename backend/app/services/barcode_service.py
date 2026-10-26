@@ -7,13 +7,37 @@ from app.models.nutrient import Nutrient
 from app.services.food_service import create_food_from_external, get_food_by_barcode
 
 
-def check_digit_ok(code: str) -> bool:
-    """GTIN check digit (EAN-8, UPC-A, EAN-13, GTIN-14). A wrong one means the scan misread a bar."""
-    if not code.isdigit() or len(code) not in (8, 12, 13, 14):
-        return True  # not a retail code we can check; let the lookup decide
+def _gtin_ok(code: str) -> bool:
     digits = [int(c) for c in code]
     total = sum(d * (3 if i % 2 == 0 else 1) for i, d in enumerate(reversed(digits[:-1])))
     return (10 - total % 10) % 10 == digits[-1]
+
+
+def _upc_e_to_a(code: str) -> str | None:
+    """A short US UPC-E code written out as the 12 digit UPC-A it stands for."""
+    if len(code) != 8 or code[0] not in "01":
+        return None
+    ns, d, check = code[0], code[1:7], code[7]
+    last = int(d[5])
+    if last <= 2:
+        body = d[:2] + d[5] + "0000" + d[2:5]
+    elif last == 3:
+        body = d[:3] + "00000" + d[3:5]
+    elif last == 4:
+        body = d[:4] + "00000" + d[4]
+    else:
+        body = d[:5] + "0000" + d[5]
+    return ns + body + check
+
+
+def check_digit_ok(code: str) -> bool:
+    """GTIN check digit (EAN-8, UPC-E, UPC-A, EAN-13, GTIN-14). A wrong one means the scan misread a bar."""
+    if not code.isdigit() or len(code) not in (8, 12, 13, 14):
+        return True  # not a retail code we can check; let the lookup decide
+    if _gtin_ok(code):
+        return True
+    upc_a = _upc_e_to_a(code)
+    return upc_a is not None and _gtin_ok(upc_a)
 
 
 def is_store_label(code: str) -> bool:

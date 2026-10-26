@@ -2,8 +2,31 @@
 // reads retail codes with the phone's own detector when it has one (Android Chrome), else ZXing.
 
 import type { DecodeHintType as HintKey } from "@zxing/library";
+import { checkDigitOk } from "@/lib/barcode";
 
-const FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"];
+// Food packs carry EAN-13, EAN-8 or UPC-A. UPC-E and Code 128 are left out: their decoders "find"
+// short codes inside half of an EAN-13, which then look up as unknown products.
+const FORMATS = ["ean_13", "ean_8", "upc_a"];
+
+/**
+ * Accepts a code only once several frames agree. A single frame can misread a bar and still pass
+ * the check digit (one in ten wrong reads does), and a code partly out of view can read as a short
+ * EAN-8. Full length codes need 2 matching reads within 2 seconds, EAN-8 needs 3 and loses to any
+ * longer code seen meanwhile.
+ */
+export function makeConfirmer(now: () => number = Date.now) {
+  const seen: { code: string; at: number }[] = [];
+  return (code: string): string | null => {
+    if (!/^\d{8}$|^\d{12,13}$/.test(code) || !checkDigitOk(code)) return null;
+    const t = now();
+    while (seen.length && t - seen[0].at > 2000) seen.shift();
+    seen.push({ code, at: t });
+    const short = code.length === 8;
+    if (short && seen.some((s) => s.code.length > 8)) return null;
+    const count = seen.filter((s) => s.code === code).length;
+    return count >= (short ? 3 : 2) ? code : null;
+  };
+}
 
 /** Camera settings the browser may not have in its type definitions yet. */
 type ExtraCapabilities = MediaTrackCapabilities & {
@@ -117,8 +140,11 @@ export async function startScanner(video: HTMLVideoElement, onCode: (code: strin
     stream.getTracks().forEach((t) => t.stop());
     if (video.srcObject === stream) video.srcObject = null;
   };
-  const found = (code: string) => {
+  const confirm = makeConfirmer();
+  const found = (raw: string) => {
     if (stopped) return;
+    const code = confirm(raw.trim());
+    if (!code) return;
     stop();
     onCode(code);
   };
@@ -132,8 +158,8 @@ export async function startScanner(video: HTMLVideoElement, onCode: (code: strin
       if (stopped) return;
       if (video.readyState >= 2) {
         try {
-          const codes = await detector.detect(video);
-          if (codes[0]?.rawValue) return found(codes[0].rawValue);
+          for (const c of await detector.detect(video)) found(c.rawValue);
+          if (stopped) return;
         } catch {
           // A frame that can't be read; try the next one.
         }
@@ -149,11 +175,11 @@ export async function startScanner(video: HTMLVideoElement, onCode: (code: strin
     ]);
     const hints = new Map<HintKey, unknown>([
       [DecodeHintType.POSSIBLE_FORMATS, [
-        BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.CODE_128,
+        BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
       ]],
       [DecodeHintType.TRY_HARDER, true],
     ]);
-    const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 100 });
+    const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
     const controls = await reader.decodeFromStream(stream, video, (res) => {
       if (res) found(res.getText());
     });
