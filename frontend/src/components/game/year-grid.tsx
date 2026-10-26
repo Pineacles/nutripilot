@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { parseLocal } from "@/lib/dates";
 import type { GameState } from "@/lib/game-types";
 
-const LEVEL_CLASS = ["bg-g2", "bg-g4", "bg-g5", "bg-ink"];
+const LEVEL_CLASS = ["bg-g2", "bg-g3", "bg-g5", "bg-ink"];
 const LEVEL_WORD = ["nothing logged", "logged", "a day goal done", "day closed"];
 const LEGEND = ["Nothing", "Logged", "Goal", "Closed"];
 

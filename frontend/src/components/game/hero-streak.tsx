@@ -27,6 +27,8 @@ export function HeroStreak({ game }: { game: GameState }) {
   const { streak } = game;
   const stamped = useBecame(streak.today_logged, true);
   const toNext = streak.next_milestone - streak.current;
+  const restart = streak.restart_from;
+  const restartedToday = restart === game.today;
 
   return (
     <Link href="/progress" aria-label={`Streak ${streak.current} days, open progress`} className="group block rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink">
@@ -36,15 +38,19 @@ export function HeroStreak({ game }: { game: GameState }) {
         </InkFrame>
         <span className="text-[13px] text-g5 transition-colors group-hover:text-ink">day streak</span>
       </p>
-      <ol className="mt-2 flex gap-[2px]" aria-label="Last 14 days">
+      <ol className="mt-2.5 flex gap-[2px]" aria-label="Last 14 days">
         {streak.strip.map((d, i) => {
           const isToday = i === streak.strip.length - 1;
+          // Days before a restart belong to the old streak: set one step down so the count reads true.
+          const old = !!restart && d.date < restart;
           return (
             <li
               key={d.date}
               title={d.date}
               className={`size-[7px] min-[400px]:size-2 sm:size-2.5 ${
-                d.state === "logged"
+                old
+                  ? d.state === "logged" || d.state === "freeze" ? "bg-g3" : "bg-g2"
+                  : d.state === "logged"
                   ? `bg-ink ${isToday && stamped ? "animate-stamp" : ""}`
                   : d.state === "freeze"
                     ? "hatch"
@@ -64,8 +70,8 @@ export function HeroStreak({ game }: { game: GameState }) {
           />
         ))}
       </ol>
-      {/* Room for this line only where the hero is tall enough not to touch the figure */}
-      <p className="mt-1.5 hidden text-[12px] tabular-nums text-g4 min-[400px]:block">
+      <p className="mt-2 text-[12px] leading-snug tabular-nums text-g4">
+        {restartedToday && streak.current <= 1 ? "Restarted today. " : ""}
         {streak.current === 0
           ? streak.longest > 0
             ? `Longest ${streak.longest} days. Log today to start again.`

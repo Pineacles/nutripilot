@@ -13,7 +13,7 @@ import type { GameState } from "@/lib/game-types";
  */
 export function RestartStreak({ game }: { game: GameState }) {
   const restart = useRestartStreak();
-  const restartedToday = game.streak.restart_from === game.today;
+  const restarted = !!game.streak.restart_from;
 
   function run() {
     restart.mutate(game.today, {
@@ -26,8 +26,15 @@ export function RestartStreak({ game }: { game: GameState }) {
     });
   }
 
+  function undo() {
+    restart.mutate(null, {
+      onSuccess: () => toast("Restart undone", { description: "The streak counts its full history again." }),
+      onError: (e) => toast.error(getErrorMessage(e)),
+    });
+  }
+
   return (
-    <div className="flex min-h-[60px] items-center justify-between gap-3 border-b border-g2 py-2">
+    <div className="flex min-h-[60px] items-center justify-between gap-3 border-b border-g2 py-2 max-md:border-b-0">
       <div className="min-w-0">
         <p className="text-[15px] text-ink">Restart streak</p>
         <p className="text-[12px] text-g4">
@@ -38,11 +45,11 @@ export function RestartStreak({ game }: { game: GameState }) {
       </div>
       <button
         type="button"
-        onClick={run}
-        disabled={restart.isPending || restartedToday}
+        onClick={restarted ? undo : run}
+        disabled={restart.isPending}
         className="h-11 shrink-0 rounded-full border border-g3 px-4 text-[13px] text-ink transition-colors hover:border-g5 disabled:text-g4 disabled:hover:border-g3"
       >
-        {restartedToday ? "Restarted today" : "Restart"}
+        {restarted ? "Undo restart" : "Restart"}
       </button>
     </div>
   );
@@ -59,7 +66,7 @@ export function DayCountsRow({ game, date }: { game: GameState; date: string }) 
   if (beforeRestart) return null;
 
   return (
-    <div className="mt-4 flex min-h-[60px] items-center gap-3 border-t border-b border-g2 md:col-span-2 lg:col-span-3">
+    <div className="flex min-h-[60px] items-center gap-3 border-t border-g2">
       <div className="min-w-0 flex-1">
         <p className={`text-[15px] ${counts ? "text-ink" : "text-g5"}`}>Count this day for the streak</p>
         <p className="text-[12px] text-g4">

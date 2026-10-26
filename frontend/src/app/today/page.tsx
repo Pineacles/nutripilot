@@ -15,7 +15,6 @@ import { MealsLogCard } from "@/components/meals-list";
 import { SupplementsCard } from "@/components/supplement-checklist";
 import { HydrationCard } from "@/components/hydration-card";
 import { InstallCard } from "@/components/install-card";
-import { StreakBand } from "@/components/game/streak-band";
 import { HeroStreak } from "@/components/game/hero-streak";
 import { QuestsCard } from "@/components/game/quests-card";
 import { RecapSheet } from "@/components/game/recap-sheet";
@@ -57,6 +56,9 @@ function TodayPageInner() {
   const { shows } = useTracked();
   const { data: game } = useGame();
   const playing = !!game?.enabled;
+  // Day goals are about today: each shows as a mark beside the value it measures, not as its own row.
+  const todayGoals = playing && selectedDate === todayDateStr ? game?.day_goals ?? [] : [];
+  const goalOf = (key: string) => todayGoals.find((g) => g.key === key) ?? null;
   const [addFoodOpen, setAddFoodOpen] = useState(false);
   const [addToMeal, setAddToMeal] = useState<MealType | undefined>(undefined);
 
@@ -144,18 +146,25 @@ function TodayPageInner() {
             caffeine={data.caffeine}
             heroSlot={playing && isToday && game?.show_streak ? <HeroStreak game={game} /> : null}
             windowFloor={playing ? game?.calorie_window?.floor ?? null : null}
+            goals={todayGoals}
+            dayClosed={playing && isToday && !!game?.day_closed}
           />
-          {/* The streak and day goals are about today, so they show on today only */}
-          {playing && isToday && game && game.day_goals.length > 0 && <StreakBand game={game} />}
-          <MealsLogCard date={selectedDate} onAddToMeal={openLogFood} />
+          {/* This week's quests right under the poster, so streak and quests read as one */}
+          {playing && isToday && game && game.quests.items.length > 0 && (
+            <QuestsCard game={game} band className="md:col-span-2 lg:col-span-3" />
+          )}
+          <div className="flex flex-col md:col-span-2">
+            <MealsLogCard date={selectedDate} onAddToMeal={openLogFood} goal={goalOf("meals")} />
+            {playing && game && data.totals.kcal > 0 && <DayCountsRow game={game} date={selectedDate} />}
+          </div>
           {/* One right-hand column on wide screens, so the water log never sits alone in a row */}
           <div className="flex flex-col md:gap-4">
             <SupplementsCard
               date={selectedDate}
               definitions={settings?.supplement_definitions}
               microTargets={settings?.micronutrient_targets}
+              goal={goalOf("supplements")}
             />
-            {playing && game && <QuestsCard game={game} />}
             {/* The poster carries macros, details and drinks (tap a value for its foods). Wider screens
                 keep the water log for editing single entries. */}
             {(shows("water") || shows("caffeine")) && (
@@ -164,7 +173,6 @@ function TodayPageInner() {
               </div>
             )}
           </div>
-          {playing && game && data.totals.kcal > 0 && <DayCountsRow game={game} date={selectedDate} />}
         </div>
       )}
 

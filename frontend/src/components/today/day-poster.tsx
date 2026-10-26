@@ -9,6 +9,7 @@ import { useCountUp } from "@/hooks/use-count-up";
 import { LimitBar } from "@/components/ui/limit-bar";
 import { ALERT, plateOf } from "@/lib/plates";
 import { NutrientSourcesDialog, type SourcesTarget } from "./nutrient-sources-dialog";
+import { GoalMark } from "@/components/game/goal-arc";
 import type { CaffeineTotals, MacroTargets, MacroTotals, WaterTotals } from "@/lib/types";
 
 type BarSpec = { value: number; target: number; kind: "limit" | "goal" };
@@ -27,6 +28,10 @@ interface Props {
   heroSlot?: React.ReactNode;
   /** The calorie window's floor when motivation is on: the kcal line then says when the day is in it. */
   windowFloor?: number | null;
+  /** Today's chosen day goals: each value that is a goal carries a mark beside its label. */
+  goals?: { key: string; done: boolean }[];
+  /** Every goal done: a Done Green rule draws along the bottom of the hero. */
+  dayClosed?: boolean;
 }
 
 const MACROS = [
@@ -75,7 +80,30 @@ function Roll({ value, decimals = 0 }: { value: number; decimals?: number }) {
  * The day as one poster: what has been eaten set huge, the macros as concentric arcs bleeding off the
  * corner, then the macros on one gram scale (so days compare honestly) and the drinks.
  */
-export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, windowFloor }: Props) {
+export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, windowFloor, goals = [], dayClosed = false }: Props) {
+  const goalOf = (key: string) => goals.find((g) => g.key === key);
+  // How far each goal-able value is, for the tiny arc beside its label.
+  const share = (v: number, t: number) => (t > 0 ? v / t : 0);
+  const progress: Record<string, [number, string]> = {
+    protein: [share(totals.protein, targets.protein), "var(--protein)"],
+    fiber: [share(totals.fiber, targets.fiber), "var(--fiber)"],
+    water: [share(water?.total_ml ?? 0, water?.target_ml ?? 0), "var(--water)"],
+    calories: [share(totals.kcal, targets.kcal), "var(--ink)"],
+  };
+  const mark = (key: string) => {
+    const g = goalOf(key);
+    return g ? <GoalMark done={g.done} fraction={progress[key]?.[0]} ink={progress[key]?.[1]} /> : null;
+  };
+  const goalWords = (key: string) => {
+    const g = goalOf(key);
+    return g ? (g.done ? ", day goal done" : ", day goal") : "";
+  };
+  const [closedBefore, setClosedBefore] = useState(dayClosed);
+  const [closedNow, setClosedNow] = useState(false);
+  if (closedBefore !== dayClosed) {
+    setClosedBefore(dayClosed);
+    setClosedNow(dayClosed);
+  }
   const { shows } = useTracked();
   const logWater = useLogWater();
   const [sources, setSources] = useState<SourcesTarget | null>(null);
@@ -125,7 +153,10 @@ export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, wi
   const wideCols = Math.min(cellCount, cellCount === 7 ? 4 : 6);
   return (
     <section aria-label="Today at a glance" className="relative md:col-span-2 lg:col-span-3">
-      <div className="relative h-[172px] overflow-hidden border-b border-g2 min-[400px]:h-[196px] sm:h-[260px]">
+      {/* The hero is laid out in flow: the streak row on top, the figure and its line at the bottom.
+          Nothing is pinned over anything else, so no width or text size can make them collide. The
+          arcs alone are pinned to the corner, and the streak row keeps clear of them. */}
+      <div className={`relative flex min-h-[172px] flex-col overflow-hidden border-b border-g2 min-[400px]:min-h-[196px] ${heroSlot ? "sm:min-h-[236px]" : "sm:min-h-[260px]"}`}>
         <svg
           className="absolute -top-1 -right-4 h-[124px] w-[124px] min-[400px]:h-[140px] min-[400px]:w-[140px] sm:h-[200px] sm:w-[200px] lg:right-0"
           viewBox={`0 0 ${SIZE} ${SIZE}`}
@@ -154,16 +185,17 @@ export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, wi
             );
           })}
         </svg>
-        {heroSlot && <div className="absolute top-3 left-0 z-10 max-w-[calc(100%-8.5rem)] sm:max-w-[calc(100%-14rem)]">{heroSlot}</div>}
+        {heroSlot && <div className="relative z-10 pt-3 pr-[7.5rem] min-[400px]:pr-[8.5rem] sm:pr-[12.5rem] lg:pr-[13.5rem]">{heroSlot}</div>}
+        <div className="mt-auto pt-5 pb-1.5">
         {/* Sized by digit count, so a long number never runs into the arcs */}
         <p
-          className={`absolute bottom-7 left-0 leading-[0.8] font-bold tracking-[-0.045em] tabular-nums ${
-            figure.length <= 3 ? "text-[6.5rem] min-[400px]:text-[7.5rem] sm:text-[8.5rem]" : figure.length === 4 ? "text-[5.5rem] min-[400px]:text-[6.25rem] sm:text-[8rem]" : "text-[4rem] min-[400px]:text-[4.5rem] sm:text-[7.5rem]"
+          className={`leading-[0.8] font-bold tracking-[-0.045em] tabular-nums ${
+            figure.length <= 3 ? "text-[6.5rem] min-[400px]:text-[7.5rem] sm:text-[8.5rem]" : figure.length === 4 ? "text-[5.25rem] min-[400px]:text-[6.25rem] sm:text-[8rem]" : "text-[4rem] min-[400px]:text-[4.5rem] sm:text-[7.5rem]"
           } text-ink`}
         >
           <Roll value={eaten} />
         </p>
-        <p className="absolute bottom-1.5 left-0.5 text-[13px] text-g5">
+        <p className="mt-1 pl-0.5 text-[13px] text-g5">
           {over ? (
             <>
               <span className="text-ink">kcal eaten</span>, <span className="font-semibold text-alert">{Math.abs(left)} over</span> {Math.round(targets.kcal)}
@@ -172,9 +204,17 @@ export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, wi
             <>
               <span className="text-ink">kcal eaten</span> of {Math.round(targets.kcal)}, {left} left
               {windowFloor != null && eaten >= windowFloor && <span className="text-ink">, in your window</span>}
+              {mark("calories")}
             </>
           )}
         </p>
+        </div>
+        {dayClosed && (
+          <>
+            <span aria-hidden="true" className={`absolute inset-x-0 bottom-0 z-10 block h-0.5 bg-done ${closedNow ? "animate-rule" : ""}`} />
+            <span className="sr-only" role="status">Day closed, every goal done</span>
+          </>
+        )}
       </div>
 
       {macros.length > 0 && (
@@ -190,13 +230,13 @@ export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, wi
                 key={m.key}
                 type="button"
                 onClick={() => setSources({ key: m.key, label: m.label, unit: "g", ink: m.ink })}
-                aria-label={`${m.label} ${value} of ${target} g, show where it came from`}
+                aria-label={`${m.label} ${value} of ${target} g${goalWords(m.key)}, show where it came from`}
                 className={`py-3.5 text-left transition-colors hover:bg-g1 ${macros.length === 1 ? "" : i === 0 ? "pr-3" : "px-3"}`}
               >
                 {/* A lone macro spans the row: what is left sits opposite the value instead of leaving a hole */}
                 <div className="flex items-baseline justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[12px] text-g4">{m.label}</p>
+                    <p className="text-[12px] text-g4">{m.label}{mark(m.key)}</p>
                     <p className="mt-1 whitespace-nowrap tabular-nums">
                       <span className="text-[22px] font-medium" style={{ color: m.ink }}><Roll value={value} /></span>
                       <span className="ml-0.5 text-[12px] text-g4">/{target} g</span>
@@ -227,13 +267,13 @@ export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, wi
       {cellCount > 0 && (
         <dl className={`grid gap-px border-b border-g2 bg-g2 ${PHONE_COLS[cols]} ${WIDE_COLS[wideCols]}`}>
           {details.map((d, i) => (
-            <Cell key={d.label} className={cellClass(i, cellCount, cols, wideCols)} label={d.label} text={d.text} over={d.over} extra={d.extra} ink={d.ink} bar={d.bar} onOpen={() => setSources({ key: d.key, label: d.label === "Salt" ? "Sodium" : d.label, unit: d.unit === "g" ? "g" : "mg", ink: d.ink })} />
+            <Cell key={d.label} goal={mark(d.key)} className={cellClass(i, cellCount, cols, wideCols)} label={d.label} text={d.text} over={d.over} extra={d.extra} ink={d.ink} bar={d.bar} onOpen={() => setSources({ key: d.key, label: d.label === "Salt" ? "Sodium" : d.label, unit: d.unit === "g" ? "g" : "mg", ink: d.ink })} />
           ))}
           {/* Water is logged right here, a tap on + adds a glass (250 ml) */}
           {waterCell && (
             <div className={`flex items-center gap-1 bg-g0 py-2 ${cellClass(details.length, cellCount, cols, wideCols)}`}>
               <div className="min-w-0 flex-1">
-                <dt className="text-[12px] text-g4">Water</dt>
+                <dt className="text-[12px] text-g4">Water{mark("water")}</dt>
                 <dd className="mt-0.5 whitespace-nowrap text-[14px] tabular-nums min-[400px]:text-[15px]" style={{ color: plateOf("water") }}>
                   <Roll value={water.total_ml / 1000} decimals={1} />/{(water.target_ml / 1000).toFixed(1)} l
                 </dd>
@@ -244,7 +284,7 @@ export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, wi
                 disabled={logWater.isPending}
                 onClick={() => logWater.mutate({ amount_ml: 250, date }, { onSuccess: () => toast.success("+250 ml water") })}
                 aria-label="Add 250 ml water"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-g3 text-ink transition-[color,border-color,transform] duration-(--dur-fast) ease-(--ease-out) hover:border-water hover:text-water active:border-water active:text-water active:scale-90 disabled:opacity-50 motion-reduce:transition-none"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-g3 text-ink transition-[color,border-color,transform] duration-(--dur-fast) ease-(--ease-out) hover:border-water hover:text-water active:border-water active:text-water active:scale-90 disabled:opacity-50 motion-reduce:transition-none"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -259,11 +299,12 @@ export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, wi
 }
 
 /** One value in a ruled row; over a limit it says "over" beside the label and the overflow after the value, in --alert. */
-function Cell({ label, text, over, extra, ink, className, bar, onOpen }: { label: string; text: string; over: boolean; extra?: string; ink?: string; className: string; bar?: BarSpec; onOpen?: () => void }) {
+function Cell({ label, text, over, extra, ink, className, bar, onOpen, goal }: { label: string; text: string; over: boolean; extra?: string; ink?: string; className: string; bar?: BarSpec; onOpen?: () => void; goal?: React.ReactNode }) {
   const body = (
     <>
       <dt className="text-[12px] text-g4">
         {label}
+        {goal}
         {over && <span className="ml-1.5 font-medium text-alert">over</span>}
       </dt>
       <dd className={`mt-0.5 whitespace-nowrap text-[14px] tabular-nums min-[400px]:text-[15px] ${ink ? "" : "text-ink"} ${over ? "font-semibold" : ""}`} style={ink ? { color: ink } : undefined}>

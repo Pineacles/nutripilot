@@ -1,6 +1,7 @@
 "use client";
 
 import type { SupplementDefinition, MicronutrientTargetItem } from "@/lib/types";
+import { GoalMark } from "@/components/game/goal-arc";
 import { DashboardCard } from "./dashboard-card";
 import { Button } from "@/components/ui/button";
 import { useSupplementLogDay } from "@/hooks/queries";
@@ -30,9 +31,11 @@ interface Props {
   date: string;
   definitions?: SupplementDefinition[];
   microTargets?: MicronutrientTargetItem[];
+  /** The supplements day goal, when chosen: "3 of 4" with its mark beside the heading. */
+  goal?: { value: number; target: number; done: boolean } | null;
 }
 
-export function SupplementsCard({ date, definitions = [], microTargets = [] }: Props) {
+export function SupplementsCard({ date, definitions = [], microTargets = [], goal }: Props) {
   const { data: logs = [], isLoading, isError, error, refetch } = useSupplementLogDay(date);
   const logIntake = useLogSupplementIntake();
   const deleteIntake = useDeleteSupplementLog();
@@ -82,7 +85,11 @@ export function SupplementsCard({ date, definitions = [], microTargets = [] }: P
   }
 
   return (
-    <DashboardCard title="Supplements" span="lg:col-span-1">
+    <DashboardCard
+      title="Supplements"
+      span="lg:col-span-1"
+      aside={goal ? <>{goal.value} of {goal.target}<GoalMark done={goal.done} fraction={goal.target > 0 ? goal.value / goal.target : 0} ink="var(--ink)" /></> : undefined}
+    >
       {isError ? (
         <p className="text-sm text-destructive">
           {getErrorMessage(error, "Couldn't load today's supplement log.")}{" "}
@@ -93,7 +100,7 @@ export function SupplementsCard({ date, definitions = [], microTargets = [] }: P
           {[1, 2].map((i) => <div key={i} className="h-12 rounded-xl bg-muted/40 animate-pulse" />)}
         </div>
       ) : (
-        <div className="divide-y divide-g2 border-y border-g2">
+        <div className="divide-y divide-g2 border-y border-g2 max-md:border-b-0">
           {activeDefs.map((def) => {
             const taken = logs.filter((l) => l.name.toLowerCase() === def.name.toLowerCase());
             const isTaken = taken.length > 0;

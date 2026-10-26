@@ -12,8 +12,11 @@ import type { GameState } from "@/lib/game-types";
  * This week's three quests as ruled rows: the task, a scale bar in its area's ink and the count. A
  * finished quest draws a Done Green check. One quest a week can be swapped for another.
  */
-export function QuestsCard({ game, className = "" }: { game: GameState; className?: string }) {
-  const { items, swap_available } = game.quests;
+export function QuestsCard({ game, className = "", band = false }: { game: GameState; className?: string; band?: boolean }) {
+  // On Today the quests read as a band under the poster: three columns from 768px, no swapping (that
+  // lives on Progress), so the week's task sits right under the streak.
+  const { items } = game.quests;
+  const swap_available = game.quests.swap_available && !band;
   const swap = useSwapQuest();
   const [lastDone, setLastDone] = useState(() => items.filter((q) => q.done).map((q) => q.id).join());
   const [fresh, setFresh] = useState<Set<string>>(new Set());
@@ -27,12 +30,12 @@ export function QuestsCard({ game, className = "" }: { game: GameState; classNam
   const done = doneIds.length;
 
   return (
-    <section className={`clay-card p-5 ${className}`} aria-label="This week's quests">
+    <section className={`${band ? "border-b border-g2 pt-3 pb-1 max-md:border-b-0" : "clay-card p-5"} ${className}`} aria-label="This week's quests">
       <div className="mb-1 flex items-baseline justify-between gap-3">
         <h3 className="text-[15px] font-medium text-ink">This week</h3>
         <span className="text-[13px] tabular-nums text-g4">{done} of {items.length} done</span>
       </div>
-      <ul>
+      <ul className={band ? "md:grid md:grid-cols-3 md:gap-x-6" : ""}>
         {items.map((q) => {
           const pct = q.target > 0 ? Math.min(1, q.progress / q.target) : 0;
           return (

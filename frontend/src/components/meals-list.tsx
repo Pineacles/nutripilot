@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { GoalMark } from "@/components/game/goal-arc";
 import { Copy, Plus, Repeat } from "lucide-react";
 import type { FoodLogDetailEntry, MealType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -35,9 +36,11 @@ interface Props {
   className?: string;
   /** A meal's own +: opens Log food with that meal chosen. */
   onAddToMeal?: (meal: MealType) => void;
+  /** The meals day goal, when chosen: its count sits beside the heading. */
+  goal?: { value: number; target: number; done: boolean } | null;
 }
 
-export function MealsLogCard({ date, className, onAddToMeal }: Props) {
+export function MealsLogCard({ date, className, onAddToMeal, goal }: Props) {
   const { data, isLoading, isError, error, refetch } = useFoodLogDay(date);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [editingEntry, setEditingEntry] = useState<FoodLogDetailEntry | null>(null);
@@ -96,7 +99,15 @@ export function MealsLogCard({ date, className, onAddToMeal }: Props) {
   return (
     <section aria-labelledby="meals-heading" className={cn("clay-card p-5 lg:col-span-2", className)}>
       <div className="mb-1 flex items-baseline justify-between">
-        <h2 id="meals-heading" className="text-[15px] font-medium text-foreground">Meals</h2>
+        <h2 id="meals-heading" className="text-[15px] font-medium text-foreground">
+          Meals
+          {goal && (
+            <span className="ml-2 text-[13px] font-normal tabular-nums text-g4">
+              {Math.min(goal.value, goal.target)} of {goal.target}
+              <GoalMark done={goal.done} fraction={goal.target > 0 ? goal.value / goal.target : 0} ink="var(--ink)" />
+            </span>
+          )}
+        </h2>
         {groups.length > 0 && <span className="text-sm tabular-nums text-g4">{Math.round(total)} kcal</span>}
       </div>
       {isError ? (
@@ -108,7 +119,7 @@ export function MealsLogCard({ date, className, onAddToMeal }: Props) {
           {[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse bg-g1/60" />)}
         </div>
       ) : (
-        <ol className="divide-y divide-g2 border-b border-g2">
+        <ol className="divide-y divide-g2 border-b border-g2 max-md:border-b-0">
           {MEAL_TYPES.map((meal) => {
             const group = groups.find((g) => g.meal_type === meal);
             const label = MEAL_TYPE_LABELS[meal];
@@ -197,7 +208,7 @@ export function MealsLogCard({ date, className, onAddToMeal }: Props) {
                     <button
                       type="button"
                       onClick={() => setCopying({ date, meal_type: group.meal_type, items: group.items.length, kcal: group.kcal })}
-                      className="mt-1 flex h-10 items-center gap-2 text-[13px] text-g5 transition-colors hover:text-ink"
+                      className="mt-1 flex min-h-11 items-center gap-2 text-[13px] text-g5 transition-colors hover:text-ink"
                     >
                       <Copy className="h-4 w-4" aria-hidden="true" />
                       Copy {label.toLowerCase()} to another day
