@@ -154,3 +154,8 @@ The agent API only gains things: a read-only `GET /api/agent/game/summary` the a
 - Agent-logged food counts toward the streak and prints.
 - Celebrations default to full for big milestones.
 - Scope now: phases 1 to 3 (streak and day goals, trend weight, prints). Quests and the Monday recap come later.
+
+## Owner decisions (2026-10-26, later)
+- The app should push streaks and healthy lower calorie eating over time. The logging streak stays the only streak and moves into the Today poster's hero.
+- A "window day" is a logged day at or under the kcal target and not below 1000 kcal. It earns prints (days in the window, window weeks, window streak), a weekly quest and an optional "Calorie window" day goal. Days under 1000 kcal never count; days the owner marks as incomplete never count.
+- This replaces the earlier rule "nothing rewards eating less" with "nothing rewards a day under 1000 kcal".

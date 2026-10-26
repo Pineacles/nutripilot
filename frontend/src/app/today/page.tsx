@@ -16,6 +16,7 @@ import { SupplementsCard } from "@/components/supplement-checklist";
 import { HydrationCard } from "@/components/hydration-card";
 import { InstallCard } from "@/components/install-card";
 import { StreakBand } from "@/components/game/streak-band";
+import { HeroStreak } from "@/components/game/hero-streak";
 import { QuestsCard } from "@/components/game/quests-card";
 import { RecapSheet } from "@/components/game/recap-sheet";
 import { useGame } from "@/hooks/game";
@@ -135,9 +136,17 @@ function TodayPageInner() {
         </div>
       ) : (
         <div className="grid auto-rows-min grid-cols-1 gap-x-4 md:grid-cols-2 md:gap-y-4 lg:grid-cols-3">
-          <DayPoster date={selectedDate} totals={data.totals} targets={data.targets} water={data.water} caffeine={data.caffeine} />
+          <DayPoster
+            date={selectedDate}
+            totals={data.totals}
+            targets={data.targets}
+            water={data.water}
+            caffeine={data.caffeine}
+            heroSlot={playing && isToday && game?.show_streak ? <HeroStreak game={game} /> : null}
+            windowFloor={playing ? game?.calorie_window?.floor ?? null : null}
+          />
           {/* The streak and day goals are about today, so they show on today only */}
-          {playing && isToday && game && (game.show_streak || game.day_goals.length > 0) && <StreakBand game={game} />}
+          {playing && isToday && game && game.day_goals.length > 0 && <StreakBand game={game} />}
           <MealsLogCard date={selectedDate} onAddToMeal={openLogFood} />
           {/* One right-hand column on wide screens, so the water log never sits alone in a row */}
           <div className="flex flex-col md:gap-4">

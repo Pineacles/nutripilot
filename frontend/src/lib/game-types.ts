@@ -2,7 +2,7 @@
 // Mirrors GET /api/dashboard/game.
 
 export type Celebrations = "full" | "quiet" | "off";
-export type PrintArea = "consistency" | "variety" | "protein" | "hydration" | "micros" | "body" | "kitchen" | "supplements";
+export type PrintArea = "consistency" | "calories" | "variety" | "protein" | "hydration" | "micros" | "body" | "kitchen" | "supplements";
 export type StripState = "logged" | "freeze" | "empty" | "pending";
 
 export interface StreakState {
@@ -24,7 +24,7 @@ export interface DayGoal {
   label: string;
   target: number;
   value: number;
-  unit: "meals" | "g" | "ml" | "taken";
+  unit: "meals" | "g" | "ml" | "taken" | "kcal";
   done: boolean;
 }
 
@@ -100,6 +100,8 @@ export interface GameState {
   quests: { week_start: string; swap_available: boolean; items: Quest[] };
   year: { date: string; level: 0 | 1 | 2 | 3 }[];
   recap_available: string | null;
+  /** At or under the kcal target and not below the floor (1000 kcal). null without a kcal target. */
+  calorie_window: { floor: number; target: number; today_kcal: number; in_window: boolean; days_this_week: number } | null;
 }
 
 export interface WeekRecap {
@@ -107,7 +109,9 @@ export interface WeekRecap {
   logged_days: number;
   /** null when no day goals are chosen */
   closed_days: number | null;
-  days: { date: string; logged: boolean; closed: boolean }[];
+  days: { date: string; logged: boolean; closed: boolean; window?: boolean }[];
+  /** Days in the calorie window that week; null without a kcal target. */
+  window_days?: number | null;
   quests: { key: string; title: string; target: number; progress: number; done: boolean }[];
   prints: { key: string; run: number; title: string; area: PrintArea }[];
   trend_start: number | null;

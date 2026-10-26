@@ -128,7 +128,7 @@ export default function ProgressPage() {
         </div>
       </section>
       <p className="mt-8 text-[12px] text-g4">
-        Prints reward logging and consistency, never eating less. Tap a print to turn it over.
+        Prints reward logging, consistency and days in your calorie window (at or under your target, never below 1000 kcal). Tap a print to turn it over.
       </p>
     </DashboardLayout>
   );

@@ -49,6 +49,7 @@ export function RecapSheet({ week, auto }: Props) {
 
   if (!recap) return null;
   const rows: { label: string; value: string; ink?: string; sub?: string }[] = [
+    ...(recap.window_days != null ? [{ label: "Calorie window", value: `${recap.window_days} of 7 days`, sub: "At or under your target, not below 1000 kcal" }] : []),
     ...(recap.closed_days != null ? [{ label: "Days closed", value: `${recap.closed_days} of 7` }] : []),
     ...(recap.quests.length ? [{ label: "Quests", value: `${recap.quests.filter((q) => q.done).length} of ${recap.quests.length}`, sub: recap.quests.map((q) => `${q.done ? "Done" : "Open"}: ${q.title}`).join("; ") }] : []),
     // Weight shows only when the trend went the way of the goal (or there is no goal): no wrong-way messages.

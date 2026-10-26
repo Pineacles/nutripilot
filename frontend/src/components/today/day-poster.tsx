@@ -23,6 +23,10 @@ interface Props {
   targets: MacroTargets;
   water?: WaterTotals | null;
   caffeine?: CaffeineTotals | null;
+  /** Set in the hero's top left corner, above the kcal figure: the streak on today. */
+  heroSlot?: React.ReactNode;
+  /** The calorie window's floor when motivation is on: the kcal line then says when the day is in it. */
+  windowFloor?: number | null;
 }
 
 const MACROS = [
@@ -71,7 +75,7 @@ function Roll({ value, decimals = 0 }: { value: number; decimals?: number }) {
  * The day as one poster: what has been eaten set huge, the macros as concentric arcs bleeding off the
  * corner, then the macros on one gram scale (so days compare honestly) and the drinks.
  */
-export function DayPoster({ date, totals, targets, water, caffeine }: Props) {
+export function DayPoster({ date, totals, targets, water, caffeine, heroSlot, windowFloor }: Props) {
   const { shows } = useTracked();
   const logWater = useLogWater();
   const [sources, setSources] = useState<SourcesTarget | null>(null);
@@ -150,6 +154,7 @@ export function DayPoster({ date, totals, targets, water, caffeine }: Props) {
             );
           })}
         </svg>
+        {heroSlot && <div className="absolute top-3 left-0 z-10 max-w-[calc(100%-8.5rem)] sm:max-w-[calc(100%-14rem)]">{heroSlot}</div>}
         {/* Sized by digit count, so a long number never runs into the arcs */}
         <p
           className={`absolute bottom-7 left-0 leading-[0.8] font-bold tracking-[-0.045em] tabular-nums ${
@@ -166,6 +171,7 @@ export function DayPoster({ date, totals, targets, water, caffeine }: Props) {
           ) : (
             <>
               <span className="text-ink">kcal eaten</span> of {Math.round(targets.kcal)}, {left} left
+              {windowFloor != null && eaten >= windowFloor && <span className="text-ink">, in your window</span>}
             </>
           )}
         </p>

@@ -35,7 +35,7 @@ export function MotivationSection() {
   }
 
   return (
-    <SettingsSection title="Motivation" description="Streaks, prints and weekly quests reward logging and consistency, never eating less." className="mb-4">
+    <SettingsSection title="Motivation" description="Streaks, prints and weekly quests reward logging, consistency and days in your calorie window: at or under your target, never below 1000 kcal." className="mb-4">
       <div className="border-t border-g2">
         <div className="flex min-h-[60px] items-center gap-3">
           <span className="flex-1 text-[15px] text-ink">Streaks, prints and quests</span>
@@ -72,7 +72,7 @@ export function MotivationSection() {
           </div>
           <div className="border-t border-g2 pt-3">
             <p className="text-[15px] text-ink">Day goals</p>
-            <p className="text-[12px] text-g4">Up to three. Closing all of them closes the day. There is no calorie goal on purpose.</p>
+            <p className="text-[12px] text-g4">Up to three. Closing all of them closes the day. The calorie window is done between 1000 kcal and your target.</p>
             <ul className="mt-1">
               {game.available_goals.map((g) => {
                 const on = isOn(g.key);
