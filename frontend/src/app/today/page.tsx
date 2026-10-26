@@ -19,6 +19,7 @@ import { StreakBand } from "@/components/game/streak-band";
 import { QuestsCard } from "@/components/game/quests-card";
 import { RecapSheet } from "@/components/game/recap-sheet";
 import { useGame } from "@/hooks/game";
+import { DayCountsRow } from "@/components/game/streak-controls";
 import { AddFoodDialog } from "@/components/food-log/add-food-dialog";
 import { todayStr, addDays, parseLocal } from "@/lib/dates";
 import type { MealType } from "@/lib/types";
@@ -154,6 +155,7 @@ function TodayPageInner() {
               </div>
             )}
           </div>
+          {playing && game && data.totals.kcal > 0 && <DayCountsRow game={game} date={selectedDate} />}
         </div>
       )}
 

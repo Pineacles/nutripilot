@@ -12,6 +12,7 @@ import { PrintTile, earnedRuns } from "@/components/game/print-tile";
 import { YearGrid } from "@/components/game/year-grid";
 import { QuestsCard } from "@/components/game/quests-card";
 import { RollingNumber } from "@/components/game/rolling-number";
+import { RestartStreak } from "@/components/game/streak-controls";
 import type { Print } from "@/lib/game-types";
 
 /** Progress: how many prints are on the wall (the one big number), the streak, the year, the wall. */
@@ -98,6 +99,8 @@ export default function ProgressPage() {
           </div>
         ))}
       </section>
+
+      <RestartStreak game={game} />
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3 lg:items-start">
         <section className="clay-card min-w-0 p-5 lg:col-span-2" aria-label="The last year">

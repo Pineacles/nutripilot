@@ -243,9 +243,16 @@ class Streak:
     today_logged: bool = False
 
 
-def compute_streak(logged: set[date], today: date) -> Streak:
+def compute_streak(
+    logged: set[date], today: date, restart_from: date | None = None, excluded: frozenset[date] | set[date] = frozenset()
+) -> Streak:
     """A gap of missed days is covered by freezes only when the whole gap fits the banked freezes;
-    a longer gap ends the run at once and leaves the banked freezes alone. Today pending changes nothing."""
+    a longer gap ends the run at once and leaves the banked freezes alone. Today pending changes nothing.
+
+    The owner can say a day does not count (food was missing from the log): it is then a missed day.
+    A restart ends the current run on that date and starts fresh with the opening freezes; the longest
+    run and earned prints keep their history."""
+    logged = set(logged) - set(excluded)
     st = Streak()
     st.today_logged = today in logged
     days = sorted(d for d in logged if d <= today)
@@ -282,19 +289,50 @@ def compute_streak(logged: set[date], today: date) -> Streak:
                 st.states[m] = "empty"
                 st.run_after[m] = 0
 
+    restarted = False
+
+    def restart_if_due(before: date):
+        """Crossing the restart date: drop the run, hand back the opening freezes."""
+        nonlocal banked, run, restarted
+        if restart_from is not None and not restarted and restart_from <= before:
+            restarted = True
+            run, banked = 0, FREEZES_START
+
     prev = None
     for d in days:
         if prev is not None:
             gap = (d - prev).days - 1
             if gap >= 3:
                 st.returns.append(d)
-            cover([prev + timedelta(days=k) for k in range(1, gap + 1)])
+            if restart_from is not None and not restarted and prev < restart_from <= d:
+                # Days missed before the restart belong to the old run; after it, only the fresh one.
+                cover([prev + timedelta(days=k) for k in range(1, (restart_from - prev).days)])
+                restart_if_due(d)
+                cover([restart_from + timedelta(days=k) for k in range((d - restart_from).days)])
+            else:
+                cover([prev + timedelta(days=k) for k in range(1, gap + 1)])
+        restart_if_due(d)
         log_day(d)
         prev = d
     if prev < today:
-        cover([prev + timedelta(days=k) for k in range(1, (today - prev).days)])
+        if restart_from is not None and not restarted and restart_from <= today:
+            cover([prev + timedelta(days=k) for k in range(1, (restart_from - prev).days)])
+            restart_if_due(today)
+            cover([restart_from + timedelta(days=k) for k in range((today - restart_from).days)])
+        else:
+            cover([prev + timedelta(days=k) for k in range(1, (today - prev).days)])
+    restart_if_due(today)
     st.current, st.banked = run, banked
     return st
+
+
+def streak_options(user: User) -> tuple[date | None, frozenset[date]]:
+    """The owner's own corrections to the streak: a restart date and days that do not count."""
+    state = user.game_state or {}
+    raw = state.get("streak_restart")
+    restart = date.fromisoformat(raw) if raw else None
+    excluded = frozenset(date.fromisoformat(d) for d in state.get("streak_excluded", []))
+    return restart, excluded
 
 
 def next_milestone(current: int) -> int:
@@ -952,7 +990,8 @@ async def _insert_new(db: AsyncSession, rows: list[Achievement]) -> list[Achieve
 async def evaluate(db: AsyncSession, user: User) -> Evaluation:
     f = await load_facts(db, user)
     dv = derive(f, user)
-    st = compute_streak(f.logged, f.today)
+    restart, excluded = streak_options(user)
+    st = compute_streak(f.logged, f.today, restart, excluded)
     trend = compute_trend(f.weights, f.today)
     weight = compute_weight(f, user, trend)
     settings = game_settings_of(user)
@@ -1138,6 +1177,8 @@ def build_game_response(ev: Evaluation) -> dict:
             "current": ev.streak.current, "longest": ev.streak.longest, "freezes_banked": ev.streak.banked,
             "freezes_max": FREEZES_MAX, "today_logged": ev.streak.today_logged,
             "next_milestone": next_milestone(ev.streak.current), "strip": strip_of(ev.streak, today),
+            "restart_from": streak_options(ev.user)[0],
+            "excluded_days": sorted(d for d in streak_options(ev.user)[1] if (today - d).days <= 400),
         },
         "day_goals": goals,
         "day_closed": bool(goals) and all(g["done"] for g in goals) and today in ev.facts.day_logs,
@@ -1284,3 +1325,34 @@ def build_recap(ev: Evaluation, week: date | None) -> dict:
         "days": week_days,
         "streak_at_end": st.run_after.get(end_day, 0),
     }
+
+
+async def set_streak_restart(db: AsyncSession, user: User, restart_from: date | None) -> date | None:
+    """Start the streak fresh from a day (or undo that with None). Returns the previous value for Undo."""
+    state = dict(user.game_state or {})
+    previous = state.get("streak_restart")
+    if restart_from is None:
+        state.pop("streak_restart", None)
+    else:
+        if restart_from > today_for(user):
+            raise HTTPException(status_code=422, detail={"detail": "A restart can't be in the future", "code": "INVALID_DATE"})
+        state["streak_restart"] = restart_from.isoformat()
+    user.game_state = state
+    await db.commit()
+    return date.fromisoformat(previous) if previous else None
+
+
+async def set_day_counts(db: AsyncSession, user: User, day: date, counts: bool) -> list[date]:
+    """Say whether a day counts for the streak (it doesn't when food was missing from the log)."""
+    if day > today_for(user) or day < date(2000, 1, 1):
+        raise HTTPException(status_code=422, detail={"detail": "That day can't be changed", "code": "INVALID_DATE"})
+    state = dict(user.game_state or {})
+    days = set(state.get("streak_excluded", []))
+    if counts:
+        days.discard(day.isoformat())
+    else:
+        days.add(day.isoformat())
+    state["streak_excluded"] = sorted(days)
+    user.game_state = state
+    await db.commit()
+    return [date.fromisoformat(d) for d in state["streak_excluded"]]

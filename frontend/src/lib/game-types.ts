@@ -13,6 +13,10 @@ export interface StreakState {
   today_logged: boolean;
   next_milestone: number;
   strip: { date: string; state: StripState }[];
+  /** The day the owner restarted the streak from, if any. */
+  restart_from: string | null;
+  /** Days the owner said don't count (food was missing from the log). */
+  excluded_days: string[];
 }
 
 export interface DayGoal {

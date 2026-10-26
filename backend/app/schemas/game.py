@@ -21,6 +21,21 @@ class StreakOut(BaseModel):
     today_logged: bool
     next_milestone: int
     strip: list[StripDay]
+    restart_from: datetime.date | None = None
+    excluded_days: list[datetime.date] = []
+
+
+class StreakRestartBody(BaseModel):
+    restart_from: datetime.date | None
+
+
+class StreakRestartOut(BaseModel):
+    restart_from: datetime.date | None
+    previous: datetime.date | None
+
+
+class DayCountsBody(BaseModel):
+    counts: bool
 
 
 class DayGoalOut(BaseModel):

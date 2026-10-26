@@ -8,7 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user_jwt
 from app.database import get_db
 from app.models.user import User
-from app.schemas.game import GameState, QuestOut, Recap, RecapSeenBody, SeenBody
+from app.schemas.game import (
+    DayCountsBody,
+    GameState,
+    QuestOut,
+    Recap,
+    RecapSeenBody,
+    SeenBody,
+    StreakRestartBody,
+    StreakRestartOut,
+)
 from app.services import game_service
 
 router = APIRouter(prefix="/api/dashboard/game", tags=["game"])
@@ -59,4 +68,27 @@ async def post_recap_seen(
     user: User = Depends(get_current_user_jwt),
 ):
     await game_service.mark_recap_seen(db, user, body.week)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/streak", response_model=StreakRestartOut)
+async def put_streak_restart(
+    body: StreakRestartBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt),
+):
+    """Restart the streak from a day, or clear the restart (Undo) with null."""
+    previous = await game_service.set_streak_restart(db, user, body.restart_from)
+    return {"restart_from": body.restart_from, "previous": previous}
+
+
+@router.put("/days/{day}", status_code=status.HTTP_204_NO_CONTENT)
+async def put_day_counts(
+    day: date,
+    body: DayCountsBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt),
+):
+    """Whether a day counts for the streak; off when food was missing from that day's log."""
+    await game_service.set_day_counts(db, user, day, body.counts)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -73,3 +73,24 @@ export function useUpdateGameSettings() {
     },
   });
 }
+
+export function useRestartStreak() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (restart_from: string | null) =>
+      apiFetch<{ restart_from: string | null; previous: string | null }>("/api/dashboard/game/streak", {
+        method: "PUT",
+        body: JSON.stringify({ restart_from }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.state() }),
+  });
+}
+
+export function useSetDayCounts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ day, counts }: { day: string; counts: boolean }) =>
+      apiFetch<void>(`/api/dashboard/game/days/${day}`, { method: "PUT", body: JSON.stringify({ counts }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.state() }),
+  });
+}

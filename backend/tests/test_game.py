@@ -461,3 +461,41 @@ async def test_own_food_date_uses_user_timezone(test_user, db_session):
     await db_session.commit()
     f = await gs.load_facts(db_session, test_user)
     assert f.own_food_dates == [datetime(2026, 1, 2).date()]
+
+
+def test_streak_restart_and_days_that_do_not_count():
+    today = ago(0)
+    logged = {ago(n) for n in range(0, 20)}
+    assert gs.compute_streak(logged, today).current == 20
+    # Restarting today: only today counts, history keeps the longest run.
+    st = gs.compute_streak(logged, today, restart_from=today)
+    assert st.current == 1 and st.longest == 19 and st.banked == gs.FREEZES_START
+    # Restarting before anything is logged today: zero until today is logged.
+    st = gs.compute_streak(logged - {today}, today, restart_from=today)
+    assert st.current == 0
+    # Restart five days ago: those five days form the new run.
+    assert gs.compute_streak(logged, today, restart_from=ago(4)).current == 5
+    # A day that doesn't count is a missed day: a freeze covers one, so the streak goes on one shorter.
+    st = gs.compute_streak(logged, today, excluded={ago(3)})
+    assert st.current == 19 and ago(3) in st.freeze_days
+    # Twenty logged days bank the full three freezes; four days in a row don't fit and end the run.
+    assert gs.compute_streak(logged, today, excluded={ago(3), ago(4), ago(5), ago(6)}).current == 3
+
+
+async def test_restart_and_day_counts_endpoints(async_client, auth_headers, test_user):
+    today = today_for(test_user)
+    resp = await async_client.put("/api/dashboard/game/streak", json={"restart_from": str(today)}, headers=auth_headers)
+    assert resp.status_code == 200 and resp.json()["previous"] is None
+    state = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    assert state["streak"]["restart_from"] == str(today)
+    undo = await async_client.put("/api/dashboard/game/streak", json={"restart_from": None}, headers=auth_headers)
+    assert undo.json()["previous"] == str(today)
+    future = await async_client.put("/api/dashboard/game/streak", json={"restart_from": str(today + timedelta(days=2))}, headers=auth_headers)
+    assert future.status_code == 422
+    day = today - timedelta(days=1)
+    assert (await async_client.put(f"/api/dashboard/game/days/{day}", json={"counts": False}, headers=auth_headers)).status_code == 204
+    state = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    assert state["streak"]["excluded_days"] == [str(day)]
+    await async_client.put(f"/api/dashboard/game/days/{day}", json={"counts": True}, headers=auth_headers)
+    state = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    assert state["streak"]["excluded_days"] == []
