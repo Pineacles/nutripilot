@@ -145,6 +145,8 @@ export interface StatsSummary {
   supplement_adherence_pct: number;
   highest_protein_day: { date: string; protein: number } | null;
   lowest_calorie_day: { date: string; kcal: number } | null;
+  /** The day with the most different foods (replaces the lowest calorie day in the app). */
+  most_varied_day?: { date: string; value: number } | null;
   highest_calorie_day: { date: string; kcal: number } | null;
   best_fiber_day: { date: string; fiber: number } | null;
   avg_daily_kcal: number;

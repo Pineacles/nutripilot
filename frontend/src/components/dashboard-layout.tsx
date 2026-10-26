@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { Celebration } from "@/components/game/celebration";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
@@ -53,6 +54,7 @@ export function DashboardLayout({ title, hideTitle = false, headerAction, backHr
       </a>
       <Sidebar />
       <NavBar />
+      <Celebration />
       <main id="main-content" tabIndex={-1} className="lg:ml-56 pb-20 lg:pb-0 outline-none">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {hideTitle ? (

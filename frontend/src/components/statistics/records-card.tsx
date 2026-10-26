@@ -9,7 +9,7 @@ interface Props {
   data: StatsSummary;
 }
 
-/** Best and worst days as a compact ruled list at the end of the page. A value takes a plate ink only when it is that macro's own figure. */
+/** Record days as a compact ruled list at the end of the page. A value takes a plate ink only when it is that macro's own figure. */
 export function RecordsGroup({ data }: Props) {
   const { shows } = useTracked();
   const records = [
@@ -22,10 +22,11 @@ export function RecordsGroup({ data }: Props) {
       nutrient: "protein",
     },
     {
-      label: "Lowest calorie day",
-      data: data.lowest_calorie_day,
-      value: data.lowest_calorie_day ? `${Math.round(data.lowest_calorie_day.kcal).toLocaleString("en-US")} kcal` : null,
-      date: data.lowest_calorie_day?.date,
+      // Variety, not restriction: a "lowest calorie" record would reward eating less.
+      label: "Most varied day",
+      data: data.most_varied_day,
+      value: data.most_varied_day ? `${data.most_varied_day.value} foods` : null,
+      date: data.most_varied_day?.date,
       ink: POSTER.ink,
     },
     {

@@ -13,4 +13,6 @@ export function invalidateDaySummaries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: queryKeys.weeklyAll() });
   queryClient.invalidateQueries({ queryKey: queryKeys.statsAll() });
   queryClient.invalidateQueries({ queryKey: ["nutrient-sources"] });
+  // Streak, day goals, prints and quests are all computed from the logs.
+  queryClient.invalidateQueries({ queryKey: ["game"] });
 }

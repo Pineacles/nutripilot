@@ -261,3 +261,46 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-bar, .animate-rule, .animate-lit, .animate-check { animation: none; }
 }
+
+/* Motivation: the print shop. A logged day is stamped, a print is pulled through the screen, crop
+   marks register it, a freeze hatches a missed day. Each one marks a change; reduced motion keeps
+   the end state and drops the movement. */
+:root { --dur-focal: 800ms; }
+@keyframes cell-stamp {
+  0% { transform: scale(1.6); opacity: 0; }
+  55% { transform: scale(0.88); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes print-pass { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes squeegee {
+  from { transform: translateX(-100%); opacity: 1; }
+  92% { opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+@keyframes crop-in { from { transform: scale(0); opacity: 0; } }
+@keyframes ink-ring {
+  from { outline-offset: 0; outline-color: var(--ink); }
+  to { outline-offset: 8px; outline-color: transparent; }
+}
+@keyframes cell-in { from { transform: scale(0.3); opacity: 0; } }
+@keyframes digit-up { from { transform: translateY(100%); } }
+@keyframes digit-out { to { transform: translateY(-100%); } }
+@layer utilities {
+  .animate-stamp { animation: cell-stamp 420ms var(--ease-out) both; }
+  .animate-print { animation: print-pass var(--dur-focal) var(--ease-out) both; }
+  .animate-squeegee { animation: squeegee var(--dur-focal) var(--ease-out) both; }
+  .animate-crop { transform-origin: center; animation: crop-in 300ms var(--ease-out) both; }
+  .animate-ink-ring { outline: 1px solid transparent; animation: ink-ring 700ms var(--ease-out) 1; }
+  .animate-cell-in { animation: cell-in 360ms var(--ease-out) both; }
+  .animate-digit-up { animation: digit-up 420ms var(--ease-out) both; }
+  .animate-digit-out { animation: digit-out 420ms var(--ease-out) both; }
+  /* A day covered by a freeze: diagonal ink hatching on the empty cell */
+  .hatch {
+    background-image: repeating-linear-gradient(135deg, var(--g5) 0 1.5px, transparent 1.5px 4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-stamp, .animate-print, .animate-squeegee, .animate-crop, .animate-ink-ring,
+  .animate-cell-in, .animate-digit-up, .animate-digit-out { animation: none; }
+  .animate-squeegee { display: none; }
+}

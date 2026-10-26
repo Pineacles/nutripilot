@@ -19,6 +19,8 @@ import { CompositionDonutCard } from "@/components/body/composition-donut-card";
 import { GoalRows } from "@/components/body/goal-rows";
 import { CompositionPair } from "@/components/body/composition-pair";
 import { ProgressOverviewCard } from "@/components/body/progress-overview-card";
+import { WeighInBand } from "@/components/game/weigh-in-band";
+import { useGame } from "@/hooks/game";
 
 export default function BodyCompositionPage() {
   const [days, setDays] = useState(90);
@@ -29,6 +31,8 @@ export default function BodyCompositionPage() {
 
   const { data, isLoading: loading, isError, error, refetch } = useStats(days);
   const { data: settings } = useSettings();
+  const { data: game } = useGame();
+  const weightGame = game?.enabled ? game.weight : null;
   // Goal progress looks at every entry on record, not only the chart period.
   const { data: allLogs } = useWeightLogList();
   const { weightsOnRecord, bfOnRecord } = useMemo(() => ({
@@ -102,7 +106,10 @@ export default function BodyCompositionPage() {
           weightChange={weightChange}
           days={days}
           weeklyAvgChange={weeklyAvgChange}
+          trend={weightGame}
         />
+
+        {weightGame && <WeighInBand weight={weightGame} />}
 
         <GoalRows
           targetWeight={targetWeight}

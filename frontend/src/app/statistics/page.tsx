@@ -10,6 +10,10 @@ import { PeriodSelector } from "@/components/statistics/period-selector";
 import { HeroStats } from "@/components/statistics/hero-stats";
 import { StatisticsSkeleton } from "@/components/statistics/statistics-skeleton";
 import { Scorecard } from "@/components/statistics/scorecard";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { useGame } from "@/hooks/game";
+import { earnedRuns } from "@/components/game/print-tile";
 
 export default function StatisticsPage() {
   const [days, setDays] = useState(90);
@@ -19,6 +23,7 @@ export default function StatisticsPage() {
 
   const { data, isLoading: loading, isError, error, refetch } = useStats(days);
   const { data: settings } = useSettings();
+  const { data: game } = useGame();
 
   function applyCustomRange() {
     if (!customFrom || !customTo) return;
@@ -78,6 +83,16 @@ export default function StatisticsPage() {
       />
 
       <HeroStats data={data} avgKcal={avgKcal} targetKcal={targetKcal} />
+
+      {game?.enabled && (
+        <Link href="/progress" className="group flex min-h-[60px] items-center gap-3 border-b border-g2 transition-colors hover:bg-g1">
+          <span className="flex-1 text-[15px] text-ink">Progress and prints</span>
+          <span className="text-[13px] tabular-nums text-g4">
+            {game.prints.filter((p) => earnedRuns(p).length > 0).length} of {game.prints.length} prints, {game.streak.current} day streak
+          </span>
+          <ChevronRight className="h-4 w-4 text-g4 group-hover:text-ink" aria-hidden="true" />
+        </Link>
+      )}
 
       <Scorecard
         data={data}

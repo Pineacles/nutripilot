@@ -47,7 +47,7 @@ export default function SettingsPage() {
       name: "Connections",
       value: count === undefined ? null : `API key, ${count} integration${count === 1 ? "" : "s"}`,
     },
-    { href: "/settings/app", name: "App", value: "" },
+    { href: "/settings/app", name: "App", value: "Motivation, install" },
   ];
 
   return (

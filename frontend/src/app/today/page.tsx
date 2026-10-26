@@ -15,6 +15,10 @@ import { MealsLogCard } from "@/components/meals-list";
 import { SupplementsCard } from "@/components/supplement-checklist";
 import { HydrationCard } from "@/components/hydration-card";
 import { InstallCard } from "@/components/install-card";
+import { StreakBand } from "@/components/game/streak-band";
+import { QuestsCard } from "@/components/game/quests-card";
+import { RecapSheet } from "@/components/game/recap-sheet";
+import { useGame } from "@/hooks/game";
 import { AddFoodDialog } from "@/components/food-log/add-food-dialog";
 import { todayStr, addDays, parseLocal } from "@/lib/dates";
 import type { MealType } from "@/lib/types";
@@ -49,6 +53,8 @@ function TodayPageInner() {
   const { data, isLoading, isError, error, refetch } = useTodaySummary(selectedDate);
   const { data: settings } = useSettings();
   const { shows } = useTracked();
+  const { data: game } = useGame();
+  const playing = !!game?.enabled;
   const [addFoodOpen, setAddFoodOpen] = useState(false);
   const [addToMeal, setAddToMeal] = useState<MealType | undefined>(undefined);
 
@@ -129,6 +135,8 @@ function TodayPageInner() {
       ) : (
         <div className="grid auto-rows-min grid-cols-1 gap-x-4 md:grid-cols-2 md:gap-y-4 lg:grid-cols-3">
           <DayPoster date={selectedDate} totals={data.totals} targets={data.targets} water={data.water} caffeine={data.caffeine} />
+          {/* The streak and day goals are about today, so they show on today only */}
+          {playing && isToday && game && (game.show_streak || game.day_goals.length > 0) && <StreakBand game={game} />}
           <MealsLogCard date={selectedDate} onAddToMeal={openLogFood} />
           {/* One right-hand column on wide screens, so the water log never sits alone in a row */}
           <div className="flex flex-col md:gap-4">
@@ -137,6 +145,7 @@ function TodayPageInner() {
               definitions={settings?.supplement_definitions}
               microTargets={settings?.micronutrient_targets}
             />
+            {playing && game && <QuestsCard game={game} />}
             {/* The poster carries macros, details and drinks (tap a value for its foods). Wider screens
                 keep the water log for editing single entries. */}
             {(shows("water") || shows("caffeine")) && (
@@ -164,6 +173,8 @@ function TodayPageInner() {
           </span>
         </button>
       </div>
+
+      {playing && game?.recap_available && <RecapSheet week={game.recap_available} />}
 
       <InstallCard dismissible className="mt-4 lg:hidden" />
       {/* Room so the Log food bar never covers the last section */}

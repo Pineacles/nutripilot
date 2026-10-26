@@ -44,7 +44,7 @@ const TARGETS: Record<string, { key: TargetKey; unit: string; label?: string }> 
 const numText = (n: number) => String(n);
 
 /** An on/off switch: 44px target, a 40 by 24 track. */
-function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
+export function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
   return (
     <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onToggle} className="flex h-11 w-14 shrink-0 items-center justify-end">
       <span className={`relative block h-6 w-10 rounded-full transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] motion-reduce:transition-none ${on ? "bg-ink" : "bg-g2"}`}>

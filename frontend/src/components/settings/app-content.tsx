@@ -3,11 +3,13 @@
 import { LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { InstallCard } from "@/components/install-card";
+import { MotivationSection } from "@/components/settings/motivation-section";
 
-/** The install card, then Sign out last and set apart. */
+/** Motivation, the install card, then Sign out last and set apart. */
 export function AppContent() {
   return (
     <div>
+      <MotivationSection />
       <InstallCard />
       <button
         type="button"
