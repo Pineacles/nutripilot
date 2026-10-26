@@ -58,7 +58,7 @@ export interface Print {
 }
 
 export interface UnseenItem {
-  kind: "print" | "quest" | "freeze";
+  kind: "print" | "quest" | "freeze" | "comeback";
   /** The quest's id for kind "quest", else null. */
   id: string | null;
   key: string;
@@ -101,17 +101,22 @@ export interface GameState {
 export interface WeekRecap {
   week_start: string;
   logged_days: number;
-  closed_days: number;
+  /** null when no day goals are chosen */
+  closed_days: number | null;
+  days: { date: string; logged: boolean; closed: boolean }[];
   quests: { key: string; title: string; target: number; progress: number; done: boolean }[];
   prints: { key: string; run: number; title: string; area: PrintArea }[];
   trend_start: number | null;
   trend_end: number | null;
   trend_change: number | null;
+  /** null without a goal; false when the trend moved away from it (then it is not shown) */
+  trend_toward_goal: boolean | null;
   weigh_in_days: number;
   best_protein_day: { date: string; value: number } | null;
   most_varied_day: { date: string; value: number } | null;
   distinct_foods: number;
-  water_target_days: number;
+  /** null when water is hidden or has no target */
+  water_target_days: number | null;
   streak_at_end: number;
 }
 

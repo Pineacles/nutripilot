@@ -69,6 +69,8 @@ interface Props {
   delay?: number;
   /** On a g1 sheet (a dialog) the print is set on ground so it still reads as a sheet. */
   raised?: boolean;
+  /** Ripple in (the wall's first showing on this device); otherwise it is simply there. */
+  ripple?: boolean;
 }
 
 /**
@@ -76,7 +78,7 @@ interface Props {
  * Not yet: an unprinted plate (g2 outline, g3 numeral) with how far along it is. Tap to turn it over
  * for the dates and what comes next.
  */
-export function PrintTile({ print, delay = 0, raised = false }: Props) {
+export function PrintTile({ print, delay = 0, raised = false, ripple = true }: Props) {
   const sheet = raised ? "bg-g0" : "bg-g1";
   const [flipped, setFlipped] = useState(false);
   const reduce = useReducedMotion();
@@ -90,7 +92,7 @@ export function PrintTile({ print, delay = 0, raised = false }: Props) {
   const multi = print.runs.length > 1;
 
   return (
-    <div className="relative animate-cell-in" style={{ animationDelay: `${delay}ms` }}>
+    <div className={`relative ${ripple ? "animate-cell-in" : ""}`} style={ripple ? { animationDelay: `${delay}ms` } : undefined}>
       {isEarned && <CropMarks />}
       <LazyMotion features={domAnimation} strict>
         <button
@@ -114,7 +116,7 @@ export function PrintTile({ print, delay = 0, raised = false }: Props) {
               <span className="block">
                 {mark ?? (
                   <span
-                    className="block text-[length:clamp(1.6rem,8vw,2.6rem)] leading-[0.85] font-bold tracking-[-0.045em] tabular-nums"
+                    className="block text-[length:clamp(1.4rem,6vw,1.85rem)] leading-[0.85] font-bold tracking-[-0.045em] tabular-nums"
                     style={{ color: isEarned ? ink : "var(--g3)" }}
                   >
                     {print.hidden && !isEarned ? "?" : numeral ?? ""}

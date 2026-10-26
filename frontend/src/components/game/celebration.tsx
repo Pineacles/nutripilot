@@ -66,7 +66,7 @@ function PrintReveal({ item, print, step, total, onNext }: { item: UnseenItem; p
   const rise = (delay: number) => ({
     initial: reduce ? { opacity: 0 } : { opacity: 0, y: 8 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: reduce ? 0.15 : 0.35, delay: reduce ? 0 : delay, ease: [0.16, 1, 0.3, 1] as const },
+    transition: { duration: reduce ? 0.15 : 0.3, delay: reduce ? 0 : delay, ease: [0.16, 1, 0.3, 1] as const },
   });
 
   return (
@@ -94,19 +94,19 @@ function PrintReveal({ item, print, step, total, onNext }: { item: UnseenItem; p
             </span>
           </div>
         </div>
-        <m.div {...rise(0.75)}>
+        <m.div {...rise(0.55)}>
           <DialogTitle className="mt-6 text-[22px] font-semibold tracking-[-0.01em]">{item.title}</DialogTitle>
         </m.div>
-        <m.div {...rise(0.85)}>
+        <m.div {...rise(0.62)}>
           <DialogDescription className="mt-1 text-[15px] text-g5">{item.description}</DialogDescription>
           <p className="mt-1 text-[12px] tabular-nums text-g4">Earned {fmtDate(item.date)}</p>
         </m.div>
         {next && (
-          <m.p {...rise(0.95)} className="mt-4 text-[13px] text-g4">
+          <m.p {...rise(0.69)} className="mt-4 text-[13px] text-g4">
             Next print at {next.threshold} {print?.unit}
           </m.p>
         )}
-        <m.div {...rise(1.05)} className="mt-6 w-full">
+        <m.div {...rise(0.76)} className="mt-6 w-full">
           <Button size="lg" className="h-12 w-full" onClick={onNext} autoFocus>
             {step < total ? `Next print (${step} of ${total})` : "Continue"}
           </Button>
@@ -116,8 +116,12 @@ function PrintReveal({ item, print, step, total, onNext }: { item: UnseenItem; p
   );
 }
 
-/** First visit after the feature arrives: history already earned prints; show them once, together. */
+/**
+ * Several prints at once (the first visit, where history already earned them, or a return after
+ * motivation was off): one sheet with all of them instead of a queue of reveals.
+ */
 function BackfillSheet({ items, prints, onClose }: { items: UnseenItem[]; prints: Print[]; onClose: () => void }) {
+  const history = items.every((i) => i.backfill);
   const keys = new Set(items.map((i) => i.key));
   const shown = prints.filter((p) => keys.has(p.key));
   useEffect(() => {
@@ -127,10 +131,10 @@ function BackfillSheet({ items, prints, onClose }: { items: UnseenItem[]; prints
   return (
     <div className="pt-2">
       <DialogTitle className="text-[22px] font-semibold tracking-[-0.01em]">
-        You already earned {items.length} print{items.length === 1 ? "" : "s"}
+        {history ? "You already earned" : "You earned"} {items.length} {items.length === 1 ? "print" : "prints"}
       </DialogTitle>
       <DialogDescription className="mt-1 text-[15px] text-g5">
-        Your logging history counts. From now on each new print gets its own moment.
+        {history ? "Your logging history counts. From now on each new print gets its own moment." : "All of them are on the wall in Progress."}
       </DialogDescription>
       <div className="mt-5 grid max-h-[50dvh] grid-cols-3 gap-4 overflow-y-auto p-2 sm:grid-cols-4">
         {shown.map((p, i) => (
@@ -138,7 +142,7 @@ function BackfillSheet({ items, prints, onClose }: { items: UnseenItem[]; prints
         ))}
       </div>
       <Button size="lg" className="mt-5 h-12 w-full" onClick={onClose}>
-        See all prints later in Progress
+        Done
       </Button>
     </div>
   );
@@ -168,12 +172,30 @@ export function Celebration() {
   }, [game]);
 
   function handle(g: GameState, fresh: UnseenItem[]) {
-    const prints = fresh.filter((u) => u.kind === "print");
-    const quests = fresh.filter((u) => u.kind === "quest");
-    const freezes = fresh.filter((u) => u.kind === "freeze");
+    // With the streak hidden, nothing about the streak speaks up: those are marked seen quietly.
+    const streakish = (u: UnseenItem) => u.kind === "freeze" || u.kind === "comeback" || (u.kind === "print" && (u.key === "streak" || u.key === "comeback"));
+    const quiet = g.show_streak ? [] : fresh.filter(streakish);
+    const loud = fresh.filter((u) => !quiet.includes(u));
+    const prints = loud.filter((u) => u.kind === "print");
+    const quests = loud.filter((u) => u.kind === "quest");
+    const freezes = loud.filter((u) => u.kind === "freeze");
+    const comebacks = loud.filter((u) => u.kind === "comeback");
     if (g.celebrations === "off") {
       markSeen.mutate({ all: true });
       return;
+    }
+    if (quiet.length) {
+      const last = (kind: string) => quiet.filter((u) => u.kind === kind).map((u) => u.date).sort().pop() ?? null;
+      markSeen.mutate({
+        prints: quiet.filter((u) => u.kind === "print").map((u) => ({ key: u.key, run: u.run })),
+        freezes_through: last("freeze"),
+        comeback_through: last("comeback"),
+      });
+    }
+    if (comebacks.length) {
+      buzz(25);
+      toast("Welcome back", { description: "Today starts a new streak." });
+      markSeen.mutate({ comeback_through: comebacks.map((c) => c.date).sort().pop()! });
     }
     for (const q of quests) {
       buzz(25);
@@ -187,8 +209,10 @@ export function Celebration() {
       });
       markSeen.mutate({ freezes_through: last });
     }
-    const old = prints.filter((p) => p.backfill);
-    const fresh_ = prints.filter((p) => !p.backfill);
+    // More than three at once (history, or back after motivation was off) go on one sheet.
+    const many = prints.length > 3;
+    const old = many ? prints : prints.filter((p) => p.backfill);
+    const fresh_ = many ? [] : prints.filter((p) => !p.backfill);
     if (old.length) setBackfill(old);
     if (fresh_.length) {
       if (g.celebrations === "quiet") {

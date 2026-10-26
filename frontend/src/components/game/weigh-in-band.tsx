@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { firstTime } from "@/lib/seen-once";
 import type { WeightGame } from "@/lib/game-types";
 
 /**
@@ -8,6 +10,8 @@ import type { WeightGame } from "@/lib/game-types";
  */
 export function WeighInBand({ weight }: { weight: WeightGame }) {
   const n = Math.min(3, weight.this_week_weigh_ins);
+  // Stamp only a weigh-in this device has not seen yet; a return visit shows the cells still.
+  const [fresh] = useState(() => (typeof window !== "undefined" && firstTime("weigh-ins", `${weight.raw_date}:${n}`) ? n : 0));
   return (
     <section aria-label="Weigh-in rhythm" className="flex items-center gap-4 border-b border-g2 py-3.5">
       <div className="min-w-0 flex-1">
@@ -21,7 +25,7 @@ export function WeighInBand({ weight }: { weight: WeightGame }) {
         <p className="text-[12px] text-g4">This week</p>
         <ol className="mt-1.5 flex justify-end gap-1" aria-label={`${weight.this_week_weigh_ins} of 3 weigh-ins this week`}>
           {[0, 1, 2].map((i) => (
-            <li key={i} className={`size-4 ${i < n ? "animate-stamp bg-ink" : "border border-g3"}`} style={{ animationDelay: `${i * 90}ms` }} />
+            <li key={i} className={`size-4 ${i < n ? `bg-ink ${i === fresh - 1 ? "animate-stamp" : ""}` : "border border-g3"}`} />
           ))}
         </ol>
       </div>

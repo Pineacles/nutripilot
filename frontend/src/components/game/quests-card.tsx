@@ -56,7 +56,7 @@ export function QuestsCard({ game, className = "" }: { game: GameState; classNam
                         onError: (e) => toast.error(getErrorMessage(e)),
                       })
                     }
-                    className="h-10 shrink-0 rounded-full border border-g3 px-3 text-[13px] text-ink transition-colors hover:border-g5 disabled:text-g4"
+                    className="h-11 shrink-0 rounded-full border border-g3 px-4 text-[13px] text-ink transition-colors hover:border-g5 disabled:text-g4"
                   >
                     Swap
                   </button>

@@ -174,7 +174,7 @@ function TodayPageInner() {
         </button>
       </div>
 
-      {playing && game?.recap_available && <RecapSheet week={game.recap_available} />}
+      {playing && game?.recap_available && <RecapSheet week={game.recap_available} auto={game.celebrations !== "off"} />}
 
       <InstallCard dismissible className="mt-4 lg:hidden" />
       {/* Room so the Log food bar never covers the last section */}

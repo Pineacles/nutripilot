@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { firstTime } from "@/lib/seen-once";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { ErrorState } from "@/components/ui/error-state";
 import { useGame } from "@/hooks/game";
@@ -15,6 +17,8 @@ import type { Print } from "@/lib/game-types";
 /** Progress: how many prints are on the wall (the one big number), the streak, the year, the wall. */
 export default function ProgressPage() {
   const { data: game, isError, error, refetch, isLoading } = useGame();
+  // The wall ripples in the first time this device shows these prints; after that it is just there.
+  const [ripple] = useState(() => typeof window !== "undefined");
 
   if (isError && !game) {
     return (
@@ -27,8 +31,8 @@ export default function ProgressPage() {
     return (
       <DashboardLayout title="Progress" backHref="/today" backLabel="Back to today">
         <div className="space-y-px" aria-busy="true">
-          <div className="h-40 animate-pulse bg-g1/60" />
-          <div className="h-64 animate-pulse bg-g1/40" />
+          <div className="h-40 animate-pulse bg-g1" />
+          <div className="h-64 animate-pulse bg-g1" />
         </div>
       </DashboardLayout>
     );
@@ -53,6 +57,8 @@ export default function ProgressPage() {
   const byArea = new Map<string, Print[]>();
   for (const p of game.prints) byArea.set(p.area, [...(byArea.get(p.area) ?? []), p]);
   let tileIndex = 0;
+  const earnedKey = game.prints.map((p) => `${p.key}${earnedRuns(p).length}`).join();
+  const showRipple = ripple && firstTime("wall", earnedKey);
 
   return (
     <DashboardLayout title="Progress" backHref="/today" backLabel="Back to today">
@@ -63,7 +69,7 @@ export default function ProgressPage() {
             <RollingNumber value={earned.length} />
           </p>
           <p className="mt-3 text-[13px] text-g5">
-            <span className="text-ink">prints</span> of {game.prints.length}, {runsEarned} runs printed
+            <span className="text-ink">of {game.prints.length} prints</span>, {runsEarned} editions in all
           </p>
         </div>
         {latest && (
@@ -93,7 +99,7 @@ export default function ProgressPage() {
         ))}
       </section>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid gap-4 lg:grid-cols-3 lg:items-start">
         <section className="clay-card min-w-0 p-5 lg:col-span-2" aria-label="The last year">
           <h2 className="mb-3 text-[15px] font-medium text-ink">The last year</h2>
           <YearGrid year={game.year} />
@@ -101,26 +107,23 @@ export default function ProgressPage() {
         <QuestsCard game={game} className="min-w-0" />
       </div>
 
-      {/* The wall, by area */}
-      <div className="mt-6 space-y-8">
-        {AREA_ORDER.filter((a) => byArea.has(a)).map((area) => {
-          const prints = byArea.get(area)!;
-          const got = prints.filter((p) => earnedRuns(p).length > 0).length;
-          return (
-            <section key={area} aria-label={AREA_LABEL[area]}>
-              <div className="mb-3 flex items-baseline justify-between border-t border-g2 pt-3">
-                <h2 className="text-[15px] font-medium text-ink">{AREA_LABEL[area]}</h2>
-                <span className="text-[13px] tabular-nums text-g4">{got} of {prints.length}</span>
-              </div>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-4 px-1.5">
-                {prints.map((p) => (
-                  <PrintTile key={p.key} print={p} delay={Math.min(tileIndex++ * 30, 600)} />
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+      {/* The wall: one grid, each area headed by a ruled label that spans the row */}
+      <section aria-label="Prints" className="mt-6">
+        <h2 className="mb-1 text-[15px] font-medium text-ink">Prints</h2>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-x-4 gap-y-4 px-1.5 lg:grid-cols-[repeat(auto-fill,minmax(132px,1fr))]">
+          {AREA_ORDER.filter((a) => byArea.has(a)).flatMap((area) => {
+            const prints = byArea.get(area)!;
+            const got = prints.filter((p) => earnedRuns(p).length > 0).length;
+            return [
+              <div key={`h-${area}`} className="col-span-full -mx-1.5 mt-3 flex items-baseline justify-between border-t border-g2 pt-2">
+                <h3 className="text-[12px] text-g4">{AREA_LABEL[area]}</h3>
+                <span className="text-[12px] tabular-nums text-g4">{got} of {prints.length}</span>
+              </div>,
+              ...prints.map((p) => <PrintTile key={p.key} print={p} ripple={showRipple} delay={Math.min(tileIndex++ * 30, 600)} />),
+            ];
+          })}
+        </div>
+      </section>
       <p className="mt-8 text-[12px] text-g4">
         Prints reward logging and consistency, never eating less. Tap a print to turn it over.
       </p>

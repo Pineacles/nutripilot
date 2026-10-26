@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { RollingNumber } from "./rolling-number";
+import { InkFrame } from "./ink-frame";
 import { DoneCheck, GoalArc } from "./goal-arc";
 import { buzz, goalInk } from "@/lib/game";
 import type { DayGoal, GameState } from "@/lib/game-types";
@@ -57,17 +58,19 @@ export function StreakBand({ game }: { game: GameState }) {
   return (
     <section aria-label="Streak and day goals" className="relative border-b border-g2 md:col-span-2 lg:col-span-3">
       {game.show_streak && (
-        <Link href="/progress" className="group flex items-center gap-4 py-3 transition-colors hover:bg-g1" aria-label={`Streak ${streak.current} days. Open progress`}>
+        <Link href="/progress" className="group flex items-center gap-4 py-3 transition-colors hover:bg-g1 md:-mx-2 md:px-2" aria-label={`Streak ${streak.current} days. Open progress`}>
           <div className="shrink-0">
             <p className="text-[12px] text-g4">Streak</p>
             <p className="mt-0.5 flex items-baseline gap-1">
-              <RollingNumber value={streak.current} className={`text-[22px] font-medium text-ink ${stamped ? "animate-ink-ring" : ""}`} />
+              <InkFrame show={stamped}>
+                <RollingNumber value={streak.current} className="text-[22px] font-medium text-ink" />
+              </InkFrame>
               <span className="text-[12px] text-g4">{streak.current === 1 ? "day" : "days"}</span>
             </p>
           </div>
           <div className="min-w-0 flex-1">
             {/* The last 14 days, today last */}
-            <ol className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-[3px]" aria-label="Last 14 days">
+            <ol className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-[3px] md:flex md:gap-1" aria-label="Last 14 days">
               {streak.strip.map((d, i) => {
                 const isToday = i === streak.strip.length - 1;
                 return (
@@ -75,7 +78,7 @@ export function StreakBand({ game }: { game: GameState }) {
                     key={d.date}
                     title={d.date}
                     aria-label={`${d.date}: ${d.state === "pending" ? "not logged yet" : d.state}`}
-                    className={`aspect-square max-h-4 ${
+                    className={`aspect-square md:size-5 ${
                       d.state === "logged"
                         ? `bg-ink ${isToday && stamped ? "animate-stamp" : ""}`
                         : d.state === "freeze"
@@ -88,12 +91,18 @@ export function StreakBand({ game }: { game: GameState }) {
                 );
               })}
             </ol>
-            <div className="mt-2 flex items-center gap-3">
-              <span className="relative block h-[3px] flex-1 bg-g2" aria-hidden="true">
+            <div className="mt-2 flex flex-col gap-1.5">
+              <span className="relative block h-[3px] bg-g2" aria-hidden="true">
                 <span className="absolute inset-y-0 left-0 origin-left animate-bar bg-g5 transition-[width] duration-(--dur-draw) ease-(--ease-out)" style={{ width: `${pct * 100}%` }} />
               </span>
-              <span className="shrink-0 text-[12px] tabular-nums text-g4">
-                {toNext <= 3 ? <span className="text-ink">{toNext} to the {streak.next_milestone} day print</span> : `${toNext} to ${streak.next_milestone}`}
+              <span className="truncate text-[12px] tabular-nums text-g4">
+                {streak.current === 0 ? (
+                  streak.longest > 0 ? `Longest ${streak.longest} days` : "Log today to start"
+                ) : (
+                  <span className={toNext <= 3 ? "text-ink" : ""}>
+                    {toNext} {toNext === 1 ? "day" : "days"} to the {streak.next_milestone} day print
+                  </span>
+                )}
               </span>
             </div>
           </div>

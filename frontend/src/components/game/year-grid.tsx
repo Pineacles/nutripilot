@@ -6,6 +6,7 @@ import type { GameState } from "@/lib/game-types";
 
 const LEVEL_CLASS = ["bg-g2", "bg-g4", "bg-g5", "bg-ink"];
 const LEVEL_WORD = ["nothing logged", "logged", "a day goal done", "day closed"];
+const LEGEND = ["Nothing", "Logged", "Goal", "Closed"];
 
 /**
  * The year as a Swiss calendar: one square per day in weeks of seven, brighter the more complete the
@@ -13,7 +14,13 @@ const LEVEL_WORD = ["nothing logged", "logged", "a day goal done", "day closed"]
  */
 export function YearGrid({ year }: { year: GameState["year"] }) {
   const ref = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const [seen, setSeen] = useState(false);
+  // On a phone the grid scrolls sideways: open on the recent weeks, not last November.
+  useEffect(() => {
+    const el = scroller.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [year.length]);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -38,8 +45,8 @@ export function YearGrid({ year }: { year: GameState["year"] }) {
 
   return (
     <div ref={ref}>
-      <div className="overflow-x-auto pb-1">
-        <div className="min-w-[560px]">
+      <div ref={scroller} className="overflow-x-auto pb-1">
+        <div className="min-w-[560px] md:min-w-0">
           <div className="relative mb-1 h-4 text-[11px] text-g4">
             {months.map((mo) => (
               <span key={`${mo.col}-${mo.label}`} className="absolute" style={{ left: `${(mo.col / weeks) * 100}%` }}>
@@ -67,10 +74,13 @@ export function YearGrid({ year }: { year: GameState["year"] }) {
         <p className="tabular-nums">
           <span className="text-ink">{logged}</span> days logged, <span className="text-ink">{closed}</span> closed in the last year
         </p>
-        <p className="flex items-center gap-1.5" aria-hidden="true">
-          Less
-          {LEVEL_CLASS.map((c) => <span key={c} className={`block size-2.5 ${c}`} />)}
-          More
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-hidden="true">
+          {LEVEL_CLASS.map((c, i) => (
+            <span key={c} className="flex items-center gap-1">
+              <span className={`block size-2.5 ${c}`} />
+              {LEGEND[i]}
+            </span>
+          ))}
         </p>
       </div>
     </div>

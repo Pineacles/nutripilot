@@ -32,6 +32,7 @@ export interface SeenBody {
   prints?: { key: string; run: number | null }[];
   quests?: string[];
   freezes_through?: string | null;
+  comeback_through?: string | null;
   all?: boolean;
 }
 

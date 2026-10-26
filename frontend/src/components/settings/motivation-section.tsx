@@ -60,7 +60,7 @@ export function MotivationSection() {
                   role="radio"
                   aria-checked={game.celebrations === c.value}
                   onClick={() => save({ celebrations: c.value })}
-                  className={`h-10 rounded-full border px-4 text-[13px] transition-colors ${
+                  className={`h-11 rounded-full border px-4 text-[13px] transition-colors ${
                     game.celebrations === c.value ? "border-ink bg-ink text-g0" : "border-g3 text-ink hover:border-g5"
                   }`}
                 >
@@ -81,15 +81,15 @@ export function MotivationSection() {
                   <li key={g.key} className="flex min-h-[60px] items-center gap-3 border-t border-g2 first:border-t-0">
                     <span className={`flex-1 text-[15px] ${full ? "text-g4" : "text-ink"}`}>{g.label}</span>
                     {g.key === "meals" && on && meals && (
-                      <span className="flex items-center gap-1">
-                        {[2, 3, 4, 5].map((n) => (
+                      <span className="flex items-center gap-2">
+                        {[1, 2, 3, 4].map((n) => (
                           <button
                             key={n}
                             type="button"
                             aria-pressed={meals.target === n}
                             aria-label={`${n} meals`}
                             onClick={() => save({ day_goals: chosen.map((c) => (c.key === "meals" ? { key: "meals", target: n } : c)) })}
-                            className={`size-10 rounded-full border text-[13px] tabular-nums ${meals.target === n ? "border-ink bg-ink text-g0" : "border-g3 text-ink"}`}
+                            className={`size-11 rounded-full border text-[13px] tabular-nums ${meals.target === n ? "border-ink bg-ink text-g0" : "border-g3 text-ink"}`}
                           >
                             {n}
                           </button>

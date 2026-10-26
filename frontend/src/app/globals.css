@@ -267,20 +267,21 @@
    the end state and drops the movement. */
 :root { --dur-focal: 800ms; }
 @keyframes cell-stamp {
-  0% { transform: scale(1.6); opacity: 0; }
-  55% { transform: scale(0.88); opacity: 1; }
-  100% { transform: scale(1); }
+  from { transform: scale(1.25); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 @keyframes print-pass { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+/* The line sits at the right edge of a full width layer, so 0 lands it on the print's right edge
+   exactly as the clip finishes opening: the ink is always just behind it. */
 @keyframes squeegee {
   from { transform: translateX(-100%); opacity: 1; }
   92% { opacity: 1; }
-  to { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 0; }
 }
 @keyframes crop-in { from { transform: scale(0); opacity: 0; } }
-@keyframes ink-ring {
-  from { outline-offset: 0; outline-color: var(--ink); }
-  to { outline-offset: 8px; outline-color: transparent; }
+@keyframes ink-frame {
+  from { transform: scale(0.94); opacity: 1; }
+  to { transform: scale(1.06); opacity: 0; }
 }
 @keyframes cell-in { from { transform: scale(0.3); opacity: 0; } }
 @keyframes digit-up { from { transform: translateY(100%); } }
@@ -290,7 +291,8 @@
   .animate-print { animation: print-pass var(--dur-focal) var(--ease-out) both; }
   .animate-squeegee { animation: squeegee var(--dur-focal) var(--ease-out) both; }
   .animate-crop { transform-origin: center; animation: crop-in 300ms var(--ease-out) both; }
-  .animate-ink-ring { outline: 1px solid transparent; animation: ink-ring 700ms var(--ease-out) 1; }
+  /* A 1px ink frame that opens outward once around a figure that just reached something */
+  .animate-ink-frame { animation: ink-frame 700ms var(--ease-out) both; }
   .animate-cell-in { animation: cell-in 360ms var(--ease-out) both; }
   .animate-digit-up { animation: digit-up 420ms var(--ease-out) both; }
   .animate-digit-out { animation: digit-out 420ms var(--ease-out) both; }
@@ -300,7 +302,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .animate-stamp, .animate-print, .animate-squeegee, .animate-crop, .animate-ink-ring,
+  .animate-stamp, .animate-print, .animate-squeegee, .animate-crop, .animate-ink-frame,
   .animate-cell-in, .animate-digit-up, .animate-digit-out { animation: none; }
   .animate-squeegee { display: none; }
 }

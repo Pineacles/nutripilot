@@ -4,6 +4,9 @@ import { fmt } from "@/lib/utils";
 import { useCountUp } from "@/hooks/use-count-up";
 import { parseLocal } from "@/lib/dates";
 import type { WeightGame } from "@/lib/game-types";
+import { useState } from "react";
+import { firstTime } from "@/lib/seen-once";
+import { InkFrame } from "@/components/game/ink-frame";
 
 interface Props {
   currentWeight: number | null;
@@ -37,6 +40,8 @@ const dayWord = (d: string) => parseLocal(d).toLocaleDateString("en-GB", { weekd
  */
 function TrendHero({ game }: { game: WeightGame }) {
   const shown = useCountUp(game.trend_kg, 600);
+  // The ring marks a new low once, the first time this device sees it, not on every visit.
+  const [ring] = useState(() => game.is_trend_low && typeof window !== "undefined" && firstTime("trend-low", game.raw_date));
   const change = game.trend_change_28d ?? game.trend_change_7d;
   const span = game.trend_change_28d != null ? "4 weeks" : "a week";
   return (
@@ -48,22 +53,21 @@ function TrendHero({ game }: { game: WeightGame }) {
         </span>
       </p>
       <p className="mt-3 flex items-baseline gap-2 text-ink">
-        <span className={`text-[6.5rem] font-bold leading-[0.8] tracking-[-0.045em] sm:text-[7.5rem] ${game.is_trend_low ? "animate-ink-ring" : ""}`}>
-          {fmt(shown)}
-        </span>
+        <InkFrame show={ring}>
+          <span className="text-[6.5rem] font-bold leading-[0.8] tracking-[-0.045em] sm:text-[7.5rem]">{fmt(shown)}</span>
+        </InkFrame>
         <span className="text-[22px] font-medium text-g4">kg</span>
       </p>
       <p className="mt-4 text-[15px] text-ink">
         {change == null ? "The trend needs a few more weigh-ins" : change === 0 ? `Steady over ${span}` : `${signed(change)} kg over ${span}`}
         {game.is_trend_low && <span className="text-g5">, a new low on the trend</span>}
       </p>
-      {game.goal_kg != null && (
+      {/* The goal band below names the goal; this line only adds when, at this pace */}
+      {game.goal_kg != null && (game.direction === "reached" || game.eta_date) && (
         <p className="mt-1 text-[13px] text-g5">
           {game.direction === "reached"
-            ? `At your goal of ${fmt(game.goal_kg)} kg`
-            : game.eta_date
-              ? `Goal ${fmt(game.goal_kg)} kg around ${parseLocal(game.eta_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} at this pace`
-              : `Goal ${fmt(game.goal_kg)} kg`}
+            ? "The trend is at your goal"
+            : `At this pace the trend reaches it around ${parseLocal(game.eta_date!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`}
         </p>
       )}
     </div>
