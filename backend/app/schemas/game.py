@@ -83,7 +83,7 @@ class PrintOut(BaseModel):
 
 
 class UnseenOut(BaseModel):
-    kind: Literal["print", "quest", "freeze"]
+    kind: Literal["print", "quest", "freeze", "comeback"]
     id: Optional[str] = None
     key: str
     run: Optional[int] = None
@@ -142,6 +142,7 @@ class SeenBody(BaseModel):
     prints: list[SeenPrint] = []
     quests: list[UUID] = []
     freezes_through: Optional[datetime.date] = None
+    comeback_through: Optional[datetime.date] = None
     all: bool = False
 
 
@@ -165,10 +166,16 @@ class DayValue(BaseModel):
     value: float
 
 
+class RecapDay(BaseModel):
+    date: datetime.date
+    logged: bool
+    closed: bool
+
+
 class Recap(BaseModel):
     week_start: datetime.date
     logged_days: int
-    closed_days: int
+    closed_days: Optional[int] = None
     quests: list[RecapQuest]
     prints: list[RecapPrint]
     trend_start: Optional[float] = None
@@ -178,8 +185,10 @@ class Recap(BaseModel):
     best_protein_day: Optional[DayValue] = None
     most_varied_day: Optional[DayValue] = None
     distinct_foods: int
-    water_target_days: int
+    water_target_days: Optional[int] = None
     streak_at_end: int
+    trend_toward_goal: Optional[bool] = None
+    days: list[RecapDay] = []
 
 
 class RecapSeenBody(BaseModel):

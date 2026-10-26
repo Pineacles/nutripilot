@@ -34,3 +34,16 @@ def today_for(user) -> date:
     except (ZoneInfoNotFoundError, ValueError, OSError):
         logger.warning("Invalid timezone %r for user; falling back to UTC.", tz_name)
         return today_utc()
+
+
+def date_for(user, moment: datetime) -> date:
+    """The calendar date of a stored timestamp in the user's timezone (naive values count as UTC)."""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    tz_name = getattr(user, "timezone", None)
+    if tz_name:
+        try:
+            return moment.astimezone(ZoneInfo(tz_name)).date()
+        except (ZoneInfoNotFoundError, ValueError, OSError):
+            logger.warning("Invalid timezone %r for user; falling back to UTC.", tz_name)
+    return moment.astimezone(UTC).date()

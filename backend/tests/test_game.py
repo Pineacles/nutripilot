@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import timedelta
+from datetime import UTC, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -63,11 +63,11 @@ async def test_streak_consumes_freeze_and_freeze_day_adds_nothing():
 
 
 async def test_streak_breaks_without_freezes_and_keeps_longest():
-    logged = {ago(12), ago(11), ago(10), ago(1)}  # gap of 8 days: 2 freezes, then it breaks
+    logged = {ago(12), ago(11), ago(10), ago(1)}  # gap of 8 days is longer than the 2 freezes
     st = gs.compute_streak(logged, T)
     assert st.current == 1 and st.longest == 3
-    assert st.banked == 0
-    assert st.states[ago(9)] == "freeze" and st.states[ago(7)] == "empty"
+    assert st.banked == 2  # a long gap leaves the banked freezes untouched
+    assert st.states[ago(9)] == "empty" and st.states[ago(7)] == "empty" and st.freeze_days == []
 
 
 async def test_today_pending_does_not_break_and_logging_adds_one():
@@ -84,6 +84,33 @@ async def test_backfilling_a_missed_day_repairs_the_streak():
     assert gs.compute_streak(base, T).current == 6
     repaired = gs.compute_streak(base | {ago(7)}, T)
     assert repaired.current == 10
+
+
+async def test_new_run_after_long_gap_gets_a_freeze():
+    # Freezes exhausted earlier, then a long break, then 22, 23, (24 missed), 25, 26.
+    oct22 = ago(4)
+    logged = {ago(40), ago(38), ago(36), ago(34)}  # three single gaps use 2 freezes then break
+    logged |= {oct22, oct22 + timedelta(days=1), oct22 + timedelta(days=3), oct22 + timedelta(days=4)}  # the last one is today
+    st = gs.compute_streak(logged, T)
+    assert st.current == 4
+    assert st.freeze_days[-1] == oct22 + timedelta(days=2)
+    assert st.states[oct22 + timedelta(days=2)] == "freeze"
+
+
+async def test_trailing_gap_longer_than_freezes_ends_run():
+    st = gs.compute_streak({ago(8), ago(7)}, T)  # 6 missed days, 2 freezes: broken, freezes kept
+    assert st.current == 0 and st.banked == 2 and st.freeze_days == []
+    short = gs.compute_streak({ago(3), ago(2)}, T)  # 1 missed day (yesterday) is covered
+    assert short.current == 2 and short.states[ago(1)] == "freeze" and short.banked == 1
+
+
+async def test_returns_after_three_days_away():
+    st = gs.compute_streak({ago(20), ago(16), ago(15), ago(11), ago(10), ago(1)}, T)
+    assert st.returns[-1] == ago(1) and ago(16) in st.returns
+    gap3 = gs.compute_streak({ago(10), ago(6)}, T)  # 3 days between
+    assert gap3.returns == [ago(6)]
+    gap2 = gs.compute_streak({ago(10), ago(7)}, T)  # 2 days between
+    assert gap2.returns == []
 
 
 async def test_strip_states():
@@ -139,7 +166,7 @@ async def test_weigh_in_weeks_need_three_days():
 
 async def test_default_day_goals_and_unavailable_goals(async_client, auth_headers, test_user, db_session):
     data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
-    assert [g["key"] for g in data["day_goals"]] == ["meals", "protein", "water"]
+    assert [g["key"] for g in data["day_goals"]] == ["meals", "protein"]
     assert data["day_closed"] is False and data["enabled"] is True and data["celebrations"] == "full"
     keys = {a["key"] for a in data["available_goals"]}
     assert keys == {"meals", "protein", "water", "fiber"}  # no supplements defined
@@ -356,3 +383,81 @@ async def test_finished_quest_cannot_be_swapped(async_client, auth_headers, db_s
     await db_session.commit()
     resp = await async_client.post(f"/api/dashboard/game/quests/{items[0]['id']}/swap", headers=auth_headers)
     assert resp.status_code == 409 and resp.json()["detail"]["code"] == "QUEST_DONE"
+
+
+# --- review fixes ---------------------------------------------------------------
+
+async def test_trend_kg_capped_at_distance_to_goal():
+    trend = {ago(n): 80.0 - 0.5 * (10 - n) for n in range(10, -1, -1)}  # 80 -> 75
+    kg, _reached, _side = gs._trend_metrics(gs.Facts(today=T), 78.0, trend)
+    assert kg.value == pytest.approx(2.0)  # passing the goal earns nothing more
+
+
+async def test_quest_titles_and_log_days_target():
+    assert gs.QUESTS["log_days"][1](1) == "Log food on 1 day"
+    assert gs.QUESTS["distinct_foods"][1](15) == "Log 15 different foods"
+    assert gs.QUESTS["new_foods"][1](1) == "Try 1 new food"
+    assert "1 days" not in " ".join(t(1) for _a, t in gs.QUESTS.values())
+
+
+async def test_new_prints_and_thresholds():
+    assert gs.PRINT_BY_KEY["logged_days"].runs == (50, 100, 250, 365)
+    assert gs.PRINT_BY_KEY["steady_weeks"].runs == (4, 12, 26)
+    assert gs.PRINT_BY_KEY["week_variety"].runs == (15, 25, 35)
+    assert gs.PRINT_BY_KEY["comeback"].runs == (1, 3, 10)
+    assert gs.PRINT_BY_KEY["water_run"].name == "Water streak"
+    assert gs.PRINT_BY_KEY["logged_days"].run_title(50) == "50 logged days"
+
+
+async def test_hidden_water_and_protein(async_client, auth_headers, test_user, db_session):
+    test_user.hidden_nutrients = ["water", "protein"]
+    await db_session.commit()
+    await _log_days(db_session, test_user, [1])
+    data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    assert [g["key"] for g in data["day_goals"]] == ["meals"]
+    assert not {"water", "protein"} & {a["key"] for a in data["available_goals"]}
+    assert not {"water_run", "protein_weeks"} & {p["key"] for p in data["prints"]}
+    recap = (await async_client.get("/api/dashboard/game/recap", headers=auth_headers)).json()
+    assert recap["water_target_days"] is None
+
+
+async def test_recap_new_fields(async_client, auth_headers, test_user, db_session):
+    last_week = gs.monday_of(T) - timedelta(weeks=1)
+    await _log(db_session, test_user, await _food(db_session), last_week)
+    recap = (await async_client.get("/api/dashboard/game/recap", headers=auth_headers)).json()
+    assert recap["trend_toward_goal"] is None
+    assert len(recap["days"]) == 7 and recap["days"][0] == {"date": str(last_week), "logged": True, "closed": False}
+    assert recap["days"][1]["logged"] is False
+
+
+async def test_comeback_unseen_and_acknowledge(async_client, auth_headers, test_user, db_session):
+    await _log_days(db_session, test_user, [12, 0])
+    data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    back = [u for u in data["unseen"] if u["kind"] == "comeback"]
+    assert len(back) == 1 and back[0]["title"] == "Welcome back" and back[0]["date"] == str(T)
+    assert back[0]["description"] == "Today starts a new streak."
+    resp = await async_client.post("/api/dashboard/game/seen", json={"comeback_through": str(T)}, headers=auth_headers)
+    assert resp.status_code == 204
+    data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    assert not any(u["kind"] == "comeback" for u in data["unseen"])
+
+
+async def test_freeze_notice_waits_two_days(async_client, auth_headers, test_user, db_session):
+    await _log_days(db_session, test_user, [2, 0])  # yesterday is a freeze day, still backfillable
+    data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    assert not any(u["kind"] == "freeze" for u in data["unseen"])
+
+
+async def test_own_food_date_uses_user_timezone(test_user, db_session):
+    from datetime import datetime
+
+    from app.models.food import Food
+
+    test_user.timezone = "Pacific/Auckland"
+    food = Food(id=uuid.uuid4(), name="tz food", source="manual", created_by=test_user.id)
+    db_session.add(food)
+    await db_session.flush()
+    food.created_at = datetime(2026, 1, 1, 20, 0, tzinfo=UTC)  # already Jan 2 in Auckland
+    await db_session.commit()
+    f = await gs.load_facts(db_session, test_user)
+    assert f.own_food_dates == [datetime(2026, 1, 2).date()]

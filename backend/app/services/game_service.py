@@ -34,7 +34,7 @@ from app.models.water_log import WaterLog
 from app.models.weekly_quest import WeeklyQuest
 from app.models.weight_log import WeightLog
 from app.schemas.game import DAY_GOAL_KEYS
-from app.services.clock import today_for
+from app.services.clock import date_for, today_for
 from app.services.summary_service import SUPP_MICRO_KEY_MAP
 
 FREEZES_START = 2
@@ -87,13 +87,15 @@ def game_settings_of(user: User) -> dict:
     return out
 
 
+def hidden_of(user: User) -> set[str]:
+    return set(getattr(user, "hidden_nutrients", None) or [])
+
+
 def default_day_goals(user: User) -> list[dict]:
     goals = [{"key": "meals", "target": DEFAULT_MEALS_TARGET}]
-    if (user.target_protein_g or 0) > 0:
+    if (user.target_protein_g or 0) > 0 and "protein" not in hidden_of(user):
         goals.append({"key": "protein", "target": None})
-    if (user.target_water_ml or 0) > 0:
-        goals.append({"key": "water", "target": None})
-    return goals[:MAX_DAY_GOALS]
+    return goals
 
 
 def day_goals_of(user: User) -> list[dict]:
@@ -129,6 +131,7 @@ async def update_game_settings(db: AsyncSession, user: User, body) -> dict:
 @dataclass
 class Facts:
     today: date
+    hidden: set = field(default_factory=set)
     day_foods: dict[date, set] = field(default_factory=lambda: defaultdict(set))
     day_meals: dict[date, set] = field(default_factory=lambda: defaultdict(set))
     day_logs: Counter = field(default_factory=Counter)
@@ -151,7 +154,7 @@ class Facts:
 
 
 async def load_facts(db: AsyncSession, user: User) -> Facts:
-    f = Facts(today=today_for(user))
+    f = Facts(today=today_for(user), hidden=hidden_of(user))
     uid = user.id
 
     cols = [getattr(Nutrient, m) for m in MICRO_FIELDS]
@@ -213,13 +216,13 @@ async def load_facts(db: AsyncSession, user: User) -> Facts:
     for t in targets.scalars().all():
         mapped = SUPP_MICRO_KEY_MAP.get(t.nutrient, t.nutrient)
         # Only nutrients the daily totals track (creatine, fiber etc. are not micro days).
-        if mapped in MICRO_FIELDS and t.target_value and t.target_value > 0:
+        if mapped in MICRO_FIELDS and t.nutrient not in f.hidden and mapped not in f.hidden and t.target_value and t.target_value > 0:
             f.micro_targets[mapped] = t.target_value
 
     own = await db.execute(select(Food.created_at).where(Food.created_by == uid))
-    f.own_food_dates = sorted((c.date() if c else f.today) for (c,) in own.all())
+    f.own_food_dates = sorted((date_for(user, c) if c else f.today) for (c,) in own.all())
     serv = await db.execute(select(FoodServing.created_at).where(FoodServing.user_id == uid))
-    f.serving_dates = sorted((c.date() if c else f.today) for (c,) in serv.all())
+    f.serving_dates = sorted((date_for(user, c) if c else f.today) for (c,) in serv.all())
     return f
 
 
@@ -236,21 +239,24 @@ class Streak:
     freeze_days: list[date] = field(default_factory=list)
     run_after: dict[date, int] = field(default_factory=dict)
     run_timeline: list[tuple[date, int]] = field(default_factory=list)
-    comeback_date: date | None = None
+    returns: list[date] = field(default_factory=list)
     today_logged: bool = False
 
 
 def compute_streak(logged: set[date], today: date) -> Streak:
+    """A gap of missed days is covered by freezes only when the whole gap fits the banked freezes;
+    a longer gap ends the run at once and leaves the banked freezes alone. Today pending changes nothing."""
     st = Streak()
     st.today_logged = today in logged
-    if not logged:
+    days = sorted(d for d in logged if d <= today)
+    if not days:
         return st
     banked, run = FREEZES_START, 0
 
     def log_day(d: date):
         nonlocal banked, run
-        if st.comeback_date is None and all(st.states.get(d - timedelta(days=k)) == "empty" for k in (1, 2, 3)):
-            st.comeback_date = d
+        if run == 0:
+            banked = max(banked, 1)  # every new run starts with a freeze in hand
         run += 1
         st.states[d] = "logged"
         if run % 7 == 0:
@@ -260,20 +266,33 @@ def compute_streak(logged: set[date], today: date) -> Streak:
             st.run_timeline.append((d, run))
         st.run_after[d] = run
 
-    for d in _days(min(logged), today - timedelta(days=1)):
-        if d in logged:
-            log_day(d)
-        elif run > 0 and banked > 0:
-            banked -= 1
-            st.states[d] = "freeze"
-            st.freeze_days.append(d)
-            st.run_after[d] = run
+    def cover(missed: list[date]):
+        nonlocal banked, run
+        if not missed:
+            return
+        if len(missed) <= banked:
+            banked -= len(missed)
+            for m in missed:
+                st.states[m] = "freeze"
+                st.freeze_days.append(m)
+                st.run_after[m] = run
         else:
-            st.states[d] = "empty"
             run = 0
-            st.run_after[d] = 0
-    if today in logged:
-        log_day(today)
+            for m in missed:
+                st.states[m] = "empty"
+                st.run_after[m] = 0
+
+    prev = None
+    for d in days:
+        if prev is not None:
+            gap = (d - prev).days - 1
+            if gap >= 3:
+                st.returns.append(d)
+            cover([prev + timedelta(days=k) for k in range(1, gap + 1)])
+        log_day(d)
+        prev = d
+    if prev < today:
+        cover([prev + timedelta(days=k) for k in range(1, (today - prev).days)])
     st.current, st.banked = run, banked
     return st
 
@@ -336,9 +355,10 @@ def goal_value(key: str, d: date, f: Facts, dv: Derived) -> float:
 
 def derive(f: Facts, user: User) -> Derived:
     dv = Derived(goals=[], available=[])
-    dv.protein_target = _set_target(user.target_protein_g)
-    dv.water_target = _set_target(user.target_water_ml)
-    dv.fiber_target = _set_target(user.target_fiber_g)
+    hidden = f.hidden or hidden_of(user)
+    dv.protein_target = None if "protein" in hidden else _set_target(user.target_protein_g)
+    dv.water_target = None if "water" in hidden else _set_target(user.target_water_ml)
+    dv.fiber_target = None if "fiber" in hidden else _set_target(user.target_fiber_g)
     n_supps = len(f.active_supps)
 
     dv.available = [{"key": "meals", "label": GOAL_INFO["meals"][0], "default_target": float(DEFAULT_MEALS_TARGET)}]
@@ -521,27 +541,32 @@ def _range(n):
 PRINTS: tuple[PrintDef, ...] = (
     PrintDef("streak", "consistency", "Streak", "days", (7, 30, 100, 200, 365, 500, 1000),
              lambda n: f"Log food {int(n)} days in a row", lambda n: f"{int(n)} day streak"),
+    PrintDef("logged_days", "consistency", "Logged days", "days", (50, 100, 250, 365),
+             lambda n: f"Log food on {int(n)} different days", lambda n: f"{int(n)} logged days"),
+    PrintDef("steady_weeks", "consistency", "Steady weeks", "weeks", (4, 12, 26),
+             lambda n: f"Log food on 4 days or more in {_pl(n, 'week')}", lambda n: f"{_pl(n, 'steady week')}"),
     PrintDef("foods_logged", "consistency", "Foods logged", "foods", (100, 1000, 5000),
              lambda n: f"Log {int(n)} foods in total", lambda n: f"{int(n)} foods logged"),
-    PrintDef("comeback", "consistency", "Comeback", "returns", (1,),
-             lambda n: "Log food again after 3 or more days away", lambda n: "Comeback",
+    PrintDef("comeback", "consistency", "Comeback", "returns", (1, 3, 10),
+             lambda n: f"Log food again after 3 or more days away, {_pl(n, 'time')}",
+             lambda n: "Welcome back" if int(n) == 1 else f"{int(n)} comebacks",
              hidden=True, hint="Some prints appear when you come back."),
     PrintDef("day_closed", "consistency", "Closed days", "days", (1, 7, 30, 100),
-             lambda n: f"Close the day {_pl(n, 'time')}", lambda n: f"{_pl(n, 'day')} closed"),
+             lambda n: f"Close {_pl(n, 'day')}", lambda n: f"{_pl(n, 'day')} closed"),
     PrintDef("quests_weeks", "consistency", "Quest weeks", "weeks", (1, 4, 12, 26),
-             lambda n: f"Finish all three quests in {_pl(n, 'week')}", lambda n: f"{_pl(n, 'quest week')}"),
-    PrintDef("week_variety", "variety", "Variety week", "foods", (20, 30, 40),
+             lambda n: f"Finish every quest of a week, {_pl(n, 'time')}", lambda n: f"{_pl(n, 'quest week')}"),
+    PrintDef("week_variety", "variety", "Variety week", "foods", (15, 25, 35),
              lambda n: f"Log {int(n)} different foods in one week", lambda n: f"{int(n)} foods in a week"),
     PrintDef("new_foods", "variety", "New foods", "foods", (25, 100, 250),
              lambda n: f"Try {int(n)} different foods", lambda n: f"{int(n)} foods tried"),
     PrintDef("protein_weeks", "protein", "Protein weeks", "weeks", (1, 4, 12),
-             lambda n: f"Reach your protein target on 5 days of a week, {_pl(n, 'week')} over", lambda n: _pl(n, "protein week")),
-    PrintDef("water_run", "hydration", "Water run", "days", (7, 30, 100),
-             lambda n: f"Reach your water target {int(n)} days in a row", lambda n: f"{int(n)} days of water"),
+             lambda n: f"Protein target on 5 of 7 days, in {_pl(n, 'week')}", lambda n: _pl(n, "protein week")),
+    PrintDef("water_run", "hydration", "Water streak", "days", (7, 30, 100),
+             lambda n: f"Reach your water target {int(n)} days in a row", lambda n: f"{int(n)} day water streak"),
     PrintDef("micro_days", "micros", "Full nutrients", "days", (1, 7, 30),
              lambda n: f"Meet every micronutrient target on {_pl(n, 'day')}", lambda n: f"{_pl(n, 'full nutrient day')}"),
     PrintDef("full_plate", "micros", "Full plate", "days", (1,),
-             lambda n: "Meet protein, fiber, water and every micronutrient target in one day", lambda n: "Full plate",
+             lambda n: "Meet your protein, fiber, water and micronutrient targets in one day", lambda n: "Full plate",
              hidden=True, hint="Some days everything lines up."),
     PrintDef("weigh_weeks", "body", "Weigh-in weeks", "weeks", (4, 12, 26, 52),
              lambda n: f"Weigh in on 3 days or more for {int(n)} weeks in a row", lambda n: f"{int(n)} weigh-in weeks"),
@@ -555,9 +580,10 @@ PRINTS: tuple[PrintDef, ...] = (
              lambda n: f"Save {int(n)} foods of your own", lambda n: f"{int(n)} own foods"),
     PrintDef("named_servings", "kitchen", "Named servings", "servings", (5, 20),
              lambda n: f"Save {int(n)} named servings", lambda n: f"{int(n)} named servings"),
-    PrintDef("supplements_run", "supplements", "Supplement run", "days", (7, 30, 100),
-             lambda n: f"Take all your supplements {int(n)} days in a row", lambda n: f"{int(n)} days of supplements"),
+    PrintDef("supplements_run", "supplements", "Supplement streak", "days", (7, 30, 100),
+             lambda n: f"Take all your supplements {int(n)} days in a row", lambda n: f"{int(n)} day supplement streak"),
 )
+HIDEABLE_PRINTS = {"water_run": "water", "protein_weeks": "protein"}
 PRINT_BY_KEY = {p.key: p for p in PRINTS}
 BIG_STREAK = 100
 ALWAYS_BIG = {"goal_reached", "full_plate", "quests_weeks"}
@@ -616,7 +642,8 @@ def _trend_metrics(f: Facts, goal, trend: dict[date, float]) -> tuple[Metric | N
         return None, None, None
     days = sorted(d for d in trend if d <= f.today)
     side = "loss" if trend[days[0]] > goal else "gain"
-    run_ext = trend[days[0]]
+    start_trend = trend[days[0]]
+    run_ext = start_trend
     best, kg_tl = 0.0, []
     was_outside, reached_on = False, None
     for d in days:
@@ -629,6 +656,7 @@ def _trend_metrics(f: Facts, goal, trend: dict[date, float]) -> tuple[Metric | N
             run_ext = min(run_ext, t)
             progress = t - run_ext
             outside, inside = t < goal - GOAL_BAND_KG, t >= goal - GOAL_BAND_KG
+        progress = min(progress, abs(start_trend - goal))
         if progress > best:
             best = progress
             kg_tl.append((d, best))
@@ -653,7 +681,13 @@ def compute_metrics(f: Facts, dv: Derived, st: Streak, trend: dict, goal, quest_
         tl.append((d, total))
     m["foods_logged"] = Metric(tl, float(total))
 
-    m["comeback"] = Metric([(st.comeback_date, 1)] if st.comeback_date else [], 1.0 if st.comeback_date else 0.0)
+    m["comeback"] = _cum(st.returns)
+    logged_sorted = sorted(f.logged)
+    m["logged_days"] = _cum(logged_sorted)
+    by_week_l: dict[date, list[date]] = defaultdict(list)
+    for d in logged_sorted:
+        by_week_l[monday_of(d)].append(d)
+    m["steady_weeks"] = _cum([days[3] for days in by_week_l.values() if len(days) >= 4])
     m["week_variety"] = _week_variety(f)
     m["new_foods"] = _cum([d for d in f.first_logged.values() if d <= f.today])
 
@@ -702,8 +736,7 @@ def compute_metrics(f: Facts, dv: Derived, st: Streak, trend: dict, goal, quest_
     m["named_servings"] = _cum(f.serving_dates)
 
     if f.active_supps:
-        days = [d for d, names in f.day_supps.items() if d <= f.today and f.active_supps <= names]
-        m["supplements_run"] = _run_metric(days)
+        m["supplements_run"] = _run_metric(dv.supps_met)
     else:
         m["supplements_run"] = None
 
@@ -721,15 +754,15 @@ def compute_metrics(f: Facts, dv: Derived, st: Streak, trend: dict, goal, quest_
 
 QUESTS = {
     # key: (area, title)
-    "protein_days": ("protein", lambda n: f"Protein target on {n} days"),
-    "water_days": ("hydration", lambda n: f"Water target on {n} days"),
-    "fiber_days": ("variety", lambda n: f"Fiber target on {n} days"),
-    "new_foods": ("variety", lambda n: f"Try {n} new foods"),
-    "distinct_foods": ("variety", lambda n: f"Eat {n} different foods"),
-    "log_days": ("consistency", lambda n: f"Log food on {n} days"),
-    "weigh_ins": ("body", lambda n: f"Weigh in on {n} days"),
-    "supplements_days": ("supplements", lambda n: f"Take all supplements on {n} days"),
-    "closed_days": ("consistency", lambda n: f"Close the day {n} times"),
+    "protein_days": ("protein", lambda n: f"Reach your protein target on {_pl(n, 'day')}"),
+    "water_days": ("hydration", lambda n: f"Reach your water target on {_pl(n, 'day')}"),
+    "fiber_days": ("variety", lambda n: f"Reach your fiber target on {_pl(n, 'day')}"),
+    "new_foods": ("variety", lambda n: f"Try {_pl(n, 'new food')}"),
+    "distinct_foods": ("variety", lambda n: f"Log {_pl(n, 'different food')}"),
+    "log_days": ("consistency", lambda n: f"Log food on {_pl(n, 'day')}"),
+    "weigh_ins": ("body", lambda n: f"Weigh in on {_pl(n, 'day')}"),
+    "supplements_days": ("supplements", lambda n: f"Take all your supplements on {_pl(n, 'day')}"),
+    "closed_days": ("consistency", lambda n: f"Close {_pl(n, 'day')}"),
 }
 
 
@@ -784,7 +817,7 @@ def eligible_quests(user: User, f: Facts, dv: Derived, ws: date) -> dict[str, in
     out["distinct_foods"] = _clamp(_week_count("distinct_foods", last, f, dv) + 3, 15, 40)
     last_logged = _week_count("log_days", last, f, dv)
     if last_logged < 7:
-        out["log_days"] = min(7, last_logged + 1)
+        out["log_days"] = _clamp(last_logged + 1, 3, 7)
     if f.weights:
         out["weigh_ins"] = 3
     if f.active_supps:
@@ -1034,10 +1067,19 @@ def year_levels(ev: Evaluation) -> list[dict]:
     return out
 
 
+def _print_hidden(ev: Evaluation, key: str) -> bool:
+    return HIDEABLE_PRINTS.get(key) in ev.facts.hidden
+
+
+def _seen_through(ev: Evaluation, name: str) -> date | None:
+    raw = (ev.state or {}).get(name)
+    return date.fromisoformat(raw) if raw else None
+
+
 def _unseen(ev: Evaluation) -> list[dict]:
     out = []
     for a in ev.achievements:
-        if a.seen_at is not None or a.key not in PRINT_BY_KEY:
+        if a.seen_at is not None or a.key not in PRINT_BY_KEY or _print_hidden(ev, a.key):
             continue
         p = PRINT_BY_KEY[a.key]
         threshold = p.runs[a.run - 1] if a.run - 1 < len(p.runs) else a.run
@@ -1054,14 +1096,24 @@ def _unseen(ev: Evaluation) -> list[dict]:
                 "kind": "quest", "id": str(q.id), "key": q.key, "run": None, "title": title,
                 "description": "Weekly quest done", "area": area, "date": q.done_at, "big": False, "backfill": False,
             })
-    seen_through = (ev.state or {}).get("freeze_seen_through")
-    seen_through = date.fromisoformat(seen_through) if seen_through else None
+    seen_through = _seen_through(ev, "freeze_seen_through")
+    today = ev.facts.today
+    # The user may still backfill yesterday, so a freeze only counts once it is two days old.
     for d in ev.streak.freeze_days:
-        if d >= ev.facts.today - timedelta(days=6) and (seen_through is None or d > seen_through):
+        if today - timedelta(days=6) <= d <= today - timedelta(days=2) and (seen_through is None or d > seen_through):
             out.append({
                 "kind": "freeze", "id": None, "key": "freeze", "run": None, "title": "Streak freeze used",
                 "description": "A freeze covered a day without food. Your streak goes on.",
                 "area": None, "date": d, "big": False, "backfill": False,
+            })
+    if ev.streak.returns:
+        latest = ev.streak.returns[-1]
+        back_seen = _seen_through(ev, "comeback_seen_through")
+        if latest >= today - timedelta(days=1) and (back_seen is None or latest > back_seen):
+            out.append({
+                "kind": "comeback", "id": None, "key": "comeback", "run": None, "title": "Welcome back",
+                "description": "Today starts a new streak.", "area": "consistency", "date": latest,
+                "big": False, "backfill": False,
             })
     return out
 
@@ -1091,7 +1143,7 @@ def build_game_response(ev: Evaluation) -> dict:
         "day_closed": bool(goals) and all(g["done"] for g in goals) and today in ev.facts.day_logs,
         "available_goals": ev.derived.available,
         "weight": ev.weight,
-        "prints": [o for o in (_print_out(p, ev) for p in PRINTS) if o is not None],
+        "prints": [o for o in (_print_out(p, ev) for p in PRINTS if not _print_hidden(ev, p.key)) if o is not None],
         "unseen": _unseen(ev),
         "quests": {"week_start": monday_of(today), "swap_available": swap, "items": items},
         "year": year_levels(ev),
@@ -1105,7 +1157,7 @@ def agent_summary(ev: Evaluation) -> dict:
     prints = []
     for a in recent:
         p = PRINT_BY_KEY.get(a.key)
-        if p is None:
+        if p is None or _print_hidden(ev, a.key):
             continue
         prints.append({"key": a.key, "run": a.run, "title": p.run_title(p.runs[a.run - 1]), "earned_at": a.earned_at})
         if len(prints) == 5:
@@ -1131,6 +1183,7 @@ async def mark_seen(db: AsyncSession, user: User, body) -> None:
         for r in (*rows, *quests):
             r.seen_at = now
         through = today
+        back_through = today
     else:
         if body.prints:
             wanted = {(p.key, p.run) for p in body.prints}
@@ -1146,10 +1199,15 @@ async def mark_seen(db: AsyncSession, user: User, body) -> None:
                 if q.seen_at is None:
                     q.seen_at = now
         through = body.freezes_through
+        back_through = body.comeback_through
     if through is not None:
         prev = state.get("freeze_seen_through")
         if prev is None or date.fromisoformat(prev) < through:
             state["freeze_seen_through"] = through.isoformat()
+    if back_through is not None:
+        prev = state.get("comeback_seen_through")
+        if prev is None or date.fromisoformat(prev) < back_through:
+            state["comeback_seen_through"] = back_through.isoformat()
     user.game_state = state
     await db.commit()
 
@@ -1188,7 +1246,7 @@ def build_recap(ev: Evaluation, week: date | None) -> dict:
     prints = []
     for a in sorted(ev.achievements, key=lambda a: (a.earned_at, a.key, a.run)):
         p = PRINT_BY_KEY.get(a.key)
-        if p is not None and ws <= a.earned_at <= we:
+        if p is not None and not _print_hidden(ev, a.key) and ws <= a.earned_at <= we:
             prints.append({"key": a.key, "run": a.run, "title": p.run_title(p.runs[a.run - 1]), "area": p.area})
 
     end_day = min(we, f.today)
@@ -1201,11 +1259,17 @@ def build_recap(ev: Evaluation, week: date | None) -> dict:
         after = None
     change = round(after - before, 2) if before is not None and after is not None else None
 
+    goal = ev.user.target_weight_kg
+    toward = None
+    if goal is not None and before is not None and after is not None:
+        toward = abs(after - goal) < abs(before - goal)
+    week_days = [{"date": d, "logged": d in f.logged, "closed": d in dv.closed} for d in _days(ws, we)]
+
     varied = {d: len(f.day_foods.get(d, ())) for d in days}
     return {
         "week_start": ws,
         "logged_days": len(logged_days),
-        "closed_days": sum(1 for d in days if d in dv.closed),
+        "closed_days": sum(1 for d in days if d in dv.closed) if dv.goals else None,
         "quests": quests,
         "prints": prints,
         "trend_start": round(before, 2) if before is not None else None,
@@ -1215,6 +1279,8 @@ def build_recap(ev: Evaluation, week: date | None) -> dict:
         "best_protein_day": best(f.day_protein, days),
         "most_varied_day": best(varied, days),
         "distinct_foods": len(foods),
-        "water_target_days": sum(1 for d in days if d in dv.water_met),
+        "water_target_days": sum(1 for d in days if d in dv.water_met) if dv.water_target else None,
+        "trend_toward_goal": toward,
+        "days": week_days,
         "streak_at_end": st.run_after.get(end_day, 0),
     }
