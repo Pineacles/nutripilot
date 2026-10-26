@@ -29,6 +29,12 @@ class User(Base):
     target_body_fat_pct: Mapped[float | None] = mapped_column(Float)
     # Nutrients the owner chose not to see (Settings, Tracked nutrients). Data is still stored.
     hidden_nutrients: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    # Game features (prints, streak, quests). All three are NULL until used; defaults live in
+    # app/services/game_service.py. game_state is internal bookkeeping (backfilled, freeze_seen_through,
+    # recap_seen_week).
+    game_settings: Mapped[dict | None] = mapped_column(JSON)
+    day_goals: Mapped[list | None] = mapped_column(JSON)
+    game_state: Mapped[dict | None] = mapped_column(JSON)
     timezone: Mapped[str] = mapped_column(
         String(64), nullable=False, default="Europe/Zurich", server_default="Europe/Zurich"
     )

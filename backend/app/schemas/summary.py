@@ -173,6 +173,7 @@ class StatsSummary(BaseModel):
     lowest_calorie_day: Optional[dict] = None  # {date, kcal}
     highest_calorie_day: Optional[dict] = None  # {date, kcal}
     best_fiber_day: Optional[dict] = None  # {date, fiber}
+    most_varied_day: Optional[dict] = None  # {date, value}: distinct foods that day
     daily_water: list[DailyWater]
     daily_caffeine: list[DailyCaffeine]
     avg_water_ml: float = 0

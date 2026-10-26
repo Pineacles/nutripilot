@@ -382,7 +382,9 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
 
     daily_data: dict[date, dict] = defaultdict(lambda: {"kcal": 0.0, "protein": 0.0, "carbs": 0.0, "fat": 0.0, "fiber": 0.0, "sugar": 0.0, "sodium": 0.0, "alcohol": 0.0})
     daily_caffeine_data: dict[date, float] = defaultdict(float)
+    distinct_foods: dict[date, set] = defaultdict(set)
     for log in food_logs:
+        distinct_foods[log.date].add(log.food_id)
         ratio = log.quantity_g / 100.0
         n = log.food.nutrients
         if not n:
@@ -492,6 +494,12 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
         if best_fiber is None or v["fiber"] > best_fiber["fiber"]:
             best_fiber = {"date": str(d), "fiber": round(v["fiber"], 1)}
 
+    # Most varied day: the most different foods logged in one day (earliest wins a tie).
+    most_varied = None
+    for d, foods in sorted(distinct_foods.items()):
+        if most_varied is None or len(foods) > most_varied["value"]:
+            most_varied = {"date": str(d), "value": len(foods)}
+
     # Streak: consecutive days with food logs up to today. Today not logged yet doesn't break it,
     # so the streak counts from yesterday until the day is over.
     streak = 0
@@ -532,6 +540,7 @@ async def get_stats_summary(db: AsyncSession, user: User, days: int = 90) -> Sta
         lowest_calorie_day=lowest_calorie,
         highest_calorie_day=highest_calorie,
         best_fiber_day=best_fiber,
+        most_varied_day=most_varied,
         daily_water=[DailyWater(date=d, total_ml=round(v, 1)) for d, v in sorted(daily_water_data.items())],
         daily_caffeine=[DailyCaffeine(date=d, total_mg=round(v, 1)) for d, v in sorted(daily_caffeine_data.items())],
         avg_water_ml=round(sum(daily_water_data.values()) / max(len(daily_water_data), 1), 1),

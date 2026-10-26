@@ -13,7 +13,7 @@ from app.config import settings
 from app.demo_daily import seed_today
 from app.docs import DESCRIPTION
 from app.rate_limit import limiter
-from app.routers import agent, auth, dashboard, foods
+from app.routers import agent, auth, dashboard, foods, game
 from app.routers import settings as settings_router
 from app.services.integration_logger import setup_integration_logging
 from app.services.sync_worker import run_all_syncs
@@ -105,6 +105,7 @@ app.include_router(auth.router)
 app.include_router(foods.router)
 app.include_router(agent.router)
 app.include_router(dashboard.router)
+app.include_router(game.router)
 app.include_router(settings_router.router)
 
 

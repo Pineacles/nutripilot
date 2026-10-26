@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.game import GameSettingsOut, GoalSetting
+
 
 class NutritionTargetsUpdate(BaseModel):
     target_kcal: int = Field(gt=0, le=10000)
@@ -130,3 +132,5 @@ class UserSettingsResponse(BaseModel):
     supplement_definitions: list[SupplementDefinitionResponse]
     api_key_masked: str
     hidden_nutrients: list[str] = []
+    game_settings: Optional[GameSettingsOut] = None
+    day_goals: list[GoalSetting] = []

@@ -27,6 +27,7 @@ from app.schemas.settings import (
     SupplementDefinitionUpdate,
     UserSettingsResponse,
 )
+from app.services import game_service
 
 
 async def get_settings(db: AsyncSession, user: User) -> UserSettingsResponse:
@@ -63,6 +64,8 @@ async def get_settings(db: AsyncSession, user: User) -> UserSettingsResponse:
         supplement_definitions=[SupplementDefinitionResponse.model_validate(s) for s in supps],
         api_key_masked=f"...{user.api_key[-6:]}",
         hidden_nutrients=user.hidden_nutrients or [],
+        game_settings=game_service.game_settings_of(user),
+        day_goals=game_service.day_goals_of(user),
     )
 
 

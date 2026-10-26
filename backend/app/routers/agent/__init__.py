@@ -10,6 +10,7 @@ from fastapi import APIRouter
 
 from app.routers.agent import (
     food_logs,
+    game,
     integrations,
     settings_mirror,
     summaries,
@@ -27,3 +28,4 @@ router.include_router(supplements.router)
 router.include_router(integrations.router)
 router.include_router(settings_mirror.router)
 router.include_router(summaries.router)
+router.include_router(game.router)

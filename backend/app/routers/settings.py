@@ -9,6 +9,7 @@ from app.auth.dependencies import get_current_user_jwt
 from app.database import get_db
 from app.models.integration import Integration
 from app.models.user import User
+from app.schemas.game import GameSettingsResponse, GameSettingsUpdate
 from app.schemas.integration import IntegrationResponse
 from app.schemas.settings import (
     ApiKeyResponse,
@@ -22,7 +23,7 @@ from app.schemas.settings import (
     TrackedNutrientsUpdate,
     UserSettingsResponse,
 )
-from app.services import settings_service
+from app.services import game_service, settings_service
 
 router = APIRouter(prefix="/api/v1", tags=["settings"])
 
@@ -57,6 +58,17 @@ async def update_tracked_nutrients(
     user: User = Depends(get_current_user_jwt),
 ):
     return TrackedNutrientsUpdate(hidden=await settings_service.update_tracked_nutrients(db, user, body.hidden))
+
+
+# --- Game features (streak, prints, quests) ---
+
+@router.put("/settings/game", response_model=GameSettingsResponse)
+async def update_game_settings(
+    body: GameSettingsUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt),
+):
+    return await game_service.update_game_settings(db, user, body)
 
 
 # --- Micronutrient targets ---

@@ -1,3 +1,4 @@
+from app.models.achievement import Achievement
 from app.models.caffeine_log import CaffeineLog
 from app.models.food import Food
 from app.models.food_log import FoodLog
@@ -9,9 +10,10 @@ from app.models.supplement import Supplement
 from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
 from app.models.water_log import WaterLog
+from app.models.weekly_quest import WeeklyQuest
 from app.models.weight_log import WeightLog
 
 __all__ = [
-    "CaffeineLog", "Food", "FoodLog", "FoodServing", "Integration", "MicronutrientTarget", "Nutrient",
-    "Supplement", "SupplementDefinition", "User", "WaterLog", "WeightLog",
+    "Achievement", "CaffeineLog", "Food", "FoodLog", "FoodServing", "Integration", "MicronutrientTarget", "Nutrient",
+    "Supplement", "SupplementDefinition", "User", "WaterLog", "WeeklyQuest", "WeightLog",
 ]
