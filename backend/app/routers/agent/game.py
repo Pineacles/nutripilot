@@ -19,7 +19,8 @@ router = APIRouter()
         "- **streak_current / streak_longest / freezes_banked / next_milestone**\n"
         "- **day_goals**: today's chosen goals with value, target and done\n"
         "- **quests**: this week's quests with progress\n"
-        "- **recent_prints**: the last 5 prints earned\n\n"
+        "- **recent_prints**: the last 5 prints earned\n"
+        "- **window_days_this_week**: days this week at or under the kcal target and not below 1000 kcal (null without a target)\n\n"
         "Nothing is ever marked as seen by this call."
     ),
 )

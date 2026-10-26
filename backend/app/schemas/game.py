@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
-DAY_GOAL_KEYS = ("meals", "protein", "water", "fiber", "supplements")
+DAY_GOAL_KEYS = ("meals", "protein", "water", "fiber", "supplements", "calories")
 CELEBRATIONS = ("full", "quiet", "off")
 
 
@@ -43,7 +43,7 @@ class DayGoalOut(BaseModel):
     label: str
     target: float
     value: float
-    unit: Literal["meals", "g", "ml", "taken"]
+    unit: Literal["meals", "g", "ml", "taken", "kcal"]
     done: bool
 
 
@@ -131,6 +131,14 @@ class YearDay(BaseModel):
     level: int
 
 
+class CalorieWindow(BaseModel):
+    floor: int
+    target: float
+    today_kcal: float
+    in_window: bool
+    days_this_week: int
+
+
 class GameState(BaseModel):
     enabled: bool
     show_streak: bool
@@ -146,6 +154,7 @@ class GameState(BaseModel):
     quests: QuestsOut
     year: list[YearDay]
     recap_available: Optional[datetime.date] = None
+    calorie_window: Optional[CalorieWindow] = None
 
 
 class SeenPrint(BaseModel):
@@ -185,6 +194,7 @@ class RecapDay(BaseModel):
     date: datetime.date
     logged: bool
     closed: bool
+    window: bool = False
 
 
 class Recap(BaseModel):
@@ -201,6 +211,7 @@ class Recap(BaseModel):
     most_varied_day: Optional[DayValue] = None
     distinct_foods: int
     water_target_days: Optional[int] = None
+    window_days: Optional[int] = None
     streak_at_end: int
     trend_toward_goal: Optional[bool] = None
     days: list[RecapDay] = []
@@ -264,3 +275,4 @@ class AgentGameSummary(BaseModel):
     day_goals: list[DayGoalOut]
     quests: list[QuestOut]
     recent_prints: list[AgentPrint]
+    window_days_this_week: Optional[int] = None

@@ -169,7 +169,7 @@ async def test_default_day_goals_and_unavailable_goals(async_client, auth_header
     assert [g["key"] for g in data["day_goals"]] == ["meals", "protein"]
     assert data["day_closed"] is False and data["enabled"] is True and data["celebrations"] == "full"
     keys = {a["key"] for a in data["available_goals"]}
-    assert keys == {"meals", "protein", "water", "fiber"}  # no supplements defined
+    assert keys == {"meals", "protein", "water", "fiber", "calories"}  # no supplements defined
     test_user.target_fiber_g = 0
     await db_session.commit()
     data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
@@ -193,6 +193,8 @@ async def test_settings_put_validation(async_client, auth_headers):
     put = lambda body: async_client.put("/api/v1/settings/game", json=body, headers=auth_headers)  # noqa: E731
     assert (await put({"celebrations": "loud"})).status_code == 422
     assert (await put({"day_goals": [{"key": "kcal"}]})).status_code == 422
+    ok = await put({"day_goals": [{"key": "calories", "target": 5}]})
+    assert ok.status_code == 200 and ok.json()["day_goals"] == [{"key": "calories", "target": None}]
     four = [{"key": k} for k in ("meals", "protein", "water", "fiber")]
     assert (await put({"day_goals": four})).status_code == 422
     assert (await put({"day_goals": [{"key": "meals"}, {"key": "meals"}]})).status_code == 422
@@ -426,7 +428,7 @@ async def test_recap_new_fields(async_client, auth_headers, test_user, db_sessio
     await _log(db_session, test_user, await _food(db_session), last_week)
     recap = (await async_client.get("/api/dashboard/game/recap", headers=auth_headers)).json()
     assert recap["trend_toward_goal"] is None
-    assert len(recap["days"]) == 7 and recap["days"][0] == {"date": str(last_week), "logged": True, "closed": False}
+    assert len(recap["days"]) == 7 and recap["days"][0] == {"date": str(last_week), "logged": True, "closed": False, "window": False}
     assert recap["days"][1]["logged"] is False
 
 
@@ -499,3 +501,132 @@ async def test_restart_and_day_counts_endpoints(async_client, auth_headers, test
     await async_client.put(f"/api/dashboard/game/days/{day}", json={"counts": True}, headers=auth_headers)
     state = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
     assert state["streak"]["excluded_days"] == []
+
+
+# --- calorie window -----------------------------------------------------------
+
+async def _kcal_food(db, kcal):
+    food = Food(id=uuid.uuid4(), name=f"K {uuid.uuid4().hex[:8]}", source="manual")
+    db.add(food)
+    await db.flush()
+    db.add(Nutrient(food_id=food.id, kcal=kcal, protein=0, fiber=0))
+    await db.commit()
+    return food
+
+
+async def _log_kcal(db, user, day, kcal):
+    """One log of 100 g of a food that has `kcal` per 100 g."""
+    await _log(db, user, await _kcal_food(db, kcal), day)
+
+
+async def _window(db, user):
+    f = await gs.load_facts(db, user)
+    return f, gs.derive(f, user)
+
+
+async def test_window_day_boundaries(test_user, db_session):
+    test_user.target_kcal = 2000
+    await db_session.commit()
+    for n, kcal in ((1, 999), (2, 1000), (3, 2000), (4, 2001), (5, 1500)):
+        await _log_kcal(db_session, test_user, ago(n), kcal)
+    test_user.game_state = {"streak_excluded": [str(ago(5))]}
+    await db_session.commit()
+    f, dv = await _window(db_session, test_user)
+    assert dv.window_days == {ago(2), ago(3)}
+    test_user.target_kcal = 0
+    await db_session.commit()
+    f, dv = await _window(db_session, test_user)
+    assert dv.window_days == set() and dv.kcal_target is None
+
+
+async def test_window_prints_dates_and_streak(async_client, auth_headers, test_user, db_session):
+    test_user.target_kcal = 2000
+    await db_session.commit()
+    # Mon..Sun of a past week: five window days, then an over-target day.
+    ws = gs.monday_of(T) - timedelta(weeks=3)
+    for i in range(5):
+        await _log_kcal(db_session, test_user, ws + timedelta(days=i), 1800)
+    await _log_kcal(db_session, test_user, ws + timedelta(days=5), 2500)
+    for i in range(7, 9):
+        await _log_kcal(db_session, test_user, ws + timedelta(days=i), 1200)
+    data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    prints = {p["key"]: p for p in data["prints"]}
+    assert prints["window_days"]["area"] == "calories" and prints["window_days"]["title"] == "Days in the window"
+    assert prints["window_days"]["runs"][0]["earned_at"] == str(ws + timedelta(days=8))  # the 7th window day
+    assert prints["window_weeks"]["runs"][0]["earned_at"] == str(ws + timedelta(days=4))
+    assert prints["window_weeks"]["runs"][1]["earned_at"] is None
+    assert prints["window_streak"]["runs"][0]["earned_at"] == str(ws + timedelta(days=2))
+    assert prints["window_streak"]["progress"]["value"] == 5.0
+    assert [r["threshold"] for r in prints["window_streak"]["runs"]] == [3.0, 7.0, 14.0, 30.0]
+    assert gs.is_big("window_days", 2, 30) and not gs.is_big("window_days", 1, 7)
+
+
+async def test_no_window_prints_without_target(async_client, auth_headers, test_user, db_session):
+    test_user.target_kcal = 0
+    await db_session.commit()
+    await _log_kcal(db_session, test_user, ago(1), 1500)
+    data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    assert not {"window_days", "window_weeks", "window_streak"} & {p["key"] for p in data["prints"]}
+    assert data["calorie_window"] is None
+    assert "calories" not in {a["key"] for a in data["available_goals"]}
+    recap = (await async_client.get("/api/dashboard/game/recap", headers=auth_headers)).json()
+    assert recap["window_days"] is None and all(d["window"] is False for d in recap["days"])
+
+
+async def test_calories_day_goal_done_logic(async_client, auth_headers, test_user, db_session):
+    test_user.target_kcal = 2000
+    test_user.day_goals = [{"key": "calories", "target": None}]
+    await db_session.commit()
+    expected = ((900, False), (100, True), (1000, True), (1, False))  # cumulative: 900, 1000, 2000, 2001
+    for add, done in expected:
+        await _log_kcal(db_session, test_user, T, add)
+        data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+        goal = data["day_goals"][0]
+        assert goal["key"] == "calories" and goal["unit"] == "kcal" and goal["label"] == "Calorie window"
+        assert goal["target"] == 2000 and goal["done"] is done
+        assert data["day_closed"] is done
+
+
+async def test_calories_goal_dropped_without_target(async_client, auth_headers, test_user, db_session):
+    test_user.target_kcal = 0
+    test_user.day_goals = [{"key": "calories", "target": None}, {"key": "meals", "target": 3}]
+    await db_session.commit()
+    data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    assert [g["key"] for g in data["day_goals"]] == ["meals"]
+
+
+async def test_window_quest_eligibility_and_progress(test_user, db_session):
+    f, dv = await _window(db_session, test_user)
+    pool = gs.eligible_quests(test_user, f, dv, gs.monday_of(T))
+    assert pool["window_days"] == 3
+    assert gs.QUESTS["window_days"][0] == "calories"
+    assert gs.QUESTS["window_days"][1](4) == "Stay in your calorie window on 4 days"
+    last = gs.monday_of(T) - timedelta(weeks=1)
+    for i in range(5):
+        await _log_kcal(db_session, test_user, last + timedelta(days=i), 1500)
+    f, dv = await _window(db_session, test_user)
+    assert gs.eligible_quests(test_user, f, dv, gs.monday_of(T))["window_days"] == 6
+    test_user.target_kcal = 0
+    await db_session.commit()
+    f, dv = await _window(db_session, test_user)
+    assert "window_days" not in gs.eligible_quests(test_user, f, dv, gs.monday_of(T))
+
+
+async def test_recap_window_and_calorie_block(async_client, auth_headers, api_key_headers, test_user, db_session):
+    test_user.target_kcal = 2000
+    await db_session.commit()
+    last = gs.monday_of(T) - timedelta(weeks=1)
+    await _log_kcal(db_session, test_user, last, 1500)
+    await _log_kcal(db_session, test_user, last + timedelta(days=1), 2600)
+    await _log_kcal(db_session, test_user, last + timedelta(days=2), 800)
+    recap = (await async_client.get("/api/dashboard/game/recap", headers=auth_headers)).json()
+    assert recap["window_days"] == 1
+    assert [d["window"] for d in recap["days"]][:4] == [True, False, False, False]
+    await _log_kcal(db_session, test_user, T, 1400)
+    data = (await async_client.get("/api/dashboard/game", headers=auth_headers)).json()
+    block = data["calorie_window"]
+    assert block["floor"] == 1000 and block["target"] == 2000 and block["today_kcal"] == 1400.0
+    # Live on the kcal line, but today only counts toward window days once it is over.
+    assert block["in_window"] is True and block["days_this_week"] == 0
+    summary = (await async_client.get("/api/agent/game/summary", headers=api_key_headers)).json()
+    assert summary["window_days_this_week"] == 0

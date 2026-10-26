@@ -4,7 +4,9 @@ Everything here is recomputed from the logs on every request, so a backfilled or
 the numbers by itself. Only three things are stored: earned prints (so they keep the day they were
 reached and can be marked seen), the weekly quests, and the user's settings.
 
-Nothing rewards low intake: there are no kcal, fat or single-day weight goals, prints or quests.
+Healthy lower calorie eating is encouraged only through the "calorie window": a day with food logged
+whose kcal is at or below the target and not below WINDOW_FLOOR_KCAL. Without a kcal target none of it
+exists. There are no fat or single-day weight goals, prints or quests.
 """
 
 from __future__ import annotations
@@ -46,6 +48,7 @@ GOAL_BAND_KG = 0.3
 ETA_MAX_DAYS = 730
 DEFAULT_MEALS_TARGET = 3
 MAX_DAY_GOALS = 3
+WINDOW_FLOOR_KCAL = 1000
 
 GOAL_INFO = {
     "meals": ("Meals logged", "meals"),
@@ -53,6 +56,7 @@ GOAL_INFO = {
     "water": ("Water", "ml"),
     "fiber": ("Fiber", "g"),
     "supplements": ("Supplements taken", "taken"),
+    "calories": ("Calorie window", "kcal"),
 }
 
 
@@ -140,6 +144,7 @@ class Facts:
     day_micros: dict[date, dict] = field(default_factory=lambda: defaultdict(lambda: defaultdict(float)))
     first_logged: dict = field(default_factory=dict)  # food_id -> first date
     barcode_foods: set = field(default_factory=set)
+    day_kcal: dict[date, float] = field(default_factory=lambda: defaultdict(float))
     day_water: dict[date, float] = field(default_factory=dict)
     day_supps: dict[date, set] = field(default_factory=lambda: defaultdict(set))
     weights: dict[date, float] = field(default_factory=dict)
@@ -161,20 +166,21 @@ async def load_facts(db: AsyncSession, user: User) -> Facts:
     rows = await db.execute(
         select(
             FoodLog.date, FoodLog.food_id, FoodLog.meal_type, FoodLog.quantity_g, Food.barcode,
-            Nutrient.protein, Nutrient.fiber, *cols,
+            Nutrient.protein, Nutrient.fiber, Nutrient.kcal, *cols,
         )
         .join(Food, Food.id == FoodLog.food_id)
         .outerjoin(Nutrient, Nutrient.food_id == Food.id)
         .where(FoodLog.user_id == uid)
     )
     for r in rows.all():
-        d, food_id, meal, qty, barcode, protein, fiber, *micros = r
+        d, food_id, meal, qty, barcode, protein, fiber, kcal, *micros = r
         ratio = (qty or 0) / 100.0
         f.day_logs[d] += 1
         f.day_foods[d].add(food_id)
         f.day_meals[d].add(meal)
         f.day_protein[d] += (protein or 0) * ratio
         f.day_fiber[d] += (fiber or 0) * ratio
+        f.day_kcal[d] += (kcal or 0) * ratio
         dm = f.day_micros[d]
         for name, val in zip(MICRO_FIELDS, micros, strict=True):
             if val is not None:
@@ -368,6 +374,8 @@ class Derived:
     fiber_met: set[date] = field(default_factory=set)
     supps_met: set[date] = field(default_factory=set)
     micro_met: set[date] = field(default_factory=set)
+    window_days: set[date] = field(default_factory=set)
+    kcal_target: float | None = None
     any_done: set[date] = field(default_factory=set)
     closed: set[date] = field(default_factory=set)
     protein_target: float | None = None
@@ -388,7 +396,19 @@ def goal_value(key: str, d: date, f: Facts, dv: Derived) -> float:
         return f.day_water.get(d, 0.0)
     if key == "fiber":
         return f.day_fiber.get(d, 0.0)
+    if key == "calories":
+        return f.day_kcal.get(d, 0.0)
     return float(len(f.active_supps & f.day_supps.get(d, set())))
+
+
+def in_window(kcal: float, target: float | None) -> bool:
+    return target is not None and WINDOW_FLOOR_KCAL <= kcal <= target
+
+
+def goal_done(key: str, value: float, target: float) -> bool:
+    if key == "calories":
+        return in_window(value, target)
+    return value >= target
 
 
 def derive(f: Facts, user: User) -> Derived:
@@ -397,7 +417,9 @@ def derive(f: Facts, user: User) -> Derived:
     dv.protein_target = None if "protein" in hidden else _set_target(user.target_protein_g)
     dv.water_target = None if "water" in hidden else _set_target(user.target_water_ml)
     dv.fiber_target = None if "fiber" in hidden else _set_target(user.target_fiber_g)
+    dv.kcal_target = _set_target(user.target_kcal)
     n_supps = len(f.active_supps)
+    _restart, excluded = streak_options(user)
 
     dv.available = [{"key": "meals", "label": GOAL_INFO["meals"][0], "default_target": float(DEFAULT_MEALS_TARGET)}]
     for key, target in (("protein", dv.protein_target), ("water", dv.water_target), ("fiber", dv.fiber_target)):
@@ -405,6 +427,8 @@ def derive(f: Facts, user: User) -> Derived:
             dv.available.append({"key": key, "label": GOAL_INFO[key][0], "default_target": target})
     if n_supps:
         dv.available.append({"key": "supplements", "label": GOAL_INFO["supplements"][0], "default_target": float(n_supps)})
+    if dv.kcal_target is not None:
+        dv.available.append({"key": "calories", "label": GOAL_INFO["calories"][0], "default_target": dv.kcal_target})
     available_keys = {a["key"] for a in dv.available}
 
     for g in day_goals_of(user):
@@ -429,7 +453,11 @@ def derive(f: Facts, user: User) -> Derived:
             micros = f.day_micros.get(d, {})
             if all(micros.get(m, 0) >= tv for m, tv in f.micro_targets.items()):
                 dv.micro_met.add(d)
-        done = [goal_value(g["key"], d, f, dv) >= g["target"] for g in dv.goals]
+        # Today is still being eaten: it only counts once it is over, so a print is never earned at
+        # lunch on a day that dinner then takes over the target.
+        if d < f.today and d not in excluded and in_window(f.day_kcal.get(d, 0.0), dv.kcal_target):
+            dv.window_days.add(d)
+        done = [goal_done(g["key"], goal_value(g["key"], d, f, dv), g["target"]) for g in dv.goals]
         if any(done):
             dv.any_done.add(d)
         if done and all(done):
@@ -612,6 +640,12 @@ PRINTS: tuple[PrintDef, ...] = (
              lambda n: f"Move your trend weight {int(n)} kg toward your goal", lambda n: f"{int(n)} kg toward your goal"),
     PrintDef("goal_reached", "body", "Goal reached", "goal", (1,),
              lambda n: "Bring your trend weight to your goal", lambda n: "Goal reached"),
+    PrintDef("window_days", "calories", "Days in the window", "days", (7, 30, 100, 250),
+             lambda n: "Days at or under your calorie target, not below 1000 kcal", lambda n: f"{int(n)} days in the window"),
+    PrintDef("window_weeks", "calories", "Window weeks", "weeks", (1, 4, 12, 26),
+             lambda n: f"Stay in your calorie window on 5 days or more in {_pl(n, 'week')}", lambda n: _pl(n, "window week")),
+    PrintDef("window_streak", "calories", "Window streak", "days", (3, 7, 14, 30),
+             lambda n: f"Stay in your calorie window {int(n)} days in a row", lambda n: f"{int(n)} day window streak"),
     PrintDef("barcodes", "kitchen", "Barcodes", "foods", (10, 50, 200),
              lambda n: f"Log {int(n)} different foods with a barcode", lambda n: f"{int(n)} barcodes"),
     PrintDef("own_foods", "kitchen", "Own foods", "foods", (5, 25, 100),
@@ -755,6 +789,16 @@ def compute_metrics(f: Facts, dv: Derived, st: Streak, trend: dict, goal, quest_
 
     m["day_closed"] = _cum(list(dv.closed))
 
+    if dv.kcal_target is not None:
+        m["window_days"] = _cum(list(dv.window_days))
+        by_week_w: dict[date, list[date]] = defaultdict(list)
+        for d in sorted(dv.window_days):
+            by_week_w[monday_of(d)].append(d)
+        m["window_weeks"] = _cum([days[4] for days in by_week_w.values() if len(days) >= 5])
+        m["window_streak"] = _run_metric(dv.window_days)
+    else:
+        m["window_days"] = m["window_weeks"] = m["window_streak"] = None
+
     ww = weigh_weeks_of(f.weights)
     tl, best, run, prev = [], 0, 0, None
     for wk in sorted(ww):
@@ -801,6 +845,7 @@ QUESTS = {
     "weigh_ins": ("body", lambda n: f"Weigh in on {_pl(n, 'day')}"),
     "supplements_days": ("supplements", lambda n: f"Take all your supplements on {_pl(n, 'day')}"),
     "closed_days": ("consistency", lambda n: f"Close {_pl(n, 'day')}"),
+    "window_days": ("calories", lambda n: f"Stay in your calorie window on {_pl(n, 'day')}"),
 }
 
 
@@ -823,6 +868,8 @@ def quest_series(key: str, ws: date, f: Facts, dv: Derived) -> list[tuple[date, 
             total += d in dv.supps_met
         elif key == "closed_days":
             total += d in dv.closed
+        elif key == "window_days":
+            total += d in dv.window_days
         elif key == "log_days":
             total += d in f.day_logs
         elif key == "weigh_ins":
@@ -860,6 +907,8 @@ def eligible_quests(user: User, f: Facts, dv: Derived, ws: date) -> dict[str, in
         out["weigh_ins"] = 3
     if f.active_supps:
         out["supplements_days"] = _clamp(_week_count("supplements_days", last, f, dv) + 1, 3, 7)
+    if dv.kcal_target is not None:
+        out["window_days"] = _clamp(_week_count("window_days", last, f, dv) + 1, 3, 6)
     out["closed_days"] = _clamp(_week_count("closed_days", last, f, dv) + 1, 2, 6)
     return out
 
@@ -1074,7 +1123,7 @@ def day_goal_items(ev: Evaluation) -> list[dict]:
         label, unit = GOAL_INFO[g["key"]]
         out.append({
             "key": g["key"], "label": label, "target": g["target"], "value": round(value, 1),
-            "unit": unit, "done": value >= g["target"],
+            "unit": unit, "done": goal_done(g["key"], value, g["target"]),
         })
     return out
 
@@ -1088,6 +1137,28 @@ def quest_items(ev: Evaluation) -> tuple[list[dict], bool]:
         pool = eligible_quests(ev.user, ev.facts, ev.derived, ws)
         swap = any(k not in {q.key for q in current} for k in pool)
     return items, swap
+
+
+def calorie_window_block(ev: Evaluation) -> dict | None:
+    f, dv, today = ev.facts, ev.derived, ev.facts.today
+    if dv.kcal_target is None:
+        return None
+    kcal = f.day_kcal.get(today, 0.0)
+    return {
+        "floor": WINDOW_FLOOR_KCAL, "target": dv.kcal_target, "today_kcal": round(kcal, 1),
+        # Live for today (shown on the kcal line), even though today only counts for prints tomorrow.
+        "in_window": today not in excluded_of(ev) and in_window(kcal, dv.kcal_target),
+        "days_this_week": _window_days_in_week(ev, monday_of(today)),
+    }
+
+
+def excluded_of(ev: Evaluation) -> frozenset[date]:
+    return streak_options(ev.user)[1]
+
+
+def _window_days_in_week(ev: Evaluation, ws: date) -> int:
+    we = ws + timedelta(days=6)
+    return sum(1 for d in ev.derived.window_days if ws <= d <= we)
 
 
 def year_levels(ev: Evaluation) -> list[dict]:
@@ -1189,6 +1260,7 @@ def build_game_response(ev: Evaluation) -> dict:
         "quests": {"week_start": monday_of(today), "swap_available": swap, "items": items},
         "year": year_levels(ev),
         "recap_available": recap_week_available(ev),
+        "calorie_window": calorie_window_block(ev),
     }
 
 
@@ -1207,6 +1279,7 @@ def agent_summary(ev: Evaluation) -> dict:
         "streak_current": ev.streak.current, "streak_longest": ev.streak.longest,
         "freezes_banked": ev.streak.banked, "next_milestone": next_milestone(ev.streak.current),
         "day_goals": day_goal_items(ev), "quests": items, "recent_prints": prints,
+        "window_days_this_week": _window_days_in_week(ev, monday_of(ev.facts.today)) if ev.derived.kcal_target is not None else None,
     }
 
 
@@ -1304,7 +1377,10 @@ def build_recap(ev: Evaluation, week: date | None) -> dict:
     toward = None
     if goal is not None and before is not None and after is not None:
         toward = abs(after - goal) < abs(before - goal)
-    week_days = [{"date": d, "logged": d in f.logged, "closed": d in dv.closed} for d in _days(ws, we)]
+    week_days = [
+        {"date": d, "logged": d in f.logged, "closed": d in dv.closed, "window": d in dv.window_days}
+        for d in _days(ws, we)
+    ]
 
     varied = {d: len(f.day_foods.get(d, ())) for d in days}
     return {
@@ -1321,6 +1397,7 @@ def build_recap(ev: Evaluation, week: date | None) -> dict:
         "most_varied_day": best(varied, days),
         "distinct_foods": len(foods),
         "water_target_days": sum(1 for d in days if d in dv.water_met) if dv.water_target else None,
+        "window_days": sum(1 for d in days if d in dv.window_days) if dv.kcal_target is not None else None,
         "trend_toward_goal": toward,
         "days": week_days,
         "streak_at_end": st.run_after.get(end_day, 0),
