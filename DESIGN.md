@@ -268,6 +268,7 @@ Motion conveys state only: something changed, so it moves. Everything is eased o
 - The four arcs draw in once on first paint (700ms) and ease to new values after a log.
 - The kcal figure, macro values and the water value roll to their new number when a log changes them (`useCountUp`); the first value of a page load never counts up.
 - Scale bars grow from the left on first paint and ease on change.
+- Motivation (streak cell stamp, digit roll, rule and check draws, the print pass, square paper confetti, the year grid ripple) follows the same rule: it marks something that just changed. The print pass is the single exception to the 700ms ceiling (up to about 1.1s including the text), runs only for a newly earned print, never on routine logging, and under reduced motion every one of these keeps its end state with no movement.
 - A food just logged flashes its meal row and entry one step up the ramp (900ms) and settles; a day shown for the first time flashes nothing.
 - A meal row opens by easing its height and opacity (220ms).
 - The water plus presses to 0.9 and takes the water plate on hover and press; a supplement's check mark draws itself when taken.
@@ -314,6 +315,17 @@ Hairline rows: meal name and kcal at Row size on one baseline, the day's items a
 ### Supplement Rows
 Ruled rows: a round check that turns Done Green when taken, the name in ink when taken and g5 when not, the time of day in 12px g4 beside it, contributions in 12px g4 beneath, and an outline "Take" pill on the right.
 
+### Motivation: the print shop
+Streaks, day goals, prints and quests extend the poster instead of borrowing game art. They reward logging and consistency; nothing rewards eating less, and a missed day is never said in alert.
+- **Streak band** (Today, under the poster): "Streak" label and the run in Figure size (its digits roll up when it grows), then the last 14 days as square cells in one row: ink logged, g2 empty, a g4 outline for today not logged yet, and g5 diagonal hatching for a day a freeze covered. A 3px g5 scale bar runs to the next streak print. Banked freezes are small hatched squares at the right. Logging the day's first food stamps today's cell (a short press, 420ms).
+- **Day goals**: up to three equal cells under a rule, each a small quarter arc (the poster's corner shape) filling in the goal's plate (protein, water, fiber; meals and supplements in ink), the label in 12px g4 and the count in 13px. A done goal draws a Done Green check beside its label. When every goal is done a 2px Done Green rule draws along the bottom of the band. There is never a calorie goal.
+- **Prints**: each achievement is a square print. Earned: a g1 sheet with printer's crop marks (1px g4 corners) just outside, the numeral (its threshold) in the area's ink, set huge and tight, the unit in 11px g4, the title in 12px ink and one small square per run (filled in the area's ink when earned). Not yet: an unprinted plate, a 1px g2 outline with the numeral in g3 and a 3px progress bar. A print's ink follows the Plate Rule: protein prints are protein blue, variety fiber green, water water cyan, everything else ink. Tap turns a print over (rotateY, 500ms) for its dates and what is left.
+- **The print pass** (the one authored moment): a new print is pulled across the screen in a sheet: crop marks register (300ms, staggered), a g5 squeegee line wipes left to right leaving the print behind (800ms clip-path), the numeral counts up, then title and description rise in. Big runs throw square paper confetti in the print's own ink (all plates only for "Full plate", which is about every nutrient). One short haptic pattern. Celebrations can be set to quiet (a toast) or off in Settings, App.
+- **Progress page**: the number of prints earned is the display number; then streak, longest and weigh-in weeks in Figure size, the year grid, this week's quests and the wall of prints by area.
+- **Year grid**: one square per day in Monday-first weeks, brightness on the ramp for how complete the day was (g2, g4, g5, ink for a closed day). It ripples in diagonally (9ms per step) the first time it scrolls into view.
+- **Quests**: ruled rows with the task, the count and a 3px bar in the area's ink; a done quest draws a Done Green check. One swap per week.
+- **Weight**: the trend weight (smoothed) is the Body display number, with the day's scale reading beside it in 12px; a new low on the trend toward the goal draws one 1px ink outline ring outward from the figure. Weigh-in weeks show this week's three cells.
+
 ## Hidden Nutrients
 
 Settings can hide any nutrient except kcal, so every screen is composed from what is visible, never from a fixed list with holes in it.
@@ -342,6 +354,7 @@ Settings can hide any nutrient except kcal, so every screen is composed from wha
 - **Don't** use a plate ink for anything other than its own nutrient's data; fat red and carbs amber are never error or warning colours.
 - **Don't** use alert for decoration, for a plate, or without its word.
 - **Don't** use Done Green for buttons, links, progress or "on track".
+- **Don't** reward low calories, deficits or a single day's weight, and never say a missed day or a broken streak in alert.
 - **Don't** add box-shadows, gradients or tinted gradient tiles to any surface.
 - **Don't** introduce greys outside the seven-step ramp, or any colour that is not a plate, alert or done.
 - **Don't** put more than one display-size number on a screen.

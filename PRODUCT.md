@@ -39,7 +39,7 @@ Self-hosted and agent-first: anything can be logged by hand (search, Swiss barco
 
 ## Evidence on Hand
 
-Real daily data in the owner's account (the demo login); README screenshots in docs/screenshots/. No testimonials or users beyond the owner.
+Real daily data in the owner's own account. The demo login is filled by app/demo_daily.py with generated meals every day (no gaps), so streaks and history there are not real; use it for testing only. README screenshots in docs/screenshots/. No testimonials or users beyond the owner.
 
 ## Product Principles
 
