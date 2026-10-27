@@ -1,3 +1,5 @@
+import re
+
 import httpx
 
 from app.external.nutrient_checks import KJ_PER_KCAL, clean_imported
@@ -41,6 +43,31 @@ def serving_grams(product: dict) -> float | None:
     For drinks OFF may give ml here; treated as grams, which is close enough for most drinks."""
     grams = _number(product.get("serving_quantity"))
     return grams if grams and grams > 0 else None
+
+
+# "2 pces", "4 Stück", "3 pezzi" in a name or quantity: a pack of equal pieces.
+_PIECES = re.compile(r"(\d{1,2})\s*(?:pces?|pcs|pi[eè]ces?|st[uü]ck|stk|pezzi|portionen|portions?)\b", re.I)
+# "2 x 150 g": the piece weight is written out.
+_TIMES_GRAMS = re.compile(r"(\d{1,2})\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*g\b", re.I)
+
+
+def piece_serving(product: dict) -> tuple[float, str] | None:
+    """(grams, label) for one piece of a multi-piece pack when OFF has no serving: Bell's
+    "Poulet delice 2pces" at 300 g is 150 g a piece. None when the pack doesn't say."""
+    text = " ".join(str(product.get(f) or "") for f in (*_NAME_FIELDS, "quantity"))
+    if m := _TIMES_GRAMS.search(text):
+        grams = float(m.group(2).replace(",", "."))
+        return (grams, f"1 piece ({grams:g} g)") if 0 < grams <= 2000 else None
+    m = _PIECES.search(text)
+    total = _number(product.get("product_quantity"))
+    unit = str(product.get("product_quantity_unit") or "g").lower()
+    if not m or not total or unit != "g":
+        return None
+    count = int(m.group(1))
+    if not 2 <= count <= 24:
+        return None
+    grams = round(total / count, 1)
+    return grams, f"1 piece ({grams:g} g)"
 
 
 def _per_100g(n: dict, key: str, serving_g: float | None) -> float | None:
@@ -214,4 +241,6 @@ async def lookup_barcode(barcode: str) -> tuple[str, NutrientData, float | None,
     serving_size_g = serving_grams(product)
     nutrients = parse_product_nutrients(product, serving_size_g)
     serving_label = product.get("serving_size") if serving_size_g else None  # text like "1 slice (30g)"
+    if serving_size_g is None and (piece := piece_serving(product)):
+        serving_size_g, serving_label = piece
     return name, nutrients, serving_size_g, serving_label

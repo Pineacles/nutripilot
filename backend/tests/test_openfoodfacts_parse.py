@@ -104,3 +104,34 @@ def test_estimate_reaches_barcode_lookup(monkeypatch):
     monkeypatch.setattr("app.external.openfoodfacts.httpx.AsyncClient", Client)
     _, nutrients, _, _ = asyncio.run(lookup_barcode("1234567890123"))
     assert nutrients.caffeine_mg == 32
+
+
+def test_kcal_typo_against_kj_resolved_by_macros():
+    # Bell Poulet delice on OFF: 928 kJ but 148 kcal; the macros (14 / 12 / 13) say 222.
+    n = parse_nutrients({"energy-kj_100g": 928, "energy-kcal_100g": 148, "proteins_100g": 14, "carbohydrates_100g": 12, "fat_100g": 13}, None)
+    assert round(n.kcal) == 222
+
+
+def test_kj_typo_keeps_label_kcal():
+    # The kJ is the wrong one here: the macros agree with the kcal.
+    n = parse_nutrients({"energy-kj_100g": 500, "energy-kcal_100g": 222, "proteins_100g": 14, "carbohydrates_100g": 12, "fat_100g": 13}, None)
+    assert n.kcal == 222
+
+
+def test_kcal_kj_rounding_is_not_a_disagreement():
+    n = parse_nutrients({"energy-kj_100g": 930, "energy-kcal_100g": 220, "proteins_100g": 14, "carbohydrates_100g": 12, "fat_100g": 13}, None)
+    assert n.kcal == 220
+
+
+def test_kcal_kj_disagreement_without_macros_keeps_kcal():
+    assert parse_nutrients({"energy-kj_100g": 928, "energy-kcal_100g": 148}, None).kcal == 148
+
+
+def test_piece_serving_from_pack_count():
+    from app.external.openfoodfacts import piece_serving
+
+    assert piece_serving({"product_name": "Poulet delice 2pces", "product_quantity": 300, "product_quantity_unit": "g"}) == (150, "1 piece (150 g)")
+    assert piece_serving({"product_name": "Cordon bleu", "quantity": "2 x 125 g"}) == (125, "1 piece (125 g)")
+    assert piece_serving({"product_name": "Bratwurst 4 Stück", "product_quantity": 520}) == (130, "1 piece (130 g)")
+    assert piece_serving({"product_name": "Milk", "product_quantity": 1000}) is None
+    assert piece_serving({"product_name": "Juice 1 portion", "product_quantity": 250}) is None

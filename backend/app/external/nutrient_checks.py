@@ -11,6 +11,8 @@ from app.schemas.food import NutrientData
 KJ_PER_KCAL = 4.184
 # Pure fat is 900 kcal per 100 g; a little room for rounding on oil labels.
 MAX_KCAL = 920
+# kcal and kJ on one label agree within rounding; more than this apart means one of them is a typo.
+ENERGY_DISAGREE = 0.08
 # Mass nutrients counted in grams per 100 g.
 GRAM_FIELDS = ("protein", "carbs", "sugar", "fiber", "fat", "sat_fat", "salt", "alcohol")
 
@@ -41,6 +43,13 @@ def clean_imported(n: NutrientData, kj: float | None = None) -> NutrientData:
     if kcal is not None and kcal > MAX_KCAL:
         kcal = kj / KJ_PER_KCAL if kj is not None and kj / KJ_PER_KCAL <= MAX_KCAL else None
     cleaned = NutrientData(**{**values, "kcal": kcal})
+    # kcal and kJ that disagree (928 kJ saved with 148 kcal): the macros say which one is the typo.
+    if kcal is not None and kj is not None and kj > 0:
+        from_kj = kj / KJ_PER_KCAL
+        if abs(kcal - from_kj) > max(5, ENERGY_DISAGREE * from_kj) and from_kj <= MAX_KCAL:
+            macros = atwater_kcal(cleaned)
+            if macros is not None and abs(from_kj - macros) < abs(kcal - macros):
+                cleaned.kcal = from_kj
     if cleaned.kcal is None:
         estimate = atwater_kcal(cleaned)
         if estimate is not None and estimate <= MAX_KCAL:
