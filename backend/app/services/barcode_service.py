@@ -1,7 +1,11 @@
+import re
+from urllib.parse import parse_qsl, urlparse
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.external import openfoodfacts, usda
+from app.external.nutrient_checks import atwater_kcal
 from app.models.food import Food
 from app.models.nutrient import Nutrient
 from app.services.food_service import create_food_from_external, get_food_by_barcode
@@ -40,6 +44,70 @@ def check_digit_ok(code: str) -> bool:
     return upc_a is not None and _gtin_ok(upc_a)
 
 
+_GS = "\x1d"
+# Element strings with a fixed length (GS1 General Specifications); the rest end at a GS.
+_GS1_FIXED = {"00": 18, "01": 14, "02": 14, "11": 6, "12": 6, "13": 6, "15": 6, "16": 6, "17": 6, "20": 2}
+
+
+def _gs1_ai(text: str) -> tuple[int, int | None]:
+    two = text[:2]
+    if two in _GS1_FIXED:
+        return 2, _GS1_FIXED[two]
+    if re.match(r"3[1-6]", two):
+        return 4, 6
+    if two == "41":
+        return 3, 13
+    if re.match(r"2[3-5]|4[02-9]", two):
+        return 3, None
+    if re.match(r"39|7\d|8\d", two):
+        return 4, None
+    return 2, None
+
+
+def _gs1_pairs(text: str) -> list[tuple[str, str]]:
+    if text.startswith("("):
+        return [(ai, value.strip()) for ai, value in re.findall(r"\((\d{2,4})\)([^(]*)", text)]
+    if re.match(r"https?://", text, re.I):
+        url = urlparse(text)
+        parts = [p for p in url.path.split("/") if p]
+        pairs = [(parts[k], parts[k + 1]) for k in range(len(parts) - 1) if re.fullmatch(r"\d{2,4}", parts[k])]
+        return pairs + [(k, v) for k, v in parse_qsl(url.query) if re.fullmatch(r"\d{2,4}", k)]
+    if not text[:1].isdigit() or re.fullmatch(r"\d{8,14}", text):
+        return []  # a plain EAN, not an element string
+    pairs, i = [], 0
+    while i < len(text):
+        if text[i] == _GS:
+            i += 1
+            continue
+        length, fixed = _gs1_ai(text[i:])
+        ai = text[i : i + length]
+        if fixed is not None:
+            pairs.append((ai, text[i + length : i + length + fixed]))
+            i += length + fixed
+            continue
+        end = text.find(_GS, i + length)
+        pairs.append((ai, text[i + length : None if end == -1 else end]))
+        i = len(text) if end == -1 else end + 1
+    return pairs
+
+
+def gs1_scan(raw: str) -> tuple[str, float | None] | None:
+    """(GTIN, pack grams) from a GS1 2D code's text: the DataMatrix on Coop and Migros counter
+    labels carries the product's own GTIN (the same on every pack) and the net weight (AI 3103).
+    None for anything else. Mirrors parseGs1 in frontend/src/lib/gs1.ts."""
+    text = re.sub(r"^\][A-Za-z]\d", "", raw.strip()).lstrip(_GS)
+    pairs = _gs1_pairs(text)
+    gtin = next((v for ai, v in pairs if ai == "01"), None)
+    if gtin is None or not re.fullmatch(r"\d{14}", gtin):
+        return None
+    grams = None
+    weight = next(((ai, v) for ai, v in pairs if re.fullmatch(r"310[0-5]", ai)), None)
+    if weight and re.fullmatch(r"\d{6}", weight[1]):
+        kg = int(weight[1]) / 10 ** int(weight[0][3])
+        grams = round(kg * 1000, 1) if 0 < kg <= 10 else None
+    return (gtin[1:] if gtin.startswith("0") else gtin), grams
+
+
 def is_store_label(code: str) -> bool:
     """In-store codes (EAN-13 starting with 2): the weighed or price labels Migros, Coop and others
     print at the counter. They carry the shop's own item number and the weight or price, so they are
@@ -58,7 +126,8 @@ def barcode_problem(code: str) -> str | None:
 
 async def lookup_barcode(db: AsyncSession, barcode: str) -> Food | None:
     """Layered barcode lookup: local DB → OpenFoodFacts → USDA. Auto-persists."""
-    barcode = "".join(barcode.split())
+    scan = gs1_scan(barcode)
+    barcode = scan[0] if scan else "".join(barcode.split())
 
     # 1. Local DB (also finds foods someone saved under a code the checks below would skip)
     food = await get_food_by_barcode(db, barcode)
@@ -90,10 +159,23 @@ def _is_blank(food: Food) -> bool:
     return food.nutrients is None or food.nutrients.kcal is None
 
 
+def _energy_off(food: Food) -> bool:
+    """Saved calories far from what the macros add up to: a typo the import let through before
+    the kcal/kJ check existed (148 kcal saved for a 222 kcal breaded chicken)."""
+    n = food.nutrients
+    if n is None or n.kcal is None:
+        return False
+    macros = atwater_kcal(n)
+    return macros is not None and abs(n.kcal - macros) > max(30, 0.25 * macros)
+
+
 async def _refill_blank(db: AsyncSession, food: Food) -> Food:
-    """Products often reach Open Food Facts before anyone types in their label. A food saved blank
-    that nobody has filled in yet is looked up again, so the values arrive once someone adds them."""
-    if not _is_blank(food) or food.corrected_at is not None or food.barcode is None:
+    """Products often reach Open Food Facts before anyone types in their label. A food saved blank,
+    or with calories its own macros contradict, that nobody has corrected is looked up again, so
+    the values arrive (or get fixed) once they are right outside."""
+    if food.corrected_at is not None or food.barcode is None:
+        return food
+    if not (_is_blank(food) or _energy_off(food)):
         return food
     lookup = {"openfoodfacts": openfoodfacts.lookup_barcode, "usda": usda.lookup_barcode}.get(food.source)
     if lookup is None:

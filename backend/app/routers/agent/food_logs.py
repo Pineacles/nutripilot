@@ -137,6 +137,9 @@ async def log_food(
     summary="Log food by barcode",
     description=(
         "Log a food entry by scanning its barcode. Looks up the barcode in the local database.\n\n"
+        "`barcode` may also be a GS1 2D code's text (the DataMatrix on shop counter labels, e.g. "
+        "`(01)07610819523015(3103)000162`): its GTIN is looked up and its net weight is the amount "
+        "when neither `quantity_g` nor `servings` is given.\n\n"
         "**Quantity resolution:** same as `POST /log/food`.\n\n"
         "**Errors:** `404 BARCODE_NOT_FOUND` if no food matches the barcode. "
         "In that case, create the food first with `POST /api/foods` (include the barcode), then retry."
@@ -148,17 +151,20 @@ async def log_food_by_barcode(
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     food = await barcode_service.lookup_barcode(db, body.barcode)
+    scan = barcode_service.gs1_scan(body.barcode)
     if food is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "detail": "Food not found for barcode", "code": "BARCODE_NOT_FOUND", "barcode": body.barcode,
                 # "store_label" (a shop's weighed/price label), "misread" (bad check digit) or null
-                "reason": barcode_service.barcode_problem(body.barcode.strip()),
+                "reason": barcode_service.barcode_problem(scan[0] if scan else body.barcode.strip()),
             },
         )
 
-    quantity_g, amount, unit = _resolve_quantity(body.quantity_g, body.servings, food.serving_size_g)
+    # A counter label's GS1 code says what this pack weighs: that is the amount unless one was given.
+    pack_g = scan[1] if scan and body.quantity_g is None and body.servings is None else None
+    quantity_g, amount, unit = _resolve_quantity(pack_g or body.quantity_g, body.servings, food.serving_size_g)
     entry = await logging_service.log_food(
         db, user.id, food.id, quantity_g, body.meal_type, body.date or today_for(user), amount=amount, unit=unit
     )

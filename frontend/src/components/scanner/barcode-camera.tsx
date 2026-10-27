@@ -4,11 +4,11 @@ import { ViewfinderFrame } from "@/components/scanner/camera-viewfinder";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Flashlight, FlashlightOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { startScanner, type Scanner } from "@/lib/camera";
+import { startScanner, type ScanInfo, type Scanner } from "@/lib/camera";
 
 interface Props {
-  /** Called once with the code read; the camera is off by then. */
-  onCode: (code: string) => void;
+  /** Called once with the code read (and a counter label's pack weight); the camera is off by then. */
+  onCode: (code: string, info: ScanInfo) => void;
   /** Start the camera as soon as this shows (the person picked scanning). */
   autoStart?: boolean;
 }
@@ -32,12 +32,12 @@ export function BarcodeCamera({ onCode, autoStart = false }: Props) {
     setState("starting");
     setError("");
     try {
-      const scanner = await startScanner(videoRef.current, (code) => {
+      const scanner = await startScanner(videoRef.current, (code, info) => {
         scannerRef.current = null;
         setState("idle");
         setTorchOn(null);
         navigator.vibrate?.(60);
-        onCodeRef.current(code);
+        onCodeRef.current(code, info);
       });
       scannerRef.current = scanner;
       setTorchOn(scanner.setTorch ? false : null);

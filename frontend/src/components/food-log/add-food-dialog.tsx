@@ -27,6 +27,8 @@ import { todayStr } from "@/lib/dates";
 import { sourceLabel } from "@/lib/format";
 import { BARCODE_PROBLEM_TEXT, barcodeProblem } from "@/lib/barcode";
 import { BarcodeCamera } from "@/components/scanner/barcode-camera";
+import type { ScanInfo } from "@/lib/camera";
+import { parseGs1 } from "@/lib/gs1";
 import { convertAmount, defaultPortion, fmtGrams, formatPortion, portionPayload, portionUnits, unitKeyFor } from "@/lib/portion";
 import type { FoodDetail, FoodLogCreateInput, MealType, RecentFood } from "@/lib/types";
 import { dayName } from "./copy-meal-dialog";
@@ -44,6 +46,8 @@ interface Props {
   initialMeal?: MealType;
   /** Called after an entry was saved, with the day it went to. */
   onLogged?: (date: string) => void;
+  /** Grams to start the amount step with: the weight printed in a counter label's 2D code. */
+  initialGrams?: number;
 }
 
 /**
@@ -51,7 +55,7 @@ interface Props {
  * sheet built for logging the same food again (docs/design-vision.md): recents with a one tap +,
  * the search bar at the bottom with the camera in it, and it stays open for the next food.
  */
-export function AddFoodDialog({ open, onOpenChange, defaultDate, initialFoodId, initialMeal, onLogged }: Props) {
+export function AddFoodDialog({ open, onOpenChange, defaultDate, initialFoodId, initialMeal, onLogged, initialGrams }: Props) {
   const isPhone = useMediaQuery("(max-width: 767px)");
   const { shows } = useTracked();
   const [tab, setTab] = useState<"search" | "barcode">("search");
@@ -109,6 +113,8 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate, initialFoodId, 
   const [mealChosen, setMealChosen] = useState(false);
   const [date, setDate] = useState(defaultDate);
   const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
+  // The pack weight a scanned counter label carries, for the food that scan found.
+  const [packGrams, setPackGrams] = useState<{ foodId: string | null; grams: number } | null>(null);
   const units = portionUnits(activeFood);
 
   // Phone: foods logged since the sheet opened (id -> times), for the check marks and the Done bar.
@@ -135,6 +141,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate, initialFoodId, 
     setMealChosen(false);
     setDate(defaultDate);
     setPrefilledFor(null);
+    setPackGrams(null);
     setLogged({});
   }
 
@@ -153,6 +160,7 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate, initialFoodId, 
         setTab("search");
         setSelectedSearchId(initialFoodId);
         setPrefilledFor(null);
+        setPackGrams(initialGrams ? { foodId: initialFoodId, grams: initialGrams } : null);
       }
     }
   }
@@ -163,7 +171,11 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate, initialFoodId, 
     setPrefilledFor(activeFood.id);
     const last = recents?.find((r) => r.id === activeFood.id);
     const lastKey = last ? unitKeyFor(units, last.last_unit, last.last_unit_label) : null;
-    if (last && (last.last_unit === "g" || lastKey !== "g")) {
+    if (packGrams && packGrams.foodId === activeFood.id) {
+      // The label says what this pack weighs, which beats last time's amount.
+      setUnitKey("g");
+      setQuantityValue(fmtGrams(packGrams.grams));
+    } else if (last && (last.last_unit === "g" || lastKey !== "g")) {
       setUnitKey(lastKey!);
       setQuantityValue(lastKey === "g" ? fmtGrams(last.last_amount) : String(last.last_amount));
     } else if (last) {
@@ -219,19 +231,24 @@ export function AddFoodDialog({ open, onOpenChange, defaultDate, initialFoodId, 
     lookupCode(barcodeInput.trim());
   }
 
-  function handleScanned(code: string) {
+  function handleScanned(code: string, info: ScanInfo) {
     setBarcodeInput(code);
     setMissingBarcode("");
-    lookupCode(code);
+    lookupCode(code, info.grams);
   }
 
-  async function lookupCode(code: string) {
+  async function lookupCode(input: string, grams?: number) {
+    // A typed or pasted GS1 element string, "(01)07610819523015(3103)000162", works like a scan.
+    const gs1 = parseGs1(input);
+    const code = gs1?.gtin ?? input;
+    grams = grams ?? gs1?.grams;
     if (!code) return;
     setBarcodeError("");
     try {
       const food = await barcodeLookup.mutateAsync(code);
       queryClient.setQueryData(queryKeys.foodDetail(food.id), food);
       setPrefilledFor(null);
+      setPackGrams(grams ? { foodId: food.id, grams } : null);
       setBarcodeFoodId(food.id);
     } catch (err) {
       const problem = barcodeProblem(code);

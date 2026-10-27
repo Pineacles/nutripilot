@@ -60,7 +60,15 @@ class FoodLogByBarcodeCreate(BaseModel):
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
     date: LogDate = None
 
-    _check_quantity_or_servings = model_validator(mode="after")(_check_quantity_or_servings)
+    @model_validator(mode="after")
+    def _check_amount(self):
+        # A GS1 counter label code carries the pack's weight, which then is the amount.
+        from app.services.barcode_service import gs1_scan
+
+        scan = gs1_scan(self.barcode)
+        if scan and scan[1]:
+            return self
+        return _check_quantity_or_servings(self)
 
 
 class FoodLogByNameCreate(BaseModel):

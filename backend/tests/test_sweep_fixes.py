@@ -153,6 +153,33 @@ async def test_blank_imported_food_is_looked_up_again(db_session, monkeypatch):
     assert food.nutrients.kcal is None
 
 
+async def test_cached_food_with_contradicting_calories_is_looked_up_again(db_session, monkeypatch):
+    from app.external import openfoodfacts
+    from app.schemas.food import NutrientData
+    from app.services import barcode_service
+    from app.services.food_service import create_food_from_external
+
+    code = "7624841902908"
+    await create_food_from_external(
+        db_session, "Poulet delice 2pces", code, "openfoodfacts", NutrientData(kcal=148, protein=14, carbs=12, fat=13)
+    )
+    fixed = NutrientData(kcal=221.8, protein=14, carbs=12, fat=13)
+
+    async def lookup(barcode):
+        return "Poulet delice 2pces", fixed, 150, "1 piece (150 g)"
+
+    monkeypatch.setattr(openfoodfacts, "lookup_barcode", lookup)
+    food = await barcode_service.lookup_barcode(db_session, code)
+    assert round(food.nutrients.kcal) == 222 and food.serving_size_g == 150
+
+    # Plausible values are not fetched again on every scan.
+    async def unexpected(barcode):
+        raise AssertionError("looked up a food whose values add up")
+
+    monkeypatch.setattr(openfoodfacts, "lookup_barcode", unexpected)
+    await barcode_service.lookup_barcode(db_session, code)
+
+
 async def test_barcode_spacing_does_not_make_a_twin(async_client, api_key_headers):
     first = await _food(async_client, api_key_headers, barcode="7610000000031")
     resp = await async_client.post(
@@ -162,3 +189,35 @@ async def test_barcode_spacing_does_not_make_a_twin(async_client, api_key_header
     created = await _food(async_client, api_key_headers, barcode="7610 000000048")
     assert created["barcode"] == "7610000000048"
     assert first["barcode"] == "7610000000031"
+
+
+def test_gs1_scan_reads_counter_label_datamatrix():
+    from app.services.barcode_service import gs1_scan
+
+    gs = "\x1d"
+    # Coop Willisau roastbeef label, read from the photo with zxing.
+    raw = "0107610819523015101970143261024" + gs + "15261027172610273103000162" + "3922905" + gs + "9340"
+    assert gs1_scan(raw) == ("7610819523015", 162.0)
+    assert gs1_scan("]d2" + raw) == ("7610819523015", 162.0)
+    assert gs1_scan("(01)07610819523015(10)197014(3103)000162") == ("7610819523015", 162.0)
+    assert gs1_scan("https://id.gs1.org/01/07610819523015?3103=000162") == ("7610819523015", 162.0)
+    assert gs1_scan("0107610819523015") == ("7610819523015", None)
+    assert gs1_scan("7610819523015") is None  # a plain EAN
+    assert gs1_scan("https://coop.ch/promo") is None
+
+
+async def test_log_by_gs1_code_uses_pack_weight(async_client, api_key_headers):
+    await _food(async_client, api_key_headers, barcode="7610819523015")
+    raw = "0107610819523015101970143261024\x1d15261027172610273103000162"
+    resp = await async_client.post(
+        "/api/agent/log/food-by-barcode", json={"barcode": raw, "meal_type": "dinner", "date": "2003-01-05"}, headers=api_key_headers
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["quantity_g"] == 162
+    # An amount given explicitly still wins.
+    resp = await async_client.post(
+        "/api/agent/log/food-by-barcode",
+        json={"barcode": "(01)07610819523015(3103)000162", "quantity_g": 80, "meal_type": "dinner", "date": "2003-01-05"},
+        headers=api_key_headers,
+    )
+    assert resp.json()["quantity_g"] == 80

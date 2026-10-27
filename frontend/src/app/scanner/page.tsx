@@ -7,6 +7,7 @@ import { queryKeys, useBarcodeLookup } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
 import { todayStr } from "@/lib/dates";
 import { startScanner, type Scanner } from "@/lib/camera";
+import { parseGs1 } from "@/lib/gs1";
 import type { FoodDetail } from "@/lib/types";
 import { AddFoodDialog } from "@/components/food-log/add-food-dialog";
 import { CameraViewfinder } from "@/components/scanner/camera-viewfinder";
@@ -23,6 +24,8 @@ export default function ScannerPage() {
   const [error, setError] = useState("");
   const [errorType, setErrorType] = useState<ErrorType>(null);
   const [scannedCode, setScannedCode] = useState("");
+  // A counter label's 2D code also says what this pack weighs.
+  const [packGrams, setPackGrams] = useState<number | undefined>(undefined);
   const [flashGreen, setFlashGreen] = useState(false);
   const scannerRef = useRef<Scanner | null>(null);
   const [torchOn, setTorchOn] = useState<boolean | null>(null); // null: no flashlight
@@ -53,10 +56,14 @@ export default function ScannerPage() {
     setError("");
     setErrorType(null);
     setScannedCode("");
+    setPackGrams(undefined);
     setLoggedOn(null);
   }
 
-  async function lookupBarcodeByCode(code: string) {
+  async function lookupBarcodeByCode(input: string, grams?: number) {
+    const gs1 = parseGs1(input);
+    const code = gs1?.gtin ?? input;
+    setPackGrams(grams ?? gs1?.grams);
     setError("");
     setErrorType(null);
     setResult(null);
@@ -85,7 +92,7 @@ export default function ScannerPage() {
     clearState();
     try {
       if (!videoRef.current) return;
-      const scanner = await startScanner(videoRef.current, (code) => {
+      const scanner = await startScanner(videoRef.current, (code, info) => {
         scannerRef.current = null;
         setTorchOn(null);
         setFlashGreen(true);
@@ -94,7 +101,7 @@ export default function ScannerPage() {
           setFlashGreen(false);
           setScanning(false);
           setManualCode(code);
-          lookupBarcodeByCode(code);
+          lookupBarcodeByCode(code, info.grams);
         }, 400);
       });
       scannerRef.current = scanner;
@@ -204,6 +211,7 @@ export default function ScannerPage() {
           onOpenChange={setLogOpen}
           defaultDate={todayStr()}
           initialFoodId={result.id}
+          initialGrams={packGrams}
           onLogged={setLoggedOn}
         />
       )}

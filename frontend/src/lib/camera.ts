@@ -3,10 +3,12 @@
 
 import type { DecodeHintType as HintKey } from "@zxing/library";
 import { checkDigitOk } from "@/lib/barcode";
+import { parseGs1 } from "@/lib/gs1";
 
 // Food packs carry EAN-13, EAN-8 or UPC-A. UPC-E and Code 128 are left out: their decoders "find"
-// short codes inside half of an EAN-13, which then look up as unknown products.
-const FORMATS = ["ean_13", "ean_8", "upc_a"];
+// short codes inside half of an EAN-13, which then look up as unknown products. Counter and scale
+// labels add a GS1 DataMatrix (sometimes a QR) with the product code and the pack's weight.
+const FORMATS = ["ean_13", "ean_8", "upc_a", "data_matrix", "qr_code"];
 
 /**
  * Accepts a code only once several frames agree. A single frame can misread a bar and still pass
@@ -34,6 +36,11 @@ type ExtraCapabilities = MediaTrackCapabilities & {
   zoom?: { min: number; max: number };
   torch?: boolean;
 };
+
+/** What a scan read beyond the code: the pack's net weight, from a GS1 2D code. */
+export interface ScanInfo {
+  grams?: number;
+}
 
 export interface Scanner {
   stop: () => void;
@@ -128,7 +135,10 @@ async function nativeDetector(): Promise<NativeDetector | null> {
 }
 
 /** Shows the camera in `video` and calls `onCode` once with the first code read. */
-export async function startScanner(video: HTMLVideoElement, onCode: (code: string) => void): Promise<Scanner> {
+export async function startScanner(
+  video: HTMLVideoElement,
+  onCode: (code: string, info: ScanInfo) => void,
+): Promise<Scanner> {
   const stream = await openBackCamera();
   const track = stream.getVideoTracks()[0];
   let stopped = false;
@@ -143,10 +153,19 @@ export async function startScanner(video: HTMLVideoElement, onCode: (code: strin
   const confirm = makeConfirmer();
   const found = (raw: string) => {
     if (stopped) return;
+    // A 2D code carries its own error correction, so one read is enough. Other QR codes (web
+    // links on the pack) are not products and are skipped.
+    const gs1 = parseGs1(raw);
+    if (gs1) {
+      if (!checkDigitOk(gs1.gtin)) return;
+      stop();
+      onCode(gs1.gtin, { grams: gs1.grams });
+      return;
+    }
     const code = confirm(raw.trim());
     if (!code) return;
     stop();
-    onCode(code);
+    onCode(code, {});
   };
 
   const detector = await nativeDetector();
@@ -176,6 +195,7 @@ export async function startScanner(video: HTMLVideoElement, onCode: (code: strin
     const hints = new Map<HintKey, unknown>([
       [DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+        BarcodeFormat.DATA_MATRIX, BarcodeFormat.QR_CODE,
       ]],
       [DecodeHintType.TRY_HARDER, true],
     ]);
