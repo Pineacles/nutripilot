@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from passlib.context import CryptContext
 from sqlalchemy import delete, select
 
+from app.auth.api_keys import api_key_fields
 from app.database import async_session
 from app.models import (
     CaffeineLog,
@@ -148,7 +149,7 @@ async def seed_demo():
         user = User(
             email=DEMO_EMAIL,
             password_hash=pwd_context.hash(DEMO_PASSWORD),
-            api_key="demo-api-key-" + uuid.uuid4().hex[:20],
+            **api_key_fields("demo-api-key-" + uuid.uuid4().hex[:20]),
             target_kcal=2200,
             target_protein_g=170.0,
             target_carbs_g=230.0,

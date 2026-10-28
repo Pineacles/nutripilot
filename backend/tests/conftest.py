@@ -35,6 +35,7 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Patch settings before app modules load them
+from app.auth.api_keys import api_key_fields
 from app.config import settings
 
 settings.database_url = "sqlite+aiosqlite:///:memory:"
@@ -132,11 +133,12 @@ async def test_user(db_session):
     # DB) and api_key has a UNIQUE constraint, so every test_user needs a
     # distinct key. Suffixing keeps the sentinel recognizable while avoiding
     # collisions across the ~25 tests that use this fixture.
+    plain_key = f"{_TEST_API_KEY_SENTINEL}-{uuid.uuid4().hex[:8]}"
     user = User(
         id=uuid.uuid4(),
         email=unique_email,
         password_hash=_pwd_context.hash(TEST_PASSWORD),
-        api_key=f"{_TEST_API_KEY_SENTINEL}-{uuid.uuid4().hex[:8]}",
+        **api_key_fields(plain_key),
         target_kcal=2000,
         target_protein_g=150,
         target_carbs_g=250,
@@ -151,6 +153,7 @@ async def test_user(db_session):
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
+    user.plain_api_key = plain_key  # only the digest is stored; tests keep the key
     return user
 
 
@@ -169,7 +172,7 @@ async def auth_headers(test_user, async_client):
 @pytest_asyncio.fixture()
 async def api_key_headers(test_user):
     """Return X-API-Key headers for the test user."""
-    return {"X-API-Key": test_user.api_key}
+    return {"X-API-Key": test_user.plain_api_key}
 
 
 @pytest_asyncio.fixture()

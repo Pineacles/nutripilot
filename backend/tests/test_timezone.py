@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from passlib.context import CryptContext
 
+from app.auth.api_keys import api_key_fields
 from app.models.user import User
 
 pytestmark = pytest.mark.asyncio
@@ -24,7 +25,7 @@ async def _make_user(db_session, tz: str) -> str:
         id=uuid.uuid4(),
         email=f"tz-{uuid.uuid4().hex[:10]}@nutripilot.dev",
         password_hash=_pwd.hash("x"),
-        api_key=api_key,
+        **api_key_fields(api_key),
         target_kcal=2000,
         target_protein_g=150,
         target_carbs_g=250,

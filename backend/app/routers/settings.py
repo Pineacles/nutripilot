@@ -1,10 +1,10 @@
-import secrets
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.api_keys import PREFIX_LENGTH, hash_api_key, mask_api_key, new_api_key
 from app.auth.dependencies import get_current_user_jwt
 from app.database import get_db
 from app.models.integration import Integration
@@ -127,11 +127,12 @@ async def regenerate_api_key(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    new_key = secrets.token_hex(32)
-    user.api_key = new_key
+    new_key = new_api_key()
+    user.api_key_hash = hash_api_key(new_key)
+    user.api_key_prefix = new_key[:PREFIX_LENGTH]
     await db.commit()
     return ApiKeyResponse(
-        api_key_masked=f"...{new_key[-6:]}",
+        api_key_masked=mask_api_key(user.api_key_prefix),
         api_key=new_key,
     )
 

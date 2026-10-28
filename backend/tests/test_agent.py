@@ -98,7 +98,8 @@ async def test_get_settings(async_client, api_key_headers):
     assert "nutrition_targets" in data
     assert "api_key_masked" in data
     # API key must be masked (never returned in full via settings)
-    assert data["api_key_masked"].startswith("...")
+    assert data["api_key_masked"].endswith("...")
+    assert len(data["api_key_masked"]) < 16
 
 
 # --- Weight log "move day" guard: only manual entries can have their date changed ---

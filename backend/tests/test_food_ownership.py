@@ -8,6 +8,7 @@ import pytest
 from passlib.context import CryptContext
 from sqlalchemy import select
 
+from app.auth.api_keys import api_key_fields
 from app.models.food import Food
 from app.models.nutrient import Nutrient
 from app.models.user import User
@@ -28,7 +29,7 @@ async def _make_user_key(db_session) -> str:
         id=uuid.uuid4(),
         email=f"owner-{uuid.uuid4().hex[:10]}@nutripilot.dev",
         password_hash=_pwd.hash("x"),
-        api_key=api_key,
+        **api_key_fields(api_key),
         target_kcal=2000, target_protein_g=150, target_carbs_g=250, target_fat_g=70,
         target_fiber_g=30, target_sugar_g=50, target_sodium_mg=2300,
         target_alcohol_g=0, target_water_ml=2500, target_caffeine_mg=400,

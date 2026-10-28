@@ -19,6 +19,7 @@ import pytest
 import pytest_asyncio
 from passlib.context import CryptContext
 
+from app.auth.api_keys import api_key_fields
 from app.models.user import User
 
 pytestmark = pytest.mark.asyncio
@@ -35,11 +36,12 @@ _FOOD_PAYLOAD = {
 @pytest_asyncio.fixture()
 async def user_b(db_session) -> User:
     """A second, independent user (B) to attempt cross-user access as."""
+    key_b = f"userb-key-{uuid.uuid4().hex}"
     user = User(
         id=uuid.uuid4(),
         email=f"userb-{uuid.uuid4().hex[:10]}@nutripilot.dev",
         password_hash=_pwd.hash(_PASSWORD_B),
-        api_key=f"userb-key-{uuid.uuid4().hex}",
+        **api_key_fields(key_b),
         target_kcal=1800,
         target_protein_g=120,
         target_carbs_g=200,
@@ -54,13 +56,14 @@ async def user_b(db_session) -> User:
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
+    user.plain_api_key = key_b  # only the digest is stored; tests keep the key
     return user
 
 
 @pytest_asyncio.fixture()
 async def b_headers(user_b) -> dict:
     """User B's auth: API key (user A uses JWT via the shared ``auth_headers`` fixture)."""
-    return {"X-API-Key": user_b.api_key}
+    return {"X-API-Key": user_b.plain_api_key}
 
 
 @pytest_asyncio.fixture()

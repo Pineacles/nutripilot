@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.api_keys import mask_api_key
 from app.models.micronutrient_target import MicronutrientTarget
 from app.models.supplement_definition import SupplementDefinition
 from app.models.user import User
@@ -62,7 +63,7 @@ async def get_settings(db: AsyncSession, user: User) -> UserSettingsResponse:
         ),
         micronutrient_targets=micro_targets,
         supplement_definitions=[SupplementDefinitionResponse.model_validate(s) for s in supps],
-        api_key_masked=f"...{user.api_key[-6:]}",
+        api_key_masked=mask_api_key(user.api_key_prefix),
         hidden_nutrients=user.hidden_nutrients or [],
         game_settings=game_service.game_settings_of(user),
         day_goals=game_service.day_goals_of(user),

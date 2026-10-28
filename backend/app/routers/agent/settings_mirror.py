@@ -25,7 +25,7 @@ router = APIRouter()
         "- **nutrition_targets**: daily targets for kcal, protein, carbs, fat, fiber, sugar, sodium, alcohol, water, caffeine\n"
         "- **micronutrient_targets**: custom targets for micros (e.g. calcium 1000mg)\n"
         "- **supplement_definitions**: configured supplements with dose and micronutrient content\n"
-        "- **api_key_masked**: last 6 chars of the API key\n\n"
+        "- **api_key_masked**: the first characters of the API key (the full key is shown once, when it is regenerated)\n\n"
         "**Always GET settings before updating nutrition targets**, so you can send back all fields (PUT replaces the entire object)."
     ),
 )

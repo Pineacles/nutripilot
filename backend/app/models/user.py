@@ -14,7 +14,10 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    api_key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    # SHA-256 hex digest of the agent API key (see app/auth/api_keys.py) and the first
+    # characters of the key, kept only so Settings can say which key is active.
+    api_key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    api_key_prefix: Mapped[str] = mapped_column(String(16), nullable=False)
     target_kcal: Mapped[int] = mapped_column(Integer, default=2000)
     target_protein_g: Mapped[float] = mapped_column(Float, default=150.0)
     target_carbs_g: Mapped[float] = mapped_column(Float, default=250.0)

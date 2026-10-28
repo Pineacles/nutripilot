@@ -1,10 +1,9 @@
-import hmac
-
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.api_keys import hash_api_key
 from app.auth.jwt import decode_token
 from app.database import get_db
 from app.models.user import User
@@ -14,18 +13,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=Fals
 
 
 async def _lookup_user_by_api_key(db: AsyncSession, api_key: str) -> User | None:
-    """Look up a user by API key using a constant-time comparison.
+    """Look up a user by the SHA-256 digest of the presented API key.
 
-    The DB query itself still does an equality WHERE (needed to narrow to a
-    row at all), but the final accept/reject decision is made with
-    hmac.compare_digest to avoid leaking timing information about how much
-    of the key matched.
+    Only digests are stored, so the lookup is an equality match on the digest;
+    the key itself never reaches the database.
     """
-    result = await db.execute(select(User).where(User.api_key == api_key))
-    user = result.scalar_one_or_none()
-    if user is None or not hmac.compare_digest(user.api_key, api_key):
-        return None
-    return user
+    result = await db.execute(select(User).where(User.api_key_hash == hash_api_key(api_key)))
+    return result.scalar_one_or_none()
 
 
 async def get_current_user_jwt(

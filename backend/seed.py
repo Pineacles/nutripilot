@@ -11,6 +11,7 @@ import secrets
 from passlib.context import CryptContext
 from sqlalchemy import select
 
+from app.auth.api_keys import api_key_fields
 from app.database import async_session
 from app.models.user import User
 
@@ -39,7 +40,7 @@ async def seed():
         user = User(
             email=email,
             password_hash=pwd_context.hash(password),
-            api_key=api_key,
+            **api_key_fields(api_key),
             target_kcal=2000,
             target_protein_g=150.0,
             target_carbs_g=250.0,

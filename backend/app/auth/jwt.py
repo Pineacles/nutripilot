@@ -14,10 +14,11 @@ def create_access_token(user_id: str) -> str:
     )
 
 
-def create_refresh_token(user_id: str) -> str:
-    expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
+def create_refresh_token(user_id: str, jti: str, expire: datetime | None = None) -> str:
+    """A refresh token is only honoured while a row with its *jti* exists (see models/refresh_token.py)."""
+    expire = expire or datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
     return jwt.encode(
-        {"sub": user_id, "exp": expire, "type": "refresh"},
+        {"sub": user_id, "exp": expire, "type": "refresh", "jti": jti},
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
     )

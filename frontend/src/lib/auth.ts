@@ -21,6 +21,16 @@ export function clearTokens() {
 
 /** Clears the session and reloads at /login, so nothing from this account stays in memory for the next one. */
 export function signOut() {
+  const refresh = getRefreshToken();
+  // Revoke the refresh token server-side (best effort; keepalive lets it finish during the reload).
+  if (refresh) {
+    fetch(`/api/auth/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refresh }),
+      keepalive: true,
+    }).catch(() => {});
+  }
   clearTokens();
   window.location.href = "/login";
 }
@@ -45,7 +55,19 @@ export async function login(
   return true;
 }
 
-export async function refreshAccessToken(): Promise<boolean> {
+// Refresh tokens are single-use, so concurrent 401s must share one refresh request.
+let refreshInFlight: Promise<boolean> | null = null;
+
+export function refreshAccessToken(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefresh().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+async function doRefresh(): Promise<boolean> {
   const refresh = getRefreshToken();
   if (!refresh) return false;
   const res = await fetch(`/api/auth/refresh`, {
@@ -59,6 +81,7 @@ export async function refreshAccessToken(): Promise<boolean> {
     return false;
   }
   const data = await res.json();
-  localStorage.setItem("access_token", data.access_token);
+  // The server rotates the refresh token on every use: keep the new one.
+  setTokens(data.access_token, data.refresh_token ?? refresh);
   return true;
 }

@@ -18,4 +18,11 @@ class RefreshRequest(BaseModel):
 
 class AccessTokenResponse(BaseModel):
     access_token: str
+    # Refresh tokens rotate: every /auth/refresh returns a new one and invalidates the old.
+    refresh_token: str | None = None
     token_type: str = "bearer"
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str
+    all_sessions: bool = False

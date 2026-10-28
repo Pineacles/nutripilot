@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { SettingsSection } from "./section";
 import { useRegenerateApiKey } from "@/hooks/queries";
 
-/** The API key, masked until it is regenerated (the full key is shown once, with Copy). */
+/** The start of the API key (the server stores only a hash), the full key once after it is regenerated (the full key is shown once, with Copy). */
 export function ApiKeySection({ apiKeyMasked, fullApiKey }: { apiKeyMasked: string; fullApiKey: string | null }) {
   return (
     <SettingsSection title="API key" description="For an agent or script that logs on your behalf.">
@@ -28,7 +28,11 @@ export function ApiKeySection({ apiKeyMasked, fullApiKey }: { apiKeyMasked: stri
             </Button>
           )}
         </div>
-        {fullApiKey && <p className="text-xs text-ink">Save this key now, it will not be shown again.</p>}
+        {fullApiKey ? (
+          <p className="text-xs text-ink">Save this key now, it will not be shown again.</p>
+        ) : (
+          <p className="text-xs text-ink">Only the start of the key is kept. Regenerate to get a new one.</p>
+        )}
       </div>
     </SettingsSection>
   );
