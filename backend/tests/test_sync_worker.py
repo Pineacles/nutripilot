@@ -29,8 +29,24 @@ from app.models.weight_log import WeightLog
 from app.services import sync_worker
 from app.services.integration_logger import SyncLogger
 from app.services.logging_service import upsert_weight
+from app.services.url_guard import PinnedTarget
 
 pytestmark = pytest.mark.asyncio
+
+
+@pytest.fixture(autouse=True)
+def _keep_original_url_for_respx(monkeypatch):
+    """Validate for real, but hand httpx the original URL so respx mocks (keyed on hostnames) match.
+
+    The IP pinning itself is covered in test_url_guard.py.
+    """
+    real = sync_worker.resolve_pinned
+
+    async def _validate_only(url, *, field):
+        await real(url, field=field)
+        return PinnedTarget(url)
+
+    monkeypatch.setattr(sync_worker, "resolve_pinned", _validate_only)
 
 
 class _FakeIntegration:

@@ -50,7 +50,7 @@ from app.database import async_session
 from app.models.integration import Integration
 from app.services.integration_logger import SyncLogger
 from app.services.logging_service import upsert_weight
-from app.services.url_guard import UnsafeURLError, assert_public_http_url
+from app.services.url_guard import UnsafeURLError, resolve_pinned
 
 logger = logging.getLogger(__name__)
 
@@ -595,16 +595,11 @@ async def _refresh_oauth2_token(
     if not token_url:
         return RefreshResult(permanent=True, error="No token_url in field_mapping and no default for this type")
 
-    # SSRF guard: re-check immediately before making the request, even though
-    # the router validates source_url/token_url at create/update time: the
-    # stored value could have been set before this guard existed, or the
-    # integration type's default token_url could change.
-    # Residual risk: httpx re-resolves the hostname itself when it opens the
-    # connection, so a DNS-rebinding attacker who flips the A/AAAA record
-    # between this check and httpx's own resolution could still slip through
-    # (TOCTOU); this guard blocks static/typical SSRF targets, not rebinding.
+    # SSRF guard: validate immediately before making the request (the stored
+    # value could predate the guard) and connect to the validated address only,
+    # so DNS rebinding between check and connect cannot change the target.
     try:
-        await assert_public_http_url(token_url, field="field_mapping.token_url")
+        pinned = await resolve_pinned(token_url, field="field_mapping.token_url")
     except UnsafeURLError as exc:
         return RefreshResult(permanent=True, error=f"Refused to refresh token: {exc}")
 
@@ -616,7 +611,7 @@ async def _refresh_oauth2_token(
     }
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(token_url, data=data)
+            resp = await client.post(pinned.url, data=data, headers=pinned.headers, extensions=pinned.extensions)
 
         if resp.status_code == 200:
             body = resp.json()
@@ -720,16 +715,11 @@ async def _fetch_generic_json(
     if integration.auth_header:
         headers["Authorization"] = f"Bearer {integration.auth_header}"
 
-    # SSRF guard: re-check immediately before fetching, even though the
-    # router validates source_url at create/update time: the stored value
-    # could predate this guard, or an integration could have been created
-    # before validation was added.
-    # Residual risk: httpx re-resolves the hostname itself when it opens the
-    # connection, so a DNS-rebinding attacker who flips the A/AAAA record
-    # between this check and httpx's own resolution could still slip through
-    # (TOCTOU); this guard blocks static/typical SSRF targets, not rebinding.
+    # SSRF guard: validate immediately before fetching (the stored value could
+    # predate the guard) and connect to the validated address only, so DNS
+    # rebinding between check and connect cannot change the target.
     try:
-        await assert_public_http_url(url, field="source_url")
+        pinned = await resolve_pinned(url, field="source_url")
     except UnsafeURLError as exc:
         msg = f"Refused to fetch: {exc}"
         log.error("ssrf_blocked", detail=msg)
@@ -738,7 +728,7 @@ async def _fetch_generic_json(
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url, headers=headers)
+            resp = await client.get(pinned.url, headers={**headers, **pinned.headers}, extensions=pinned.extensions)
             if resp.status_code != 200:
                 log.error("generic_fetch_error", http_status=resp.status_code)
                 return None

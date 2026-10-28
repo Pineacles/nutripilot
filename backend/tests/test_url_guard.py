@@ -102,3 +102,22 @@ async def test_allows_public_url(monkeypatch):
     _install_fake_dns(monkeypatch, {"api.example.com": ["93.184.216.34"]})
     # Should not raise.
     await assert_public_http_url("http://api.example.com/api", field="source_url")
+
+
+async def test_resolve_pinned_connects_to_the_checked_ip(monkeypatch):
+    _install_fake_dns(monkeypatch, {"api.example.com": ["93.184.216.34"]})
+    from app.services.url_guard import resolve_pinned
+
+    target = await resolve_pinned("https://api.example.com:8443/v1/data?x=1", field="source_url")
+    assert target.url == "https://93.184.216.34:8443/v1/data?x=1"
+    assert target.headers == {"Host": "api.example.com:8443"}
+    assert target.extensions == {"sni_hostname": "api.example.com"}
+
+
+async def test_resolve_pinned_plain_http_has_no_sni(monkeypatch):
+    _install_fake_dns(monkeypatch, {"api.example.com": ["93.184.216.34"]})
+    from app.services.url_guard import resolve_pinned
+
+    target = await resolve_pinned("http://api.example.com/x", field="source_url")
+    assert target.url == "http://93.184.216.34/x"
+    assert target.extensions == {}
