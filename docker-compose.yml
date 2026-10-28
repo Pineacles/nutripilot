@@ -37,7 +37,11 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./backend:/app:z
+      # Integration sync logs (the only thing the API writes); the source is not mounted.
+      - api_logs:/app/logs
+    # No source bind mount: the image already contains the code (backend/Dockerfile), so a
+    # writable mount would only let a compromised API process edit its own source. Code
+    # changes take effect with `docker compose up -d --build`.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -59,3 +63,4 @@ services:
 
 volumes:
   pgdata:
+  api_logs:

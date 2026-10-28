@@ -7,7 +7,8 @@ RUN pip install --no-cache-dir .
 
 COPY . .
 
-RUN adduser --disabled-password --no-create-home appuser
+RUN adduser --disabled-password --no-create-home appuser \
+    && mkdir -p /app/logs && chown appuser /app/logs
 USER appuser
 
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
