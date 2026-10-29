@@ -91,10 +91,19 @@ def _gs1_pairs(text: str) -> list[tuple[str, str]]:
     return pairs
 
 
+# Coop's reduced-price sticker ("Verwenden statt Verschwenden") covers the pack's EAN with a
+# Code 128: "27", the pack's EAN-13, one digit and the new price in centimes.
+_MARKDOWN_LABEL = re.compile(r"27(\d{13})\d(\d{8})")
+
+
 def gs1_scan(raw: str) -> tuple[str, float | None] | None:
     """(GTIN, pack grams) from a GS1 2D code's text: the DataMatrix on Coop and Migros counter
     labels carries the product's own GTIN (the same on every pack) and the net weight (AI 3103).
-    None for anything else. Mirrors parseGs1 in frontend/src/lib/gs1.ts."""
+    Coop's reduced-price sticker gives (GTIN, None). None for anything else. Mirrors parseGs1 in
+    frontend/src/lib/gs1.ts."""
+    markdown = _MARKDOWN_LABEL.fullmatch(raw.strip())
+    if markdown:
+        return markdown.group(1), None
     text = re.sub(r"^\][A-Za-z]\d", "", raw.strip()).lstrip(_GS)
     pairs = _gs1_pairs(text)
     gtin = next((v for ai, v in pairs if ai == "01"), None)

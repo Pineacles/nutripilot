@@ -203,6 +203,17 @@ def test_gs1_scan_reads_counter_label_datamatrix():
     assert gs1_scan("https://id.gs1.org/01/07610819523015?3103=000162") == ("7610819523015", 162.0)
     assert gs1_scan("0107610819523015") == ("7610819523015", None)
     assert gs1_scan("7610819523015") is None  # a plain EAN
+
+
+def test_gs1_scan_reads_coop_markdown_sticker():
+    from app.services.barcode_service import gs1_scan
+
+    # Coop "Verwenden statt Verschwenden" Code 128 on a Tiramisu Cup, read from the photo with zxing:
+    # 27 + EAN-13 + one digit + price in centimes (2.00).
+    assert gs1_scan("277627535898389400000200") == ("7627535898389", None)
+    assert gs1_scan(" 277627535898389400000200 ") == ("7627535898389", None)
+    assert gs1_scan("27762753589838940000020") is None  # one digit short
+    assert gs1_scan("287627535898389400000200") is None
     assert gs1_scan("https://coop.ch/promo") is None
 
 

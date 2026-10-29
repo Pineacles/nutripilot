@@ -93,9 +93,21 @@ function parseDigitalLink(text: string): Gs1Scan | null {
   return fromPairs(pairs);
 }
 
-/** The GTIN and weight in a GS1 2D code, or null when the text is something else (a plain EAN, a web link). */
+/**
+ * Coop's reduced-price sticker ("Verwenden statt Verschwenden") covers the pack's EAN with a
+ * Code 128 of its own: "27", the pack's EAN-13, one digit and the new price in centimes, e.g.
+ * 277627535898389400000200 for 7627535898389 at 2.00.
+ */
+const MARKDOWN_LABEL = /^27(\d{13})\d(\d{8})$/;
+
+/**
+ * The GTIN and weight in a GS1 2D code, or the GTIN in a Coop reduced-price sticker; null when the
+ * text is something else (a plain EAN, a web link).
+ */
 export function parseGs1(raw: string): Gs1Scan | null {
   let text = raw.trim();
+  const markdown = MARKDOWN_LABEL.exec(text);
+  if (markdown) return { gtin: markdown[1] };
   // Symbology prefixes some decoders keep: ]d2 DataMatrix, ]Q3 QR, ]C1 GS1-128.
   text = text.replace(/^\][A-Za-z]\d/, "");
   if (text.startsWith(GS)) text = text.slice(1);

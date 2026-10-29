@@ -5,10 +5,13 @@ import type { DecodeHintType as HintKey } from "@zxing/library";
 import { checkDigitOk } from "@/lib/barcode";
 import { parseGs1 } from "@/lib/gs1";
 
-// Food packs carry EAN-13, EAN-8 or UPC-A. UPC-E and Code 128 are left out: their decoders "find"
-// short codes inside half of an EAN-13, which then look up as unknown products. Counter and scale
-// labels add a GS1 DataMatrix (sometimes a QR) with the product code and the pack's weight.
-const FORMATS = ["ean_13", "ean_8", "upc_a", "data_matrix", "qr_code"];
+// Food packs carry EAN-13, EAN-8 or UPC-A. UPC-E is left out: its decoder "finds" short codes
+// inside half of an EAN-13, which then look up as unknown products. Counter and scale labels add a
+// GS1 DataMatrix (sometimes a QR) with the product code and the pack's weight. Code 128 is read only
+// for Coop's reduced-price sticker, which covers the pack's EAN; any other Code 128 read is dropped,
+// since its decoder too finds short codes inside EAN-13s.
+const FORMATS = ["ean_13", "ean_8", "upc_a", "data_matrix", "qr_code", "code_128"];
+const CODE_128 = /code_?128/i;
 
 /**
  * Accepts a code only once several frames agree. A single frame can misread a bar and still pass
@@ -116,7 +119,7 @@ async function tune(track: MediaStreamTrack | undefined) {
 }
 
 interface NativeDetector {
-  detect: (source: HTMLVideoElement) => Promise<{ rawValue: string }[]>;
+  detect: (source: HTMLVideoElement) => Promise<{ rawValue: string; format: string }[]>;
 }
 type DetectorClass = {
   new (opts: { formats: string[] }): NativeDetector;
@@ -151,10 +154,10 @@ export async function startScanner(
     if (video.srcObject === stream) video.srcObject = null;
   };
   const confirm = makeConfirmer();
-  const found = (raw: string) => {
+  const found = (raw: string, format: string) => {
     if (stopped) return;
-    // A 2D code carries its own error correction, so one read is enough. Other QR codes (web
-    // links on the pack) are not products and are skipped.
+    // A 2D code and the Code 128 sticker carry their own error correction, so one read is enough.
+    // Other QR codes (web links on the pack) are not products and are skipped.
     const gs1 = parseGs1(raw);
     if (gs1) {
       if (!checkDigitOk(gs1.gtin)) return;
@@ -162,6 +165,7 @@ export async function startScanner(
       onCode(gs1.gtin, { grams: gs1.grams });
       return;
     }
+    if (CODE_128.test(format)) return;
     const code = confirm(raw.trim());
     if (!code) return;
     stop();
@@ -177,7 +181,7 @@ export async function startScanner(
       if (stopped) return;
       if (video.readyState >= 2) {
         try {
-          for (const c of await detector.detect(video)) found(c.rawValue);
+          for (const c of await detector.detect(video)) found(c.rawValue, c.format);
           if (stopped) return;
         } catch {
           // A frame that can't be read; try the next one.
@@ -195,13 +199,13 @@ export async function startScanner(
     const hints = new Map<HintKey, unknown>([
       [DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
-        BarcodeFormat.DATA_MATRIX, BarcodeFormat.QR_CODE,
+        BarcodeFormat.DATA_MATRIX, BarcodeFormat.QR_CODE, BarcodeFormat.CODE_128,
       ]],
       [DecodeHintType.TRY_HARDER, true],
     ]);
     const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
     const controls = await reader.decodeFromStream(stream, video, (res) => {
-      if (res) found(res.getText());
+      if (res) found(res.getText(), BarcodeFormat[res.getBarcodeFormat()]);
     });
     stopDecoder = () => controls.stop();
   }
