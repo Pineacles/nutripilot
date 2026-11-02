@@ -27,14 +27,16 @@ router = APIRouter()
         "- **water**: total ml consumed vs target\n"
         "- **caffeine**: total mg consumed vs target\n"
         "- **micronutrients**: aggregated micros from food + supplements (calcium, potassium, omega3, zinc, vit_d, vit_k2, vit_c, magnesium, b12, iron)\n\n"
+        "Pass `day` (YYYY-MM-DD) to get the same snapshot for another date.\n\n"
         "**This is the go-to endpoint for answering 'how am I doing today?'**"
     ),
 )
 async def summary_today(
+    day: date | None = Query(None, description="Date to summarize (default: today in the user's timezone)"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    return await summary_service.get_today_summary(db, user)
+    return await summary_service.get_today_summary(db, user, day)
 
 
 @router.get(
@@ -42,7 +44,7 @@ async def summary_today(
     response_model=WeekSummary,
     summary="Weekly nutrition and body comp summary",
     description=(
-        "Returns the last 7 days averaged:\n\n"
+        "Returns the 7 days ending today averaged (or ending `end_date`, YYYY-MM-DD):\n\n"
         "- **daily_avg**: average macros per day\n"
         "- **daily_calories**: per-day kcal breakdown for charting\n"
         "- **micronutrient_avg**: average daily micros\n"
@@ -52,10 +54,11 @@ async def summary_today(
     ),
 )
 async def summary_week(
+    end_date: date | None = Query(None, description="Last day of the 7-day window (default: today)"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    return await summary_service.get_week_summary(db, user)
+    return await summary_service.get_week_summary(db, user, end_date)
 
 
 @router.get(

@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -64,6 +64,17 @@ class FoodCreate(BaseModel):
     serving_size_g: _ServingG = None
     serving_label: str | None = Field(default=None, max_length=100)
     nutrients: NutrientInput
+    # True = only the creator can find, log or clone this food.
+    private: bool = False
+    # 'ai_estimate' marks values an agent estimated (a meal photo) rather than read off a label.
+    source: Literal["manual", "ai_estimate"] = "manual"
+
+    @model_validator(mode="after")
+    def _private_has_no_barcode(self):
+        # Barcodes are unique across everyone: a private food holding one would hide the product from others.
+        if self.private and self.barcode:
+            raise ValueError("a private food cannot have a barcode")
+        return self
 
 
 class FoodUpdate(BaseModel):
@@ -72,6 +83,7 @@ class FoodUpdate(BaseModel):
     serving_size_g: _ServingG = None
     serving_label: Optional[str] = Field(None, max_length=100)
     nutrients: Optional[NutrientInput] = None
+    private: Optional[bool] = None
 
 
 class FoodCorrectionUpdate(BaseModel):
@@ -124,6 +136,8 @@ class FoodResponse(BaseModel):
     serving_size_g: float | None = None
     serving_label: str | None = None
     nutrients: NutrientData | None
+    # Private foods are visible only to their creator.
+    private: bool = False
     # is_mine: the current user owns this food. editable: the current user may
     # PUT/DELETE it (owner-only; official curated foods are read-only).
     is_mine: bool = False
@@ -142,6 +156,7 @@ class FoodSearchResult(BaseModel):
     kcal: float | None = None
     protein: float | None = None
     source: str | None = None
+    private: bool | None = None
     serving_size_g: float | None = None
     serving_label: str | None = None
 

@@ -23,7 +23,7 @@ from app.schemas.food import (
     ServingCreate,
     ServingResponse,
 )
-from app.services import barcode_service, food_service
+from app.services import barcode_service, dish_service, food_service
 
 router = APIRouter(prefix="/api/foods", tags=["foods"])
 
@@ -41,6 +41,7 @@ def _food_to_response(food, user: User, servings: list | None = None) -> FoodRes
         serving_size_g=food.serving_size_g,
         serving_label=food.serving_label,
         nutrients=nutrients,
+        private=food.private,
         is_mine=is_mine,
         editable=is_mine,
         servings=None if servings is None else [ServingResponse.model_validate(sv) for sv in servings],
@@ -55,7 +56,8 @@ def _food_to_response(food, user: User, servings: list | None = None) -> FoodRes
         "Search the food database by name. Returns up to `limit` results (default 10, max 50).\n\n"
         "For queries ≥ 2 characters, automatically falls back to OpenFoodFacts if local results are sparse.\n\n"
         "**Use this before logging** to find the food_id, or to check if a food exists before creating it.\n\n"
-        "Returns: id, name, barcode, kcal, protein, source, serving_size_g, serving_label."
+        "Returns: id, name, barcode, kcal, protein, source, private, serving_size_g, serving_label. "
+        "Your own private foods and dishes are included; other users' private foods never are."
     ),
 )
 async def search_foods(
@@ -65,9 +67,9 @@ async def search_foods(
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     if len(q) >= 2:
-        results = await food_service.search_foods_with_fallback(db, q, limit)
+        results = await food_service.search_foods_with_fallback(db, q, user.id, limit)
     else:
-        results = await food_service.search_foods(db, q, limit)
+        results = await food_service.search_foods(db, q, user.id, limit)
     return results
 
 
@@ -87,7 +89,7 @@ async def get_by_barcode(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    food = await barcode_service.lookup_barcode(db, code)
+    food = await barcode_service.lookup_barcode(db, code, user.id)
     if food is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -100,6 +102,27 @@ async def get_by_barcode(
     return _food_to_response(food, user, await food_service.user_servings(db, user.id, food.id))
 
 
+@router.get(
+    "/{food_id}",
+    response_model=FoodResponse,
+    summary="Get a food by id",
+    description=(
+        "Full food details: per-100 g `nutrients`, `source`, `private`, serving size and label, and your own "
+        "named `servings`. Declared after `/search` and `/barcode/{code}`, which keep their meaning.\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND` if the id doesn't exist or is another user's private food."
+    ),
+)
+async def get_food(
+    food_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user_jwt_or_api_key),
+):
+    food = await food_service.get_food_by_id(db, food_id, user.id)
+    if food is None:
+        raise HTTPException(status_code=404, detail={"code": "FOOD_NOT_FOUND"})
+    return _food_to_response(food, user, await food_service.user_servings(db, user.id, food.id))
+
+
 @router.post(
     "",
     response_model=FoodResponse,
@@ -108,7 +131,9 @@ async def get_by_barcode(
     description=(
         "Add a new food to the database with its nutrient profile (per 100g).\n\n"
         "**Required:** `name`, `nutrients` (at minimum provide `kcal`).\n\n"
-        "**Optional:** `barcode` (4-50 chars), `serving_size_g`, `serving_label` (e.g. '1 slice', '1 cup').\n\n"
+        "**Optional:** `barcode` (4-50 chars), `serving_size_g`, `serving_label` (e.g. '1 slice', '1 cup'), "
+        "`private` (default false; true = only you can find, log or clone it), "
+        "`source` (`manual` default, or `ai_estimate` for values you estimated yourself, e.g. from a meal photo).\n\n"
         "**Nutrient fields (all per 100g, or per 100ml for drinks, never per serving, can or bottle):**\n"
         "- Macros: kcal, protein, carbs, sugar, fiber, fat, sat_fat, salt, alcohol, caffeine_mg\n"
         "- Micros: calcium, potassium, omega3, zinc, vit_d, vit_k2, vit_c, magnesium, b12, iron\n\n"
@@ -123,7 +148,7 @@ async def create_food(
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
     try:
-        food = await food_service.create_food(db, body, created_by=user.id)
+        food = await food_service.create_food(db, body, source=body.source, created_by=user.id)
     except IntegrityError as err:
         await db.rollback()
         raise _barcode_taken(body.barcode) from err
@@ -141,6 +166,7 @@ def _assert_food_writable(food: Food, user: User) -> None:
     """Enforce food ownership for mutating operations.
 
     - Official/curated food (created_by IS NULL): 403 FOOD_READ_ONLY.
+    - Another user's private food: 404 FOOD_NOT_FOUND (its existence is not revealed).
     - Food owned by another user: 403 NOT_FOOD_OWNER.
     - Food owned by the current user: allowed.
     """
@@ -150,6 +176,8 @@ def _assert_food_writable(food: Food, user: User) -> None:
             detail={"code": "FOOD_READ_ONLY", "detail": "Official foods can't be edited: clone it to customize"},
         )
     if food.created_by != user.id:
+        if food.private:
+            raise HTTPException(status_code=404, detail={"code": "FOOD_NOT_FOUND"})
         raise HTTPException(
             status_code=403,
             detail={"code": "NOT_FOOD_OWNER", "detail": "You can only edit foods you created"},
@@ -165,7 +193,8 @@ def _assert_food_writable(food: Food, user: User) -> None:
         "Create a personal, editable copy of any food (including official/curated foods). "
         "The copy includes the full nutrient profile, is owned by you, and can be edited or deleted. "
         "Provide an optional `name`; otherwise the original name is suffixed with ' (custom)'.\n\n"
-        "**Errors:** `404 FOOD_NOT_FOUND` if the source food doesn't exist."
+        "A clone of a private food stays private.\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND` if the source food doesn't exist or is another user's private food."
     ),
 )
 async def clone_food(
@@ -174,8 +203,7 @@ async def clone_food(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    result = await db.execute(select(Food).where(Food.id == food_id))
-    food = result.scalar_one_or_none()
+    food = await food_service.get_food_by_id(db, food_id, user.id)
     if food is None:
         raise HTTPException(status_code=404, detail={"code": "FOOD_NOT_FOUND"})
     clone = await food_service.clone_food(db, food, owner_id=user.id, name=body.name if body else None)
@@ -199,8 +227,14 @@ async def correct_food_by_barcode(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    existing = await food_service.get_food_by_barcode(db, barcode)
-    if existing is not None and existing.created_by is not None and existing.created_by != user.id:
+    existing = await food_service.get_food_by_barcode(db, barcode, user.id)
+    if existing is None:
+        # Nothing visible under this barcode (another user's private food counts as nothing).
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "FOOD_NOT_FOUND", "detail": "Food not found for barcode", "barcode": barcode},
+        )
+    if existing.created_by is not None and existing.created_by != user.id:
         # Official foods are corrected for everyone; someone else's own food is theirs to fix.
         raise HTTPException(
             status_code=403,
@@ -223,7 +257,9 @@ async def correct_food_by_barcode(
         "Update any field on a food you own. Only send the fields you want to change.\n\n"
         "Nutrients can be partially updated: only the nutrient fields you include will be changed.\n\n"
         "**Errors:** `404 FOOD_NOT_FOUND`; `403 FOOD_READ_ONLY` for official foods (clone it first); "
-        "`403 NOT_FOOD_OWNER` for foods owned by another user."
+        "`403 NOT_FOOD_OWNER` for foods owned by another user (`404` if that food is private).\n\n"
+        "Send `private: false` to share a private food, `true` to hide it again. A dish cannot be made "
+        "public while it has private components (`422 PRIVATE_COMPONENT`)."
     ),
 )
 async def update_food(
@@ -244,6 +280,15 @@ async def update_food(
     nutrients_data = data.pop("nutrients", None)
     if data.get("name", "") is None:
         del data["name"]  # a food always has a name; null means "leave it"
+    if data.get("private", False) is None:
+        del data["private"]
+    if data.get("private") is False and food.private and food.source == "dish":
+        await dish_service.assert_components_public(db, food.id)
+    if data.get("private", food.private) and data.get("barcode", food.barcode):
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "PRIVATE_BARCODE", "detail": "A private food cannot have a barcode"},
+        )
     for field, value in data.items():
         setattr(food, field, value)
     if nutrients_data is not None:
@@ -270,7 +315,7 @@ async def update_food(
         "**Errors:** `404 FOOD_NOT_FOUND`; `403 FOOD_READ_ONLY` for official foods; "
         "`403 NOT_FOOD_OWNER` for foods owned by another user; "
         "`409 FOOD_IN_USE` if the food is referenced by any food logs "
-        "(delete the logs first, or update them to point to a different food)."
+        "(delete the logs first, or update them to point to a different food), or if it is a component of a dish."
     ),
 )
 async def delete_food(
@@ -293,6 +338,11 @@ async def delete_food(
             status_code=409,
             detail={"code": "FOOD_IN_USE", "detail": "Cannot delete food that is referenced by food logs"},
         )
+    if await dish_service.is_component(db, food_id):
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "FOOD_IN_USE", "detail": "Cannot delete food that is a component of a dish"},
+        )
     await db.delete(food)
     await db.commit()
 
@@ -305,7 +355,7 @@ async def delete_food(
     description=(
         "Add a personal portion such as `slice` = 30 g to any food (official foods too, nothing global changes). "
         "Log with it by passing `serving_id` and `servings` to `POST /api/agent/log/food`.\n\n"
-        "**Errors:** `404 FOOD_NOT_FOUND`, `409 SERVING_EXISTS` if this food already has a serving with that name."
+        "**Errors:** `404 FOOD_NOT_FOUND` (also for another user's private food), `409 SERVING_EXISTS` if this food already has a serving with that name."
     ),
 )
 async def add_serving(
@@ -314,7 +364,7 @@ async def add_serving(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    food = await food_service.get_food_by_id(db, food_id)
+    food = await food_service.get_food_by_id(db, food_id, user.id)
     if food is None:
         raise HTTPException(status_code=404, detail={"code": "FOOD_NOT_FOUND"})
     taken = {sv.label.lower() for sv in await food_service.user_servings(db, user.id, food_id)}

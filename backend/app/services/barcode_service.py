@@ -1,5 +1,6 @@
 import re
 from urllib.parse import parse_qsl, urlparse
+from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -133,13 +134,15 @@ def barcode_problem(code: str) -> str | None:
     return None
 
 
-async def lookup_barcode(db: AsyncSession, barcode: str) -> Food | None:
-    """Layered barcode lookup: local DB → OpenFoodFacts → USDA. Auto-persists."""
+async def lookup_barcode(db: AsyncSession, barcode: str, user_id: UUID | None = None) -> Food | None:
+    """Layered barcode lookup: local DB → OpenFoodFacts → USDA. Auto-persists.
+
+    With ``user_id``, another user's private food with this barcode is treated as not found."""
     scan = gs1_scan(barcode)
     barcode = scan[0] if scan else "".join(barcode.split())
 
     # 1. Local DB (also finds foods someone saved under a code the checks below would skip)
-    food = await get_food_by_barcode(db, barcode)
+    food = await get_food_by_barcode(db, barcode, user_id)
     if food is not None:
         return await _refill_blank(db, food)
     if barcode_problem(barcode):
@@ -159,7 +162,7 @@ async def lookup_barcode(db: AsyncSession, barcode: str) -> Food | None:
         except IntegrityError:
             # Scanned twice at once: the other request saved it first.
             await db.rollback()
-            return await get_food_by_barcode(db, barcode)
+            return await get_food_by_barcode(db, barcode, user_id)
 
     return None
 

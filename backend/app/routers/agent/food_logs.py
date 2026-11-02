@@ -105,7 +105,8 @@ def food_log_response(entry: FoodLog, food) -> FoodLogResponse:
         "**Quantity resolution:** `quantity_g` wins → else `servings × serving_size_g` → else `servings × 100` → else `100g`. "
         "Pass `serving_id` with `servings` to count in one of the user's named servings (see `POST /api/foods/{id}/servings`).\n\n"
         "**Returns:** the created log with calculated kcal, protein, carbs, and fat for the actual quantity consumed.\n\n"
-        "**Errors:** `404 FOOD_NOT_FOUND` if the food_id doesn't exist, `404 SERVING_NOT_FOUND` for an unknown serving_id."
+        "A dish (see `POST /api/agent/dishes`) is logged the same way: `servings=1` is one portion.\n\n"
+        "**Errors:** `404 FOOD_NOT_FOUND` if the food_id doesn't exist or is another user's private food, `404 SERVING_NOT_FOUND` for an unknown serving_id."
     ),
 )
 async def log_food(
@@ -113,7 +114,7 @@ async def log_food(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    food = await food_service.get_food_by_id(db, body.food_id)
+    food = await food_service.get_food_by_id(db, body.food_id, user.id)
     if food is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -150,7 +151,7 @@ async def log_food_by_barcode(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    food = await barcode_service.lookup_barcode(db, body.barcode)
+    food = await barcode_service.lookup_barcode(db, body.barcode, user.id)
     scan = barcode_service.gs1_scan(body.barcode)
     if food is None:
         raise HTTPException(
@@ -190,7 +191,7 @@ async def log_food_by_name(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt_or_api_key),
 ):
-    results = await food_service.search_foods(db, body.food_name, limit=1)
+    results = await food_service.search_foods(db, body.food_name, user.id, limit=1)
     if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -201,7 +202,7 @@ async def log_food_by_name(
             },
         )
 
-    food = await food_service.get_food_by_id(db, results[0]["id"])
+    food = await food_service.get_food_by_id(db, results[0]["id"], user.id)
     if food is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

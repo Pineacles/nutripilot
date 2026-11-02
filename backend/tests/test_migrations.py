@@ -111,5 +111,13 @@ def test_migrations_apply_cleanly_and_match_models():
             "alembic check found model/migration drift:\n"
             f"{check.stdout}\n{check.stderr}"
         )
+
+        # The newest migration must also step back and forward again.
+        for args in (["downgrade", "-1"], ["upgrade", "head"]):
+            step = subprocess.run(
+                [sys.executable, "-m", "alembic", *args],
+                cwd=_BACKEND_DIR, env=env, capture_output=True, text=True, timeout=120,
+            )
+            assert step.returncode == 0, f"alembic {' '.join(args)} failed:\n{step.stdout}\n{step.stderr}"
     finally:
         subprocess.run(["docker", "stop", container], capture_output=True, timeout=30)

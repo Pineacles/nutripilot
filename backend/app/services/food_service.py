@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.food import Food
@@ -18,7 +18,7 @@ async def create_food(
     barcode = "".join(data.barcode.split()) if data.barcode else data.barcode
     food = Food(name=data.name, barcode=barcode, source=source,
                 serving_size_g=data.serving_size_g, serving_label=data.serving_label,
-                created_by=created_by)
+                created_by=created_by, private=data.private)
     db.add(food)
     await db.flush()
 
@@ -50,6 +50,7 @@ async def clone_food(db: AsyncSession, source_food: Food, owner_id: UUID, name: 
         serving_size_g=source_food.serving_size_g,
         serving_label=source_food.serving_label,
         created_by=owner_id,
+        private=source_food.private,
     )
     db.add(clone)
     await db.flush()
@@ -79,7 +80,12 @@ async def create_food_from_external(
     return food
 
 
-async def search_foods(db: AsyncSession, query: str, limit: int = 10) -> list[dict]:
+def visible_to(user_id: UUID):
+    """WHERE clause: foods this user may see (public ones, and their own private ones)."""
+    return or_(Food.private.is_(False), Food.created_by == user_id)
+
+
+async def search_foods(db: AsyncSession, query: str, user_id: UUID, limit: int = 10) -> list[dict]:
     # Use pg_trgm similarity on PostgreSQL; fall back to LIKE on other dialects (e.g. SQLite in tests)
     dialect_name = db.bind.dialect.name if hasattr(db, "bind") and db.bind else ""
     try:
@@ -98,9 +104,11 @@ async def search_foods(db: AsyncSession, query: str, limit: int = 10) -> list[di
                 Nutrient.protein,
                 Food.serving_size_g,
                 Food.serving_label,
+                Food.source,
+                Food.private,
             )
             .outerjoin(Nutrient, Food.id == Nutrient.food_id)
-            .where(Food.name.ilike(f"%{query}%"))
+            .where(Food.name.ilike(f"%{query}%"), visible_to(user_id))
             .order_by(Food.name.asc())
             .limit(limit)
         )
@@ -114,9 +122,11 @@ async def search_foods(db: AsyncSession, query: str, limit: int = 10) -> list[di
                 Nutrient.protein,
                 Food.serving_size_g,
                 Food.serving_label,
+                Food.source,
+                Food.private,
             )
             .outerjoin(Nutrient, Food.id == Nutrient.food_id)
-            .where(func.similarity(Food.name, query) > 0.1)
+            .where(func.similarity(Food.name, query) > 0.1, visible_to(user_id))
             .order_by(func.similarity(Food.name, query).desc())
             .limit(limit)
         )
@@ -124,14 +134,15 @@ async def search_foods(db: AsyncSession, query: str, limit: int = 10) -> list[di
     rows = result.all()
     return [
         {"id": r.id, "name": r.name, "barcode": r.barcode, "kcal": r.kcal, "protein": r.protein,
-         "serving_size_g": r.serving_size_g, "serving_label": r.serving_label}
+         "serving_size_g": r.serving_size_g, "serving_label": r.serving_label,
+         "source": r.source, "private": r.private}
         for r in rows
     ]
 
 
-async def search_foods_with_fallback(db: AsyncSession, query: str, limit: int = 10) -> list[dict]:
+async def search_foods_with_fallback(db: AsyncSession, query: str, user_id: UUID, limit: int = 10) -> list[dict]:
     """Search local DB first, then fall back to OpenFoodFacts if few results."""
-    local_results = await search_foods(db, query, limit)
+    local_results = await search_foods(db, query, user_id, limit)
 
     if len(local_results) >= 3 or len(query) < 2:
         return local_results
@@ -153,6 +164,7 @@ async def search_foods_with_fallback(db: AsyncSession, query: str, limit: int = 
                 "kcal": item.get("kcal"),
                 "protein": item.get("protein"),
                 "source": "openfoodfacts",
+                "private": False,
                 "serving_size_g": item.get("serving_size_g"),
                 "serving_label": item.get("serving_label"),
             })
@@ -160,13 +172,23 @@ async def search_foods_with_fallback(db: AsyncSession, query: str, limit: int = 
     return local_results[:limit]
 
 
-async def get_food_by_barcode(db: AsyncSession, barcode: str) -> Food | None:
-    result = await db.execute(select(Food).where(Food.barcode == barcode))
+async def get_food_by_barcode(db: AsyncSession, barcode: str, user_id: UUID | None = None) -> Food | None:
+    """The food with this barcode. With ``user_id``, another user's private food counts as absent."""
+    stmt = select(Food).where(Food.barcode == barcode)
+    if user_id is not None:
+        stmt = stmt.where(visible_to(user_id))
+    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def get_food_by_id(db: AsyncSession, food_id: UUID) -> Food | None:
-    result = await db.execute(select(Food).where(Food.id == food_id))
+async def get_food_by_id(db: AsyncSession, food_id: UUID, user_id: UUID | None = None) -> Food | None:
+    """The food with this id. With ``user_id``, another user's private food counts as absent
+    (callers answer 404, never 403, so its existence is not revealed). Without it nothing is
+    filtered: only for rows that already belong to the caller, such as their own food logs."""
+    stmt = select(Food).where(Food.id == food_id)
+    if user_id is not None:
+        stmt = stmt.where(visible_to(user_id))
+    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 

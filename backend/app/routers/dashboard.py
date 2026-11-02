@@ -108,20 +108,21 @@ async def dashboard_foods(
             select(*columns)
             .outerjoin(Nutrient, Food.id == Nutrient.food_id)
             .outerjoin(uses, uses.c.food_id == Food.id)
-            .where(similarity > 0.1)
+            .where(similarity > 0.1, food_service.visible_to(user.id))
             .order_by((similarity + case((uses.c.uses > 0, 0.25), else_=0)).desc(), func.coalesce(uses.c.uses, 0).desc())
             .offset(offset).limit(limit)
         )
-        count_stmt = select(func.count()).select_from(Food).where(func.similarity(Food.name, q) > 0.1)
+        count_stmt = select(func.count()).select_from(Food).where(func.similarity(Food.name, q) > 0.1, food_service.visible_to(user.id))
     else:
         stmt = (
             select(*columns)
             .outerjoin(Nutrient, Food.id == Nutrient.food_id)
             .outerjoin(uses, uses.c.food_id == Food.id)
+            .where(food_service.visible_to(user.id))
             .order_by(Food.name.asc())
             .offset(offset).limit(limit)
         )
-        count_stmt = select(func.count()).select_from(Food)
+        count_stmt = select(func.count()).select_from(Food).where(food_service.visible_to(user.id))
 
     result = await db.execute(stmt)
     rows = result.all()
@@ -225,8 +226,7 @@ async def dashboard_food_detail(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user_jwt),
 ):
-    result = await db.execute(select(Food).where(Food.id == food_id))
-    food = result.scalar_one_or_none()
+    food = await food_service.get_food_by_id(db, food_id, user.id)
     if food is None:
         raise HTTPException(
             status_code=404,
@@ -245,6 +245,7 @@ async def dashboard_food_detail(
         serving_size_g=food.serving_size_g,
         serving_label=food.serving_label,
         nutrients=nutrients,
+        private=food.private,
         is_mine=is_mine,
         editable=is_mine,
         servings=[ServingResponse.model_validate(sv) for sv in servings],

@@ -9,9 +9,12 @@ doing `app.include_router(agent.router)` unchanged.
 from fastapi import APIRouter
 
 from app.routers.agent import (
+    dishes,
     food_logs,
     game,
     integrations,
+    profile,
+    progress,
     settings_mirror,
     summaries,
     supplements,
@@ -22,6 +25,9 @@ from app.routers.agent import (
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 router.include_router(food_logs.router)
+router.include_router(dishes.router)
+router.include_router(profile.router)
+router.include_router(progress.router)
 router.include_router(weight_logs.router)
 router.include_router(water_caffeine.router)
 router.include_router(supplements.router)

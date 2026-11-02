@@ -16,6 +16,9 @@ The dashboard (`/api/dashboard/*`) is read-only analytics consumed by the fronte
 |---|---|
 | **Food** | Search the database (local + OpenFoodFacts fallback), look up by barcode, create new foods with full macro+micro nutrient profiles, update, delete |
 | **Food logging** | Log food by ID, barcode, or fuzzy name match. Specify quantity in grams or servings. Assign to a meal (breakfast / lunch / dinner / snack) and date. Update or delete entries. View a full daily log with per-item consumed nutrients and per-100g reference values |
+| **Dishes** | Build a complete meal from component foods (`POST /api/agent/dishes`); the server computes its nutrients. A dish is a food: search and log it like any other (`servings=1` is one portion) |
+| **Private foods** | Create foods with `private: true` (and `source: ai_estimate` for your own estimates): only their creator can find or log them |
+| **Profile & coaching** | Body profile (`/api/agent/profile`: height, birth year, sex, activity level) and `GET /api/agent/progress`: smoothed weight trend, weekly rate, estimated TDEE, BMR and a safe calorie floor |
 | **Weight & body comp** | Log weight (kg), body fat (% or kg), muscle mass (% or kg). Filter by source or date range. Update or delete entries |
 | **Supplements** | Define supplement profiles with dose and micronutrient content. Log daily supplement intake with dose, unit, and time of day. List a day's supplement logs. Update or delete entries |
 | **Water** | Log water intake (ml). List a day's water logs. Update or delete entries |

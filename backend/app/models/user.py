@@ -30,6 +30,11 @@ class User(Base):
     target_caffeine_mg: Mapped[float] = mapped_column(Float, nullable=False, server_default="400")
     target_weight_kg: Mapped[float | None] = mapped_column(Float)
     target_body_fat_pct: Mapped[float | None] = mapped_column(Float)
+    # Body profile for the agent's coaching math (BMR, maintenance). All NULL until set.
+    height_cm: Mapped[float | None] = mapped_column(Float)
+    birth_year: Mapped[int | None] = mapped_column(Integer)
+    sex: Mapped[str | None] = mapped_column(String(10))  # 'female' | 'male'
+    activity_level: Mapped[str | None] = mapped_column(String(20))  # sedentary..very_active
     # Nutrients the owner chose not to see (Settings, Tracked nutrients). Data is still stored.
     hidden_nutrients: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     # Game features (prints, streak, quests). All three are NULL until used; defaults live in
