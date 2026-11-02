@@ -37,6 +37,10 @@ export function sourceLabel(source: string, isMine?: boolean): string {
       return "Open Food Facts";
     case "usda":
       return "USDA";
+    case "ai_estimate":
+      return "AI estimate, check it";
+    case "dish":
+      return "Your dish";
     default:
       return source ? source.replace(/_/g, " ") : "Added food";
   }
