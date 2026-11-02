@@ -262,6 +262,7 @@ def validate_field_mapping(fm: dict) -> list[str]:
 
 # Keys in field_mapping that must never appear in API responses.
 _SECRET_FM_KEYS: frozenset[str] = frozenset({
+    "reconnect_nonce",
     "refresh_token",
     "access_token",
     "client_secret",

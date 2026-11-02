@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # Off for a test copy of a real database: a sync refreshes the provider's token, and providers
     # like Withings then revoke the old one, so the real instance would lose its connection.
     integration_sync: bool = True
+    # The address users open NutriPilot at (e.g. https://nutripilot.example.com). OAuth callbacks
+    # are built from it; empty means the first https entry of CORS_ORIGINS.
+    public_url: str = ""
     # withings_client_id and withings_client_secret were removed:
     # credentials are stored per-integration in the Integration.field_mapping column.
 

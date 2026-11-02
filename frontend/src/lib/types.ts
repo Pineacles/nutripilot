@@ -535,7 +535,7 @@ export interface Integration {
   schedule: string;
   field_mapping: Record<string, string> | null;
   last_synced_at: string | null;
-  status: "active" | "error" | "paused";
+  status: "active" | "error" | "paused" | "needs_reauth";
   created_at: string;
 }
 

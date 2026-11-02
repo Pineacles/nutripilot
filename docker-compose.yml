@@ -33,6 +33,8 @@ services:
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-sx9C_xR4WKwZa-JGiJ8xy4eZW5OxMkauVGVWpPuDb1A=}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       USDA_API_KEY: ${USDA_API_KEY:-}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      INTEGRATION_SYNC: ${INTEGRATION_SYNC:-true}
     depends_on:
       db:
         condition: service_healthy

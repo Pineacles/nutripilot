@@ -61,3 +61,11 @@ export function useSyncIntegration() {
     },
   });
 }
+
+/** Withings login link for an integration whose token stopped working; the browser goes there. */
+export function useReconnectIntegration() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ url: string }>(`/api/agent/integrations/${id}/reconnect`, { method: "POST" }),
+  });
+}

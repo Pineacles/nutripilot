@@ -20,6 +20,7 @@ from app.routers.agent import (
     supplements,
     water_caffeine,
     weight_logs,
+    withings_oauth,
 )
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -32,6 +33,7 @@ router.include_router(weight_logs.router)
 router.include_router(water_caffeine.router)
 router.include_router(supplements.router)
 router.include_router(integrations.router)
+router.include_router(withings_oauth.router)
 router.include_router(settings_mirror.router)
 router.include_router(summaries.router)
 router.include_router(game.router)
