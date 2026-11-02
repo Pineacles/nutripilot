@@ -59,7 +59,8 @@ async def _daily_tasks_loop():
         except Exception as e:
             logger.warning("[daily] demo seed error: %s", e)
         try:
-            await run_all_syncs()
+            if settings.integration_sync:
+                await run_all_syncs()
         except Exception as e:
             logger.warning("[daily] integration sync error: %s", e)
 

@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # (first + rest) can decrypt, so to rotate, prepend a new key and keep the
     # old one until every row has been re-written. See app/services/crypto.py.
     token_encryption_key: str = _DEV_TOKEN_ENCRYPTION_KEY
+    # Off for a test copy of a real database: a sync refreshes the provider's token, and providers
+    # like Withings then revoke the old one, so the real instance would lose its connection.
+    integration_sync: bool = True
     # withings_client_id and withings_client_secret were removed:
     # credentials are stored per-integration in the Integration.field_mapping column.
 
