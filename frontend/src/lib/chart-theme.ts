@@ -42,7 +42,7 @@ export const CHART_COLORS = {
 } as const;
 
 /**
- * The poster palette for chart marks (DESIGN.md). A nutrient's marks wear its plate (`plateOf`);
+ * The poster palette for chart marks (docs/design-vision.md). A nutrient's marks wear its plate (`plateOf`);
  * nutrients without a plate (kcal, sugar, sodium, weight) are ink. Past or secondary series step
  * down the neutral ramp. `--alert` marks only a day over a limit or low on a goal, always with a
  * word beside it; `--done` marks only completed things.

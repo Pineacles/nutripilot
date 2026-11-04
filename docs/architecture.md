@@ -94,7 +94,7 @@ refreshes the OAuth token, fetches the latest measurements and upserts weight lo
   token is refreshed through the refresh endpoint.
 - `components/` is grouped by domain (today, food-log, scanner, body, statistics, game, settings, ui).
 - Design rules (Swiss poster on near-black, one display figure per screen, plate colours per
-  nutrient) are in `DESIGN.md`; the product brief is `PRODUCT.md`.
+  nutrient) are in `docs/design-vision.md`.
 
 ## MCP server (`mcp/`)
 

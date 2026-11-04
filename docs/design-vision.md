@@ -7,8 +7,7 @@ leading trackers (MacroFactor, Cronometer, MyFitnessPal, Yazio, Lose It!) in Oct
 
 ## Theme: Swiss grid on black
 
-Chosen on 2026-10-25 from an Impeccable direction round (the full system lives in
-DESIGN.md, the contract in .impeccable/surfaces/). Each day is one Swiss concert poster on a
+Chosen on 2026-10-25. Each day is one Swiss concert poster on a
 visible grid: what has been eaten is set huge (the line under it gives the target and what is left),
 the macros run as quarter arcs off the corner, meals step down as ruled rows. No cards on phones: 1px hairlines divide everything; one neo-grotesk (Host
 Grotesk); a fixed seven-step neutral ramp; "Swiss poster in full colour" (a decision, found
@@ -17,7 +16,7 @@ fat red, fiber green, water cyan, caffeine violet, alcohol rose), one warm alert
 marks over a limit or low on a goal and always comes with the word "over" or "low", and green only means
 done. Sugar, salt and vitamins have no plate and read in ink. The palette passed a
 validator on the g0 ground (lightness band, chroma floor, colour-blind separation, 3:1 contrast); carbs
-amber was replaced because it failed that check. Details in DESIGN.md, Colors.
+amber was replaced because it failed that check.
 
 Every limit or goal (fiber, sugar, salt, caffeine, alcohol, water) has a scale bar with the limit
 marked by a tick; the fill wears the nutrient's plate and past a limit the overflow and tick turn alert beyond the target, with the word "over". Motion

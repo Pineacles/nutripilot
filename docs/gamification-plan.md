@@ -1,7 +1,7 @@
 # Gamification plan
 
 Status: plan, not built yet (2026-10-26). Based on four research passes: competitor apps, behaviour
-science, animation tooling, and a map of the current code and DESIGN.md.
+science, animation tooling, and a map of the current code and the design rules.
 
 ## What the research says
 
@@ -20,15 +20,15 @@ science, animation tooling, and a map of the current code and DESIGN.md.
 
 ## Design fit: "the print shop"
 
-DESIGN.md makes the app a Swiss poster: colour is data, there are no shadows, one display number per screen, green means done, and motion only shows state. Gamification therefore can't arrive as cartoon badges, flames and gradients. It extends the poster metaphor instead:
+The design makes the app a Swiss poster: colour is data, there are no shadows, one display number per screen, green means done, and motion only shows state. Gamification therefore can't arrive as cartoon badges, flames and gradients. It extends the poster metaphor instead:
 
 - **Achievements are prints.** Each earned milestone is a small square poster print: a typographic numeral or glyph on g1 with a 1px g2 frame, printed in the plate ink of its area. A protein print is protein blue, water is water cyan, consistency and weight are ink. This follows the Plate Rule, since the colour names the nutrient. Tiers are print runs: I, II and III.
 - **The collection is a poster wall:** an equal-column grid of prints. Unearned ones sit as g2 outlines with the requirement in 12px g4.
 - **The streak is a ruled strip of days,** not a flame. Each day is a small square cell: ink when logged, g2 when empty, and a hatched cell for a day covered by a freeze. Today's cell "prints" when the first food is logged.
 - **The celebration is a print pass.** The new print wipes in like a screen-print squeegee pass (clip-path left to right), the numeral rolls in, and for big milestones a burst of square paper confetti flies in the print's plate ink. No round confetti and no rainbow.
-- **Done Green** only marks completed day goals and completed quests. That is its meaning in DESIGN.md.
+- **Done Green** only marks completed day goals and completed quests. That is its meaning in the design.
 
-DESIGN.md gets a new "Prints" section, plus one motion exception: one celebration moment of up to 900ms, user-triggered by a milestone, never on routine logging, and off under reduced motion.
+The design rules get one motion exception: one celebration moment of up to 900ms, user-triggered by a milestone, never on routine logging, and off under reduced motion.
 
 ## The mechanics (ranked, all built)
 
@@ -138,7 +138,7 @@ The agent API only gains things: a read-only `GET /api/agent/game/summary` the a
 2. **Body:** trend weight, ETA, weigh-in weeks, trend milestones.
 3. **Prints:** full catalogue, silent backfill and summary sheet, the Stats wall and year grid, replacing the lowest calorie record.
 4. **Quests and Monday recap.**
-5. **Review and polish:** a UI and a UX review, a phone E2E on the demo account with empty test dates only, the DESIGN.md "Prints" section, and screenshots.
+5. **Review and polish:** a UI and a UX review, a phone E2E on the demo account with empty test dates only, and screenshots.
 
 
 ## Decisions (2026-10-26)
