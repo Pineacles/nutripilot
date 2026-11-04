@@ -108,11 +108,7 @@ Rejected:
 - A pet or companion: it does not fit the poster world, and the Finch study shows reward drift.
 - XP and levels: overjustification risk.
 
-**Skills used while building:**
-- The installed `impeccable` animate reference for duration bands (100 to 150, 150 to 300 and 500 to 800 ms), `cubic-bezier(0.16, 1, 0.3, 1)` arrivals, transform and opacity only, and a reduced-motion path.
-- `ui-ux-pro-max` motion rules (30 to 50 ms stagger, at most 1 to 2 animated elements per view, tap feedback under 100 ms).
-- `frontend-design` (one orchestrated moment).
-- Optional: the public `emilkowalski/skills` animate skill, installed only with your OK.
+**Motion rules:** duration bands of 100 to 150, 150 to 300 and 500 to 800 ms, `cubic-bezier(0.16, 1, 0.3, 1)` arrivals, transform and opacity only, a reduced-motion path, 30 to 50 ms stagger, at most 1 to 2 animated elements per view, tap feedback under 100 ms.
 
 ## Backend
 
@@ -142,20 +138,16 @@ The agent API only gains things: a read-only `GET /api/agent/game/summary` the a
 2. **Body:** trend weight, ETA, weigh-in weeks, trend milestones.
 3. **Prints:** full catalogue, silent backfill and summary sheet, the Stats wall and year grid, replacing the lowest calorie record.
 4. **Quests and Monday recap.**
-5. **Review and polish:** a UI reviewer and a UX reviewer (separate Opus agents), a phone E2E on the demo account with empty test dates only, the DESIGN.md "Prints" section, and screenshots.
+5. **Review and polish:** a UI and a UX review, a phone E2E on the demo account with empty test dates only, the DESIGN.md "Prints" section, and screenshots.
 
-**Who builds:**
-- I build the frontend myself.
-- A Sonnet agent builds game_service and the migration against this spec with tests, and I verify it.
-- Two Opus agents review at the end.
 
-## Owner decisions (2026-10-26)
+## Decisions (2026-10-26)
 - "Lowest calorie day" is replaced by "Most varied day" in the app. The agent API keeps its `lowest_calorie_day` field (contracts only gain fields) and gains `most_varied_day`.
 - Agent-logged food counts toward the streak and prints.
 - Celebrations default to full for big milestones.
 - Scope now: phases 1 to 3 (streak and day goals, trend weight, prints). Quests and the Monday recap come later.
 
-## Owner decisions (2026-10-26, later)
+## Decisions (2026-10-26, later)
 - The app should push streaks and healthy lower calorie eating over time. The logging streak stays the only streak and moves into the Today poster's hero.
 - A "window day" is a logged day at or under the kcal target and not below 1000 kcal. It earns prints (days in the window, window weeks, window streak), a weekly quest and an optional "Calorie window" day goal. Days under 1000 kcal never count; days the owner marks as incomplete never count.
 - This replaces the earlier rule "nothing rewards eating less" with "nothing rewards a day under 1000 kcal".

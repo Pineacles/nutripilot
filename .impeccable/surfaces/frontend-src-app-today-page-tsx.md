@@ -7,7 +7,7 @@ related_targets: ["frontend/src/components/food-log/add-food-dialog.tsx"]
 
 # Today and Log food (phone first)
 
-Scope: the Today page and the Log food sheet on phones; desktop keeps its layout but takes the same world. Mode: Operate. Audience: the owner, logging right after eating, one handed, on Android.
+Scope: the Today page and the Log food sheet on phones; desktop keeps its layout but takes the same world. Mode: Operate. Audience: the user, logging right after eating, one handed, on Android.
 
 ## Direction contract
 
