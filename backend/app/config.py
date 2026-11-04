@@ -33,10 +33,23 @@ class Settings(BaseSettings):
     # The address users open NutriPilot at (e.g. https://nutripilot.example.com). OAuth callbacks
     # are built from it; empty means the first https entry of CORS_ORIGINS.
     public_url: str = ""
+    # Which forwarded header identifies the client for rate limiting: "cloudflare" (a Cloudflare
+    # tunnel is the only way in), "xff" (Caddy or another proxy that rewrites X-Forwarded-For), or
+    # "none" (use the direct peer address). See app/client_ip.py.
+    trusted_proxy_mode: str = "cloudflare"
+    # Opt-in for the public demo account (demo@nutripilot.dev, password "demo"). In production
+    # seed_demo.py refuses to create it and demo_daily.py stays idle unless DEMO_ACCOUNT=1.
+    demo_account: bool = False
     # withings_client_id and withings_client_secret were removed:
     # credentials are stored per-integration in the Integration.field_mapping column.
 
     model_config = {"env_file": ".env"}
+
+    @model_validator(mode="after")
+    def _check_proxy_mode(self) -> "Settings":
+        if self.trusted_proxy_mode not in ("cloudflare", "xff", "none"):
+            raise ValueError("TRUSTED_PROXY_MODE must be one of: cloudflare, xff, none")
+        return self
 
     @model_validator(mode="after")
     def _check_production_secrets(self) -> "Settings":
@@ -44,6 +57,11 @@ class Settings(BaseSettings):
             if self.jwt_secret == _DEV_JWT_SECRET:
                 raise ValueError(
                     "JWT_SECRET must not be the development default in production. "
+                    "Generate one with: openssl rand -hex 32"
+                )
+            if len(self.jwt_secret) < 32:
+                raise ValueError(
+                    "JWT_SECRET must be at least 32 characters in production. "
                     "Generate one with: openssl rand -hex 32"
                 )
             if self.cors_origins == _DEV_CORS_ORIGINS:

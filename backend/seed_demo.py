@@ -11,6 +11,7 @@ from passlib.context import CryptContext
 from sqlalchemy import delete, select
 
 from app.auth.api_keys import api_key_fields
+from app.config import settings
 from app.database import async_session
 from app.models import (
     CaffeineLog,
@@ -125,6 +126,11 @@ def _rand(lo: float, hi: float) -> float:
 
 
 async def seed_demo():
+    if settings.environment == "production" and not settings.demo_account:
+        raise SystemExit(
+            "Refusing to create the demo user (password 'demo') with ENVIRONMENT=production. "
+            "Set DEMO_ACCOUNT=1 if this deployment is meant to have the public demo account."
+        )
     random.seed(42)  # reproducible
 
     async with async_session() as db:

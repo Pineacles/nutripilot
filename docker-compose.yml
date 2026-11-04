@@ -28,9 +28,11 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://nutripilot:nutripilot@db:5432/nutripilot}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
-      # Falls back to the same dev-only key hardcoded in app/config.py so local
-      # dev works out of the box; override in .env to test rotation locally.
-      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-sx9C_xR4WKwZa-JGiJ8xy4eZW5OxMkauVGVWpPuDb1A=}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?Set TOKEN_ENCRYPTION_KEY in .env (see .env.example for the generation command)}
+      # Cloudflare tunnel in front: trust CF-Connecting-IP. Use "xff" behind Caddy, "none" when exposed directly.
+      TRUSTED_PROXY_MODE: ${TRUSTED_PROXY_MODE:-cloudflare}
+      # Keeps the public demo account (demo@nutripilot.dev) seeded daily; production refuses it without this.
+      DEMO_ACCOUNT: ${DEMO_ACCOUNT:-1}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       USDA_API_KEY: ${USDA_API_KEY:-}
       PUBLIC_URL: ${PUBLIC_URL:-}

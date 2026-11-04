@@ -7,6 +7,7 @@ import uuid
 
 from sqlalchemy import func, select
 
+from app.config import settings
 from app.database import async_session
 from app.models import CaffeineLog, Food, FoodLog, Supplement, User, WaterLog, WeightLog
 from app.services.clock import today_for
@@ -66,6 +67,8 @@ def _rand(lo: float, hi: float) -> float:
 
 async def seed_today():
     """Generate demo data for today. Skips if today's food logs already exist."""
+    if settings.environment == "production" and not settings.demo_account:
+        return
     async with async_session() as db:
         # Find demo user
         result = await db.execute(select(User).where(User.email == DEMO_EMAIL))
