@@ -32,7 +32,7 @@ services:
       # Cloudflare tunnel in front: trust CF-Connecting-IP. Use "xff" behind Caddy, "none" when exposed directly.
       TRUSTED_PROXY_MODE: ${TRUSTED_PROXY_MODE:-cloudflare}
       # Keeps the public demo account (demo@nutripilot.dev) seeded daily; production refuses it without this.
-      DEMO_ACCOUNT: ${DEMO_ACCOUNT:-1}
+      DEMO_ACCOUNT: ${DEMO_ACCOUNT:-0}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       USDA_API_KEY: ${USDA_API_KEY:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
