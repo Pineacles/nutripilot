@@ -1,10 +1,13 @@
 FROM node:22-slim
 
 WORKDIR /app
+RUN chown node:node /app
 
-COPY package*.json ./
+USER node
+
+COPY --chown=node:node package*.json ./
 RUN npm ci
 
-COPY . .
+COPY --chown=node:node . .
 
 CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
