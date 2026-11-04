@@ -223,6 +223,8 @@ async def search_by_text(query: str, limit: int = 10) -> list[dict]:
 
 async def lookup_barcode(barcode: str) -> tuple[str, NutrientData, float | None, str | None] | None:
     """Look up a barcode on OpenFoodFacts. Returns (product_name, nutrients, serving g, serving label) or None."""
+    if not re.fullmatch(r"\d{4,50}", barcode or ""):
+        return None
     url = f"https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
     async with httpx.AsyncClient(timeout=10, headers=HEADERS) as client:
         try:

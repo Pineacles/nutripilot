@@ -1,3 +1,5 @@
+import re
+
 import httpx
 
 from app.config import settings
@@ -39,7 +41,7 @@ async def lookup_barcode(barcode: str) -> tuple[str, NutrientData, float | None,
     The search is full text, so its first hit can be a different product that merely mentions the
     number; only a branded food whose GTIN/UPC is this barcode counts.
     """
-    if not settings.usda_api_key:
+    if not settings.usda_api_key or not re.fullmatch(r"\d{4,50}", barcode or ""):
         return None
 
     url = "https://api.nal.usda.gov/fdc/v1/foods/search"
