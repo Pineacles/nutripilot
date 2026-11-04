@@ -809,7 +809,19 @@ def handle(msg: dict):
     return None if mid is None else {"jsonrpc": "2.0", "id": mid, "result": result}
 
 
+def insecure_url_warning(url: str) -> str | None:
+    """The API key travels in a header: plain http is only safe to the same machine."""
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme == "http" and (parts.hostname or "") not in ("localhost", "127.0.0.1", "::1"):
+        return (f"warning: NUTRIPILOT_URL uses plain http to {parts.hostname}; the API key and diary "
+                "data cross the network unencrypted. Use https.")
+    return None
+
+
 def main():
+    warning = insecure_url_warning(os.environ.get("NUTRIPILOT_URL", "http://127.0.0.1:8099"))
+    if warning:
+        print(warning, file=sys.stderr, flush=True)
     for line in sys.stdin:
         line = line.strip()
         if not line:

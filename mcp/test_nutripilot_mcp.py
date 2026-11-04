@@ -169,6 +169,12 @@ class Protocol(unittest.TestCase):
     def test_unknown_method_is_an_error(self):
         self.assertEqual(m.handle({"jsonrpc": "2.0", "id": 2, "method": "nope"})["error"]["code"], -32601)
 
+    def test_plain_http_to_remote_host_warns(self):
+        self.assertIn("plain http", m.insecure_url_warning("http://nutri.example.com:8099"))
+        self.assertIsNone(m.insecure_url_warning("http://127.0.0.1:8099"))
+        self.assertIsNone(m.insecure_url_warning("http://localhost:8099"))
+        self.assertIsNone(m.insecure_url_warning("https://nutri.example.com"))
+
 
 if __name__ == "__main__":
     unittest.main()

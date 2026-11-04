@@ -30,6 +30,11 @@ with the user's API key (NutriPilot settings, "API key").
 - Optional write gate: with `NUTRIPILOT_WRITE_GATE` set, every tool that changes something
   needs the word `allow` in that file. A host app can write `deny` for turns the user did not
   start, so text from the web can never make the assistant change the diary.
+- `user_confirmed` is set by the model, not by the user: it is a prompt-level guard, not an
+  authorization. A prompt-injected model can set it too. Set `NUTRIPILOT_WRITE_GATE` (and have the
+  host app write `deny` outside turns the user started) so that the gate, not the model, decides.
+- Use https for `NUTRIPILOT_URL` unless the API is on the same machine; the server prints a
+  warning to stderr at startup for plain http to any other host.
 - Every change is appended to `audit.jsonl` in the state folder (mode 600).
 
 ## Setup
