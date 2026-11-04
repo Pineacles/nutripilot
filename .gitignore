@@ -49,3 +49,4 @@ CLAUDE.md
 .impeccable/review/
 .impeccable/build/
 .impeccable/config.local.json
+.env.bak*
