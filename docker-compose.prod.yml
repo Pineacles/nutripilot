@@ -29,6 +29,8 @@ services:
       USDA_API_KEY: ${USDA_API_KEY:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
       INTEGRATION_SYNC: ${INTEGRATION_SYNC:-true}
+      # Caddy rewrites X-Forwarded-For and strips CF-Connecting-IP (see Caddyfile).
+      TRUSTED_PROXY_MODE: xff
     depends_on:
       db:
         condition: service_healthy

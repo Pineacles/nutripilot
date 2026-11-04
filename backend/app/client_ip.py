@@ -5,11 +5,22 @@ tunnel), so the direct TCP peer is always the proxy. Forwarded headers are
 honoured only when the direct peer is on a private/loopback network (the
 docker network or localhost); otherwise the peer address itself is used, so a
 caller that reaches the API directly cannot spoof its own bucket.
+
+Which forwarded header is believed depends on TRUSTED_PROXY_MODE, because a
+header is only trustworthy when the outermost proxy overwrites it:
+
+- cloudflare: CF-Connecting-IP (set by Cloudflare's edge), then X-Forwarded-For.
+  Use when a Cloudflare tunnel is the only way in.
+- xff: X-Forwarded-For only; CF-Connecting-IP is ignored (Caddy/nginx setups,
+  where a client could send that header itself).
+- none: always the direct peer address.
 """
 
 import ipaddress
 
 from starlette.requests import Request
+
+from app.config import settings
 
 
 def _parse(value: str):
@@ -29,9 +40,14 @@ def get_client_ip(request: Request) -> str:
     if peer_ip is None or not _is_internal(peer_ip):
         return peer
 
-    cf = _parse(request.headers.get("cf-connecting-ip", ""))
-    if cf is not None:
-        return str(cf)
+    mode = settings.trusted_proxy_mode
+    if mode == "none":
+        return peer
+
+    if mode == "cloudflare":
+        cf = _parse(request.headers.get("cf-connecting-ip", ""))
+        if cf is not None:
+            return str(cf)
 
     # X-Forwarded-For: walk from the right, skipping our own internal hops;
     # the first public address is the client as seen by the outermost proxy.

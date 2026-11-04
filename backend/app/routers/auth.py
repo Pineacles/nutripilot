@@ -1,3 +1,4 @@
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -19,6 +20,29 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Dummy hash used to prevent timing attacks when user is not found
 _DUMMY_HASH = pwd_context.hash("dummy-password-for-timing-attack-prevention")
+
+
+# Account-level brute-force guard, independent of the client address: a caller that rotates IPs
+# still hits this. Counts failed logins per email in a sliding window (per worker process).
+_FAIL_LIMIT = 10
+_FAIL_WINDOW_S = 900
+_FAIL_MAX_KEYS = 10_000
+_failed_logins: dict[str, list[float]] = {}
+
+
+def _recent_failures(email: str, now: float) -> list[float]:
+    recent = [t for t in _failed_logins.get(email, []) if now - t < _FAIL_WINDOW_S]
+    if recent:
+        _failed_logins[email] = recent
+    else:
+        _failed_logins.pop(email, None)
+    return recent
+
+
+def _record_failure(email: str, now: float) -> None:
+    if email not in _failed_logins and len(_failed_logins) >= _FAIL_MAX_KEYS:
+        _failed_logins.pop(next(iter(_failed_logins)))
+    _failed_logins.setdefault(email, []).append(now)
 
 
 async def issue_refresh_token(db: AsyncSession, user_id: uuid.UUID) -> str:
@@ -56,14 +80,25 @@ def _refresh_claims(token: str) -> tuple[uuid.UUID, str]:
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    key = body.email.strip().lower()
+    now = time.monotonic()
+    if len(_recent_failures(key, now)) >= _FAIL_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed logins for this account. Try again later.",
+            headers={"Retry-After": str(_FAIL_WINDOW_S)},
+        )
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
     if user is None:
         # Always run verify to prevent timing attacks
         pwd_context.verify(body.password, _DUMMY_HASH)
+        _record_failure(key, now)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not pwd_context.verify(body.password, user.password_hash):
+        _record_failure(key, now)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    _failed_logins.pop(key, None)
     return TokenResponse(
         access_token=create_access_token(str(user.id)),
         refresh_token=await issue_refresh_token(db, user.id),

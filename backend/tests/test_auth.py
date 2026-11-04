@@ -189,3 +189,27 @@ async def test_api_key_is_stored_hashed_and_regenerate_shows_it_once(async_clien
     ).status_code == 401
     settings = await async_client.get("/api/v1/settings", headers=auth_headers)
     assert settings.json()["api_key_masked"] == new_key[:8] + "..."
+
+
+async def test_login_locks_account_after_repeated_failures(async_client, test_user):
+    """Rotating client IPs does not help: failures are also counted per account."""
+    from app.routers import auth as auth_router
+
+    auth_router._failed_logins.clear()
+    try:
+        for _ in range(auth_router._FAIL_LIMIT):
+            r = await async_client.post(
+                "/api/auth/login", json={"email": test_user.email, "password": "nope"}
+            )
+            assert r.status_code == 401
+        locked = await async_client.post(
+            "/api/auth/login", json={"email": test_user.email, "password": "test-password-123"}
+        )
+        assert locked.status_code == 429
+        auth_router._failed_logins.clear()
+        ok = await async_client.post(
+            "/api/auth/login", json={"email": test_user.email, "password": "test-password-123"}
+        )
+        assert ok.status_code == 200
+    finally:
+        auth_router._failed_logins.clear()

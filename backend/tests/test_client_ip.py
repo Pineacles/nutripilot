@@ -26,3 +26,20 @@ def test_xff_skips_internal_hops_and_spoofed_left_entries():
 def test_falls_back_to_peer():
     assert get_client_ip(_req("172.18.0.5")) == "172.18.0.5"
     assert get_client_ip(_req("172.18.0.5", {"CF-Connecting-IP": "garbage"})) == "172.18.0.5"
+
+
+def test_xff_mode_ignores_client_supplied_cf_header(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "trusted_proxy_mode", "xff")
+    headers = {"CF-Connecting-IP": "6.6.6.6", "X-Forwarded-For": "1.1.1.1"}
+    assert get_client_ip(_req("172.18.0.5", headers)) == "1.1.1.1"
+    assert get_client_ip(_req("172.18.0.5", {"CF-Connecting-IP": "6.6.6.6"})) == "172.18.0.5"
+
+
+def test_none_mode_always_uses_peer(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "trusted_proxy_mode", "none")
+    headers = {"CF-Connecting-IP": "6.6.6.6", "X-Forwarded-For": "1.1.1.1"}
+    assert get_client_ip(_req("172.18.0.5", headers)) == "172.18.0.5"

@@ -1,23 +1,33 @@
 {$DOMAIN:localhost} {
 	# Frontend
 	handle {
-		reverse_proxy web:3000
+		reverse_proxy web:3000 {
+			header_up -CF-Connecting-IP
+		}
 	}
 
 	# API
 	handle /api/* {
-		reverse_proxy api:8000
+		reverse_proxy api:8000 {
+			header_up -CF-Connecting-IP
+		}
 	}
 
 	handle /health {
-		reverse_proxy api:8000
+		reverse_proxy api:8000 {
+			header_up -CF-Connecting-IP
+		}
 	}
 
 	handle /docs {
-		reverse_proxy api:8000
+		reverse_proxy api:8000 {
+			header_up -CF-Connecting-IP
+		}
 	}
 
 	handle /openapi.json {
-		reverse_proxy api:8000
+		reverse_proxy api:8000 {
+			header_up -CF-Connecting-IP
+		}
 	}
 }

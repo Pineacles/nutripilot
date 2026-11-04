@@ -36,8 +36,7 @@ services:
       USDA_API_KEY: ${USDA_API_KEY:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
       INTEGRATION_SYNC: ${INTEGRATION_SYNC:-true}
-      SEED_EMAIL: ${SEED_EMAIL:-admin@nutripilot.dev}
-      SEED_PASSWORD: ${SEED_PASSWORD:?Set SEED_PASSWORD in .env}
+      TRUSTED_PROXY_MODE: ${TRUSTED_PROXY_MODE:-cloudflare}
     depends_on:
       db:
         condition: service_healthy
