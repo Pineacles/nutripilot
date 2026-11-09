@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.food_log import FoodLog
@@ -39,6 +39,9 @@ WEEKEND_GAP_KCAL = 300
 FAST_LOSS_PCT = -1.0  # losing more than 1 % of body weight a week
 MIN_WEIGH_INS_FOR_RATE = 4
 MICRO_LOW_SHARE = 0.7
+# A nutrient average is only judged when foods with a value for it make up this share of the kcal;
+# below it the average mostly measures missing data.
+MIN_COVERAGE = 0.7
 
 
 def _round(value: float | None, digits: int = 1) -> float | None:
@@ -60,6 +63,9 @@ def review_flags(
     weekday_kcal: float | None,
     weekend_kcal: float | None,
     under_floor_days: int,
+    hard_floor: float,
+    fiber_coverage: float,
+    thin_data: list[str],
     rate_pct: float | None,
     rate_kg: float | None,
     weigh_ins: int,
@@ -80,11 +86,11 @@ def review_flags(
     if under_floor_days >= 2:
         flags.append(ReviewFlag(
             code="under_safe_floor",
-            detail=f"{under_floor_days} fully logged day(s) under the safe floor; check in kindly, never push lower",
+            detail=f"{under_floor_days} fully logged day(s) under {hard_floor:.0f} kcal; check in kindly, never push lower",
         ))
     if avg_protein is not None and target_protein and avg_protein < PROTEIN_LOW_SHARE * target_protein:
         flags.append(ReviewFlag(code="protein_low", detail=f"protein averaged {avg_protein:.0f} of {target_protein:.0f} g"))
-    if avg_fiber is not None and target_fiber and avg_fiber < FIBER_LOW_SHARE * target_fiber:
+    if avg_fiber is not None and target_fiber and fiber_coverage >= MIN_COVERAGE and avg_fiber < FIBER_LOW_SHARE * target_fiber:
         flags.append(ReviewFlag(code="fiber_low", detail=f"fiber averaged {avg_fiber:.0f} of {target_fiber:.0f} g"))
     if weekday_kcal is not None and weekend_kcal is not None and weekend_kcal - weekday_kcal > WEEKEND_GAP_KCAL:
         flags.append(ReviewFlag(
@@ -97,6 +103,11 @@ def review_flags(
             ))
         elif rate_kg is not None and rate_kg >= 0 and trend_kg is not None and target_weight is not None and target_weight < trend_kg:
             flags.append(ReviewFlag(code="trend_not_falling", detail=f"trend changing {rate_kg:+.2f} kg a week"))
+    if thin_data:
+        flags.append(ReviewFlag(
+            code="nutrient_data_thin",
+            detail="too few logged foods have values for " + ", ".join(thin_data) + "; those averages are lower bounds, not gaps",
+        ))
     for gap in micro_gaps:
         flags.append(ReviewFlag(code="micronutrient_low", detail=f"{gap.nutrient} averaged {gap.avg:g} of {gap.target:g} {gap.unit}"))
     return flags
@@ -118,6 +129,23 @@ async def _daily_intake(db: AsyncSession, user: User, start: date, end: date) ->
         )
     ).all()
     return {r.date: {"kcal": float(r.kcal), "protein": float(r.protein), "fiber": float(r.fiber)} for r in rows}
+
+
+async def _coverage(db: AsyncSession, user: User, start: date, end: date, fields: list[str]) -> dict[str, float]:
+    """Per nutrient: the share of logged kcal that comes from foods with a value for it."""
+    kcal = FoodLog.quantity_g * func.coalesce(Nutrient.kcal, 0)
+    cols = [func.sum(kcal).label("total")] + [
+        func.sum(case((getattr(Nutrient, f).is_not(None), kcal), else_=0)).label(f) for f in fields
+    ]
+    row = (
+        await db.execute(
+            select(*cols)
+            .join(Nutrient, Nutrient.food_id == FoodLog.food_id)
+            .where(FoodLog.user_id == user.id, FoodLog.date >= start, FoodLog.date <= end)
+        )
+    ).one()
+    total = float(row.total or 0)
+    return {f: (float(getattr(row, f) or 0) / total if total else 0.0) for f in fields}
 
 
 async def get_week_review(db: AsyncSession, user: User, end_date: date | None = None) -> WeekReview:
@@ -152,6 +180,7 @@ async def get_week_review(db: AsyncSession, user: User, end_date: date | None = 
     if trend_end is not None and user.height_cm and user.birth_year and user.sex:
         bmr = ps.bmr_mifflin_st_jeor(trend_end, user.height_cm, end.year - user.birth_year, user.sex)
     floor = ps.safe_floor_kcal(bmr, user.sex)
+    hard_floor = ps.safe_floor_kcal(None, user.sex)
 
     days: list[ReviewDay] = []
     for i in range(WEEK_DAYS):
@@ -186,10 +215,14 @@ async def get_week_review(db: AsyncSession, user: User, end_date: date | None = 
         await db.execute(select(MicronutrientTarget).where(MicronutrientTarget.user_id == user.id))
     ).scalars().all()
     micro_avg = week.micronutrient_avg.model_dump()
+    tracked = [t for t in micro_targets if t.nutrient in micro_avg and hasattr(Nutrient, t.nutrient)]
+    coverage = await _coverage(db, user, start, end, ["fiber"] + [t.nutrient for t in tracked])
+    thin = [f for f, share in coverage.items() if full and share < MIN_COVERAGE]
     gaps = []
-    for t in micro_targets:
+    for t in tracked:
         value = micro_avg.get(t.nutrient)
-        if full and t.target_value and value is not None and value < MICRO_LOW_SHARE * t.target_value:
+        if (full and t.target_value and value is not None and coverage[t.nutrient] >= MIN_COVERAGE
+                and value < MICRO_LOW_SHARE * t.target_value):
             gaps.append(MicronutrientGap(nutrient=t.nutrient, avg=round(value, 1), target=t.target_value, unit=t.unit))
 
     weight = ReviewWeight(
@@ -200,6 +233,7 @@ async def get_week_review(db: AsyncSession, user: User, end_date: date | None = 
         rate_kg_per_week=_round(rate_kg, 2),
         rate_pct_per_week=_round(rate_pct, 2),
         target_weight_kg=user.target_weight_kg,
+        last_weigh_in=max(daily_weight) if daily_weight else None,
     )
     return WeekReview(
         start=start,
@@ -220,6 +254,7 @@ async def get_week_review(db: AsyncSession, user: User, end_date: date | None = 
             kcal_window_days=sum(x.in_kcal_window for x in days),
             protein_met_days=sum(x.protein_met for x in days),
             fiber_met_days=sum(x.fiber_met for x in days),
+            fiber_coverage_pct=round(100 * coverage["fiber"]),
         ),
         previous_week=ReviewPrevious(
             logged_days=len(prev),
@@ -237,7 +272,10 @@ async def get_week_review(db: AsyncSession, user: User, end_date: date | None = 
             target_fiber=user.target_fiber_g,
             weekday_kcal=weekday_kcal,
             weekend_kcal=weekend_kcal,
-            under_floor_days=sum(1 for x in full if x.kcal < floor),
+            under_floor_days=sum(1 for x in full if x.kcal < hard_floor),
+            hard_floor=hard_floor,
+            fiber_coverage=coverage["fiber"],
+            thin_data=thin,
             rate_pct=rate_pct,
             rate_kg=rate_kg,
             weigh_ins=weigh_ins_rate,

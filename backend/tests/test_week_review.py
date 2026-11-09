@@ -89,7 +89,7 @@ async def test_week_review_counts_and_flags(async_client, api_key_headers, test_
 def _flags(**over):
     base = dict(
         logged_days=7, light_days=0, avg_protein=150.0, target_protein=150.0, avg_fiber=30.0, target_fiber=30.0,
-        weekday_kcal=1800.0, weekend_kcal=1900.0, under_floor_days=0, rate_pct=-0.5, rate_kg=-0.45, weigh_ins=10,
+        weekday_kcal=1800.0, weekend_kcal=1900.0, under_floor_days=0, hard_floor=1500.0, fiber_coverage=0.9, thin_data=[], rate_pct=-0.5, rate_kg=-0.45, weigh_ins=10,
         trend_kg=90.0, target_weight=80.0, micro_gaps=[],
     )
     return {f.code for f in review_flags(**{**base, **over})}
@@ -118,3 +118,8 @@ def test_rate_flags_need_enough_weigh_ins_and_a_lower_goal():
     assert "trend_not_falling" not in _flags(rate_pct=0.1, rate_kg=0.1, target_weight=None)
     assert "trend_not_falling" not in _flags(rate_pct=0.1, rate_kg=0.1, target_weight=95.0)
     assert "under_safe_floor" not in _flags(under_floor_days=1)
+
+
+def test_thin_nutrient_data_is_not_a_gap():
+    assert "fiber_low" not in _flags(avg_fiber=7.0, fiber_coverage=0.6)
+    assert "nutrient_data_thin" in _flags(thin_data=["fiber", "zinc"])

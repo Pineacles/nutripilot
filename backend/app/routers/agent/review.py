@@ -28,7 +28,8 @@ router = APIRouter()
         "- **micronutrient_gaps**: tracked micronutrients averaging under 70 % of their target\n"
         "- **flags**: measured facts worth a sentence (`logging_gaps`, `light_days`, `under_safe_floor`, "
         "`protein_low`, `fiber_low`, `weekend_higher`, `loss_too_fast`, `trend_not_falling`, "
-        "`micronutrient_low`). They describe the week, never the person: talk about logging and trends, "
+        "`micronutrient_low`, `nutrient_data_thin`). Fiber and micronutrients are only judged when foods with a value "
+        "make up 70 % of the logged kcal. They describe the week, never the person: talk about logging and trends, "
         "and on `under_safe_floor` or `loss_too_fast` never suggest eating less."
     ),
 )

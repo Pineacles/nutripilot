@@ -36,6 +36,8 @@ class ReviewIntake(BaseModel):
     kcal_window_days: int
     protein_met_days: int
     fiber_met_days: int
+    # Share of logged kcal from foods with a fiber value; under 70 % the fiber average is a lower bound.
+    fiber_coverage_pct: int
 
 
 class ReviewPrevious(BaseModel):
@@ -52,6 +54,7 @@ class ReviewWeight(BaseModel):
     rate_kg_per_week: float | None = None
     rate_pct_per_week: float | None = None
     target_weight_kg: float | None = None
+    last_weigh_in: datetime.date | None = None
 
 
 class MicronutrientGap(BaseModel):

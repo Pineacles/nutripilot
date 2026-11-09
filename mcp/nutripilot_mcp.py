@@ -289,6 +289,8 @@ def tool_review(a):
     lines.append(f"Average: {num(i['avg_kcal'])} of {num(t['kcal'])} kcal, protein {num(i['avg_protein_g'])} of {num(t['protein_g'])} g, "
                  f"fiber {num(i['avg_fiber_g'])} of {num(t['fiber_g'])} g")
     lines.append(f"Days in the calorie window {i['kcal_window_days']}, protein met {i['protein_met_days']}, fiber met {i['fiber_met_days']}")
+    if i.get("fiber_coverage_pct", 100) < 70:
+        lines.append(f"Fiber is known for only {i['fiber_coverage_pct']} % of the logged kcal, so the fiber average is a lower bound")
     if i.get("weekday_avg_kcal") is not None and i.get("weekend_avg_kcal") is not None:
         lines.append(f"Weekdays {num(i['weekday_avg_kcal'])} kcal, weekend {num(i['weekend_avg_kcal'])} kcal")
     lines += [f"  {d['date']} {d['weekday']}: " + (f"{num(d['kcal'])} kcal, P {num(d['protein_g'])} g, fiber {num(d['fiber_g'])} g"
@@ -299,6 +301,8 @@ def tool_review(a):
     if w.get("trend_end_kg") is not None:
         lines.append(f"Trend weight {num(w.get('trend_start_kg'), 1)} to {num(w['trend_end_kg'], 1)} kg ({num(w.get('trend_change_kg'), 2)} kg), "
                      f"{w['weigh_in_days']} weigh-ins this week; goal {num(w.get('target_weight_kg'), 1)} kg")
+        if not w["weigh_in_days"]:
+            lines.append(f"No weigh-in this week (last {w.get('last_weigh_in')}): the trend and pace are carried over, not new")
         if w.get("rate_kg_per_week") is not None:
             lines.append(f"Pace over 14 days: {num(w['rate_kg_per_week'], 2)} kg/week ({num(w['rate_pct_per_week'], 2)} % of body weight)")
     else:
