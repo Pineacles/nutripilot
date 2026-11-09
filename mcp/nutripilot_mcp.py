@@ -280,6 +280,40 @@ def tool_progress(a):
     return "\n".join(lines)
 
 
+def tool_review(a):
+    end = need_date(a.get("end_date"))
+    r = call("GET", "/api/agent/review/week", query={"end_date": end} if end else None)
+    i, t, w = r["intake"], r["targets"], r["weight"]
+    lines = [f"Week review {r['start']} to {r['end']} (finished days only; facts, quote them, never compute your own)"]
+    lines.append(f"Logging: {i['logged_days']} of 7 days logged, {i['full_days']} fully (averages use the full days)")
+    lines.append(f"Average: {num(i['avg_kcal'])} of {num(t['kcal'])} kcal, protein {num(i['avg_protein_g'])} of {num(t['protein_g'])} g, "
+                 f"fiber {num(i['avg_fiber_g'])} of {num(t['fiber_g'])} g")
+    lines.append(f"Days in the calorie window {i['kcal_window_days']}, protein met {i['protein_met_days']}, fiber met {i['fiber_met_days']}")
+    if i.get("weekday_avg_kcal") is not None and i.get("weekend_avg_kcal") is not None:
+        lines.append(f"Weekdays {num(i['weekday_avg_kcal'])} kcal, weekend {num(i['weekend_avg_kcal'])} kcal")
+    lines += [f"  {d['date']} {d['weekday']}: " + (f"{num(d['kcal'])} kcal, P {num(d['protein_g'])} g, fiber {num(d['fiber_g'])} g"
+              if d["logged"] else "not logged") + (f", weighed {num(d['weight_kg'], 1)} kg" if d.get("weight_kg") is not None else "")
+              for d in r["days"]]
+    p = r["previous_week"]
+    lines.append(f"Week before: {p['logged_days']} days logged, average {num(p.get('avg_kcal'))} kcal, protein {num(p.get('avg_protein_g'))} g")
+    if w.get("trend_end_kg") is not None:
+        lines.append(f"Trend weight {num(w.get('trend_start_kg'), 1)} to {num(w['trend_end_kg'], 1)} kg ({num(w.get('trend_change_kg'), 2)} kg), "
+                     f"{w['weigh_in_days']} weigh-ins this week; goal {num(w.get('target_weight_kg'), 1)} kg")
+        if w.get("rate_kg_per_week") is not None:
+            lines.append(f"Pace over 14 days: {num(w['rate_kg_per_week'], 2)} kg/week ({num(w['rate_pct_per_week'], 2)} % of body weight)")
+    else:
+        lines.append("Weight: no weigh-ins in the last weeks.")
+    lines.append(f"Safe floor: {num(t['safe_floor_kcal'])} kcal/day")
+    if r["flags"]:
+        lines.append("Flags (facts about the week, not about the person):")
+        lines += [f"  {f['code']}: {text(f['detail'], 160)}" for f in r["flags"]]
+    else:
+        lines.append("Flags: none, a steady week.")
+    lines.append("Talk about logging and trends, never about body or willpower. Pick one concrete thing for next week. "
+                 "On under_safe_floor or loss_too_fast never suggest eating less.")
+    return "\n".join(lines)
+
+
 def tool_find_food(a):
     if a.get("food_id"):
         return food_detail(need_uuid(a["food_id"], "food_id"))
@@ -611,6 +645,16 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {"days": {"type": "integer", "minimum": 7, "maximum": 120, "description": "Window, default 28."}}},
         "annotations": {"title": "Progress", "readOnlyHint": True, "openWorldHint": False},
         "fn": tool_progress,
+    },
+    {
+        "name": "review",
+        "description": "The weekly check-in, computed by the server for the 7 finished days ending end_date (default "
+                       "yesterday): days logged, averages against targets, days in the calorie window and meeting protein "
+                       "and fiber, weekday vs weekend, the week before, trend weight and pace, micronutrient gaps and factual "
+                       "flags. Use it when the user asks for a review or check-in of their week, or in a scheduled check-in.",
+        "inputSchema": {"type": "object", "properties": {"end_date": {"type": "string", "description": "YYYY-MM-DD, last day of the week; leave out for yesterday."}}},
+        "annotations": {"title": "Weekly review", "readOnlyHint": True, "openWorldHint": False},
+        "fn": tool_review,
     },
     {
         "name": "find_food",

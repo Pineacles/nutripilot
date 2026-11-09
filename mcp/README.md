@@ -13,6 +13,7 @@ with the user's API key (NutriPilot settings, "API key").
 |---|---|
 | `diary` | One day with every entry and the totals against the targets, or a week |
 | `progress` | Trend weight, weekly pace, average intake, estimated burn, safe floor, profile |
+| `review` | The weekly check-in: days logged, averages against targets, weekday vs weekend, trend and pace, factual flags |
 | `find_food` | Search foods, or the full nutrients of one food or dish |
 | `log_meal` | Log one meal of several items, all or nothing; a repeated `request_id` never logs twice |
 | `create_food` | A new private food, marked as an estimate or as read from packaging |

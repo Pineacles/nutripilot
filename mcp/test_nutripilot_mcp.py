@@ -136,6 +136,46 @@ class Logging(unittest.TestCase):
         self.assertTrue(r["isError"])
 
 
+class Review(unittest.TestCase):
+    REVIEW = {
+        "start": "2026-11-02", "end": "2026-11-08",
+        "days": [{"date": "2026-11-02", "weekday": "Mon", "logged": True, "kcal": 1750, "protein_g": 120, "fiber_g": 18,
+                  "weight_kg": 88.4}] + [{"date": f"2026-11-0{d}", "weekday": "Tue", "logged": False} for d in range(3, 9)],
+        "targets": {"kcal": 1800, "protein_g": 170, "fiber_g": 30, "safe_floor_kcal": 1500},
+        "intake": {"logged_days": 1, "full_days": 1, "avg_kcal": 1750, "avg_protein_g": 120, "avg_fiber_g": 18,
+                   "weekday_avg_kcal": 1750, "weekend_avg_kcal": None, "kcal_window_days": 1, "protein_met_days": 0,
+                   "fiber_met_days": 0},
+        "previous_week": {"logged_days": 5, "avg_kcal": 1900, "avg_protein_g": 140},
+        "weight": {"weigh_in_days": 1, "trend_start_kg": 88.9, "trend_end_kg": 88.5, "trend_change_kg": -0.4,
+                   "rate_kg_per_week": -0.5, "rate_pct_per_week": -0.56, "target_weight_kg": 80},
+        "micronutrient_gaps": [],
+        "flags": [{"code": "logging_gaps", "detail": "1 of 7 days have food logged"}],
+    }
+
+    def test_review_is_a_read_and_quotes_the_server(self):
+        os.environ.pop("NUTRIPILOT_WRITE_GATE", None)
+        seen = []
+
+        def call(method, path, body=None, query=None):
+            seen.append((method, path, query))
+            return self.REVIEW
+
+        with mock.patch.object(m, "call", call), mock.patch.dict(os.environ, {"NUTRIPILOT_WRITE_GATE": "/nonexistent"}):
+            r = m.run_tool("review", {})
+        text = r["content"][0]["text"]
+        self.assertNotIn("isError", r)
+        self.assertEqual(seen, [("GET", "/api/agent/review/week", None)])
+        self.assertIn("1 of 7 days logged", text)
+        self.assertIn("logging_gaps: 1 of 7 days", text)
+        self.assertIn("not logged", text)
+        self.assertIn("88.5 kg", text)
+
+    def test_review_passes_the_end_date(self):
+        with mock.patch.object(m, "call", return_value=self.REVIEW) as call:
+            m.run_tool("review", {"end_date": "2026-11-08"})
+        self.assertEqual(call.call_args.kwargs["query"], {"end_date": "2026-11-08"})
+
+
 class Plan(unittest.TestCase):
     def setUp(self):
         os.environ.pop("NUTRIPILOT_WRITE_GATE", None)

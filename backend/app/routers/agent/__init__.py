@@ -15,6 +15,7 @@ from app.routers.agent import (
     integrations,
     profile,
     progress,
+    review,
     settings_mirror,
     summaries,
     supplements,
@@ -29,6 +30,7 @@ router.include_router(food_logs.router)
 router.include_router(dishes.router)
 router.include_router(profile.router)
 router.include_router(progress.router)
+router.include_router(review.router)
 router.include_router(weight_logs.router)
 router.include_router(water_caffeine.router)
 router.include_router(supplements.router)
