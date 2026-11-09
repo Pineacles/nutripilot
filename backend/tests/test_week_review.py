@@ -12,8 +12,6 @@ from app.services.clock import today_for
 from app.services.review_service import review_flags
 
 
-
-
 async def _food(client, headers, kcal, protein, fiber):
     resp = await client.post(
         "/api/foods",
